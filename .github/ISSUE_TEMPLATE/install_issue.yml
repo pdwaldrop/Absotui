@@ -27,7 +27,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Toutui version
+      label: Absotui version
       description: Do not put 'Latest version', please put the actual version here
       placeholder: 'e.g. v0.1.0-beta'
     validations:

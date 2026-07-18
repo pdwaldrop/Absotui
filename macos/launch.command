@@ -1,3 +1,3 @@
 #!/bin/bash
 terminal="Terminal"
-open -a "$terminal" "$HOME/.cargo/bin/toutui"
+open -a "$terminal" "$HOME/.cargo/bin/absotui"

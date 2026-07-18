@@ -5,10 +5,10 @@ use log::error;
 pub fn encrypt_token(token_to_encrypt: &str) -> Result<String, String> {
 
 
-    // Load .env variables (`env::var` will read ~.config/toutui/.env)
+    // Load .env variables (`env::var` will read ~.config/absotui/.env)
     // check `main.rs` to see the init process for dotenv
     // Retrieve secret key from .env
-    let _secret_key = match env::var("TOUTUI_SECRET_KEY") {
+    let _secret_key = match env::var("ABSOTUI_SECRET_KEY") {
         Ok(key) => {
 
             // Create magic crypt object
@@ -21,21 +21,21 @@ pub fn encrypt_token(token_to_encrypt: &str) -> Result<String, String> {
         }
         Err(_) => {
             error!("No secret found in .env. Do this:\n
-                mkdir -p ~/.config/toutui\n
-                echo 'TOUTUI_SECRET_KEY=secret' >> ~/.config/toutui/.env");
+                mkdir -p ~/.config/absotui\n
+                echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env");
             return Err("No secret found in .env. Do this:\n
-                mkdir -p ~/.config/toutui\n
-                echo 'TOUTUI_SECRET_KEY=secret' >> ~/.config/toutui/.env".to_string()); 
+                mkdir -p ~/.config/absotui\n
+                echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env".to_string()); 
         },
     };
 }
 
 
 pub fn decrypt_token(encrypted_token: &str) -> Result<String, String> {
-    // Load .env variables (`env::var` will read ~.config/toutui/.env)
+    // Load .env variables (`env::var` will read ~.config/absotui/.env)
     // check `main.rs` to see the init process for dotenv
     // Retrieve secret key from .env
-    let secret_key = match env::var("TOUTUI_SECRET_KEY") {
+    let secret_key = match env::var("ABSOTUI_SECRET_KEY") {
         Ok(key) => {
             // Create magic crypt object
             let mc = new_magic_crypt!(key, 256);
@@ -51,11 +51,11 @@ pub fn decrypt_token(encrypted_token: &str) -> Result<String, String> {
         }
         Err(_) => {
             error!("No secret found in .env. Do this:\n
-                mkdir -p ~/.config/toutui\n
-                echo 'TOUTUI_SECRET_KEY=secret' >> ~/.config/toutui/.env");
+                mkdir -p ~/.config/absotui\n
+                echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env");
             Err("No secret found in .env. Do this:\n
-                mkdir -p ~/.config/toutui\n
-                echo 'TOUTUI_SECRET_KEY=secret' >> ~/.config/toutui/.env".to_string()) 
+                mkdir -p ~/.config/absotui\n
+                echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env".to_string()) 
         },
     };
 

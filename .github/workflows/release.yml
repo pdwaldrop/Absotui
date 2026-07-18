@@ -43,7 +43,7 @@ jobs:
         with:
           # (required) Comma-separated list of binary names (non-extension portion of filename) to build and upload.
           # Note that glob pattern is not supported yet.
-          bin: toutui
+          bin: absotui
           # (optional) Target triple, default is host triple.
           target: ${{ matrix.target }}
           # (required) GitHub token for uploading assets to GitHub Releases.
@@ -53,8 +53,8 @@ jobs:
         run: |
           mkdir -p dist
           cp ./config.example.toml dist/
-          cp ./linux/toutui.desktop dist/
-          cp ./hello_toutui.sh dist/
+          cp ./linux/absotui.desktop dist/
+          cp ./hello_absotui.sh dist/
           
       - name: Create GitHub release and upload files
         uses: softprops/action-gh-release@v1

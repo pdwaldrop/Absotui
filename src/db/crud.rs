@@ -26,7 +26,7 @@ pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
 
     let err_message = "Error connecting to the database.";
@@ -63,7 +63,7 @@ pub fn get_is_show_key_bindings(username: &str) -> String {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let conn = match Connection::open(db_path) {
         Ok(c) => c,
@@ -98,7 +98,7 @@ pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -134,7 +134,7 @@ pub fn get_is_vlc_running(username: &str) -> String {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let conn = match Connection::open(db_path) {
         Ok(c) => c,
@@ -169,7 +169,7 @@ pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -212,7 +212,7 @@ pub fn get_speed_rate(username: &str) -> String {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let conn = match Connection::open(db_path) {
         Ok(c) => c,
@@ -247,7 +247,7 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -314,7 +314,7 @@ pub fn insert_listening_session(
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -351,7 +351,7 @@ pub fn update_chapter(value: &str, id_session: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -386,7 +386,7 @@ pub fn update_is_playback(value: &str, id_session: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -421,7 +421,7 @@ pub fn update_current_time(value: u32, id_session: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -457,7 +457,7 @@ pub fn update_elapsed_time(value: u32, id_session: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -493,7 +493,7 @@ pub fn update_is_finished(value: &str, id_session: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -529,7 +529,7 @@ pub fn delete_user(username: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let message = format!("User '{}' deleted. Please restart the app to apply the changes.", &username);
     let err_message = "Error connecting to the database.";
@@ -573,7 +573,7 @@ pub fn update_is_loop_break(value: &str, username: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -609,7 +609,7 @@ pub fn get_is_loop_break(username: &str) -> String {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let conn = match Connection::open(db_path) {
         Ok(c) => c,
@@ -644,7 +644,7 @@ pub fn update_is_vlc_launched_first_time(value: &str, username: &str) -> Result<
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -678,7 +678,7 @@ pub fn get_is_vlc_launched_first_time(username: &str) -> String {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let conn = match Connection::open(db_path) {
         Ok(c) => c,
@@ -712,7 +712,7 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let message = "The library has been updated. Please refresh the app to apply the changes.";
     let err_message = "Error connecting to the database.";
@@ -768,7 +768,7 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let conn = Connection::open(db_path)?;
     for user in users {
@@ -810,7 +810,7 @@ pub fn get_others() -> Result<Option<Others>> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -854,7 +854,7 @@ pub fn update_login_err(value: &str) -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
@@ -892,7 +892,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let conn = Connection::open(db_path)?;
 
@@ -965,7 +965,7 @@ pub fn init_db() -> Result<()> {
             path
         });
 
-    let db_path = config_home_path.join("toutui/db.sqlite3");
+    let db_path = config_home_path.join("absotui/db.sqlite3");
 
     // Open or create db
     let conn = Connection::open(db_path)?;

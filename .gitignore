@@ -1,7 +1,7 @@
 /target
 config.toml
 /src/db/db.sqlite3
-/src/toutui.log
+/src/absotui.log
 /src/changelog.txt
 /src/macos-sonoma
 /src/macos-sonoma.conf

@@ -408,7 +408,7 @@ impl App {
             .not_bold()
             .left_aligned()
             .render(area, buf);
-        Paragraph::new(format!("🦜 Toutui v{}\n {}", version, update_msg))
+        Paragraph::new(format!("🦜 Absotui v{}\n {}", version, update_msg))
             .right_aligned()
             .render(area, buf);
     }
@@ -703,9 +703,10 @@ impl App {
             Some(1) => {}
             Some(2) => {
 
-                Paragraph::new(format!("Toutui v{} - Licence: GPL-3.0 - Contact: albdav.dev@gmail.com\nSource code: {}\nWhat's new:", 
+                Paragraph::new(format!("Absotui v{} - Licence: GPL-3.0 - Issues: {}/issues\nSource code: {}\nWhat's new:",
                         VERSION,
-                        "https://github.com/AlbanDAVID/Toutui",
+                        "https://github.com/pdwaldrop/Absotui",
+                        "https://github.com/pdwaldrop/Absotui",
                 ))
                     .left_aligned()
                     .render(area, buf);
@@ -722,13 +723,13 @@ impl App {
         let instructions = "\
 Update:
 - Quit the app
-- If you installed Toutui via yay: yay -S toutui
-- If you installed Toutui using the script: toutui --update
+- If you built from source: git pull && cargo build --release
+- If you installed using the script: absotui --update
 
 Uninstall:
 - Quit the app
-- If you installed Toutui via yay: yay -R toutui-bin
-- If you installed Toutui using the script: toutui --uninstall
+- If you built from source: just delete the cloned folder
+- If you installed using the script: absotui --uninstall
 ";
 
         match list_state.selected() {

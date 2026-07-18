@@ -1,38 +1,28 @@
 #!/usr/bin/env bash
-# Install Toutui and dependencies automagically.
+# Install Absotui and dependencies automagically.
 
-# For test from AlbDav55 fork
-# bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/AlbanDAVID/Toutui/raw/install_with_cargo/hello_toutui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
-
-# For test from AlbanDAVID toutui repo (stable branch)
-# bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/AlbanDAVID/Toutui/raw/stable/hello_toutui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
+# For test from the stable branch
+# bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
 
 set -eo pipefail
 
 main() {
     do_not_run_as_root
 
-    check_shasum $tmpfile "hello_toutui.sh" $expected_sha256 " "
-
-    # Url variables for tests in AlbDav55 fork
-   # url_config_file="https://github.com/AlbDav55/Toutui/raw/main/config.example.toml"
-   # url_latest_release="https://api.github.com/repos/AlbDav55/Toutui/releases/latest"
-   # url_latest_binary="https://github.com/AlbDav55/Toutui/releases/download"
-   # url_cargo_install="https://github.com/AlbDav55/Toutui"
-   # url_toutui_desktop="https://raw.githubusercontent.com/AlbanDAVID/Toutui/install_improvement/curl/toutui.desktop"
+    check_shasum $tmpfile "hello_absotui.sh" $expected_sha256 " "
 
     # URL variables for production (do not forget to ensure that repo name and branches are correct)
-    url_config_file="https://github.com/AlbanDAVID/Toutui/raw/stable/config.example.toml"
-    url_latest_release="https://api.github.com/repos/AlbanDAVID/Toutui/releases/latest"
-    url_latest_binary="https://github.com/AlbanDAVID/Toutui/releases/download"
-    url_cargo_install="https://github.com/AlbanDAVID/Toutui"
-    url_toutui_desktop="https://raw.githubusercontent.com/AlbanDAVID/Toutui/stable/linux/toutui.desktop"
+    url_config_file="https://github.com/pdwaldrop/Absotui/raw/stable/config.example.toml"
+    url_latest_release="https://api.github.com/repos/pdwaldrop/Absotui/releases/latest"
+    url_latest_binary="https://github.com/pdwaldrop/Absotui/releases/download"
+    url_cargo_install="https://github.com/pdwaldrop/Absotui"
+    url_absotui_desktop="https://raw.githubusercontent.com/pdwaldrop/Absotui/stable/linux/absotui.desktop"
 
     # Grab essential variables
     OS=$(identify_os)
     USER=${USER:-$(grab_username)}
     HOME=${HOME:-$(grab_home_dir)}
-    CONFIG_DIR="${XDG_CONFIG_HOME:-$(grab_config_dir)}/toutui"
+    CONFIG_DIR="${XDG_CONFIG_HOME:-$(grab_config_dir)}/absotui"
     INSTALL_DIR="${2:-$(grab_install_dir)}"
 
     # if gsed is needed on macos
@@ -55,9 +45,9 @@ main() {
     esac
 
     case $1 in
-        --install|install) install_toutui && exit $EXIT_OK || exit $EXIT_FAIL;;
-        --update|update) update_toutui && exit $EXIT_OK || exit $EXIT_FAIL;;
-        --uninstall|uninstall) uninstall_toutui && exit $EXIT_OK || exit $EXIT_FAIL;;
+        --install|install) install_absotui && exit $EXIT_OK || exit $EXIT_FAIL;;
+        --update|update) update_absotui && exit $EXIT_OK || exit $EXIT_FAIL;;
+        --uninstall|uninstall) uninstall_absotui && exit $EXIT_OK || exit $EXIT_FAIL;;
         *) usage "INCORRECT_ARG";;
     esac
 }
@@ -87,11 +77,14 @@ check_shasum() {
 
 }
 
+# TODO: these are still checksums of the ORIGINAL Toutui project's release binaries.
+# They will not match anything built from this fork. Regenerate with
+# `shasum -a 256 <file>` once you publish your own releases on the stable branch.
 # [0] config.example.toml
-# [1] toutui-aarch64-unknown-linux-gnu.tar.gz
-# [2] toutui-universal-apple-darwin.tar.gz
-# [3] toutui-x86_64-unknown-linux-gnu.tar.gz
-# [4] toutui.desktop
+# [1] absotui-aarch64-unknown-linux-gnu.tar.gz
+# [2] absotui-universal-apple-darwin.tar.gz
+# [3] absotui-x86_64-unknown-linux-gnu.tar.gz
+# [4] absotui.desktop
 sha256sums=( 'e398fc5f9ff3f4a8841a9ae4675031a0f7e6e87b2762dab544ff23ae74eab0a9'
              '633f91fefa04c1946076feb0e30b6195b08b379fb6a7379b8d23610d950af8c7'
              '716c80905a72dc77ef4de9ef85e5ef50f76bf29306adfb91a0734d06130eee99'
@@ -218,9 +211,9 @@ usage() {
     local exit_code=$1
     echo "Usage: $ /bin/bash ./$(basename $0) <install|update> [install_directory]"
     echo "Help:"
-    echo " --install: install toutui and dependencies."
-    echo " --update: update toutui and dependencies."
-    echo " --uninstall: uninstall toutui."
+    echo " --install: install absotui and dependencies."
+    echo " --update: update absotui and dependencies."
+    echo " --uninstall: uninstall absotui."
     echo "Example: /bin/bash ./$(basename $0) install /usr/bin"
     eval "exit \$EXIT_${exit_code}"
 }
@@ -250,14 +243,14 @@ install_brew() {
 install_from_source() {
     echo "[ERROR] Could not identify OS/Distro."
     echo "Please follow the instructions here:"
-    echo "https://github.com/AlbanDAVID/Toutui?tab=readme-ov-file#git"
+    echo "https://github.com/pdwaldrop/Absotui?tab=readme-ov-file#git"
     exit $EXIT_UNKNOWN_OS
 }
 
 propose_optional_dependencies() {
     local optionals="$@"
     if [[ $(( ${#optionals[@]} )) == 0 || "${optionals[@]}" =~ ^\ *$ ]]; then return; fi
-        echo "[INFO] Toutui's experience could be improved by these optional packages:"
+        echo "[INFO] Absotui's experience could be improved by these optional packages:"
         for opt in "${optionals[@]}"; do
             echo -e "\t- ${opt}"
         done
@@ -309,24 +302,24 @@ source_cargo_env() {
         fi
     else
         echo "[ERROR] Cannot source cargo environment automatically."
-        echo "Open a new terminal and launch \"hello_toutui.sh\" again."
+        echo "Open a new terminal and launch \"hello_absotui.sh\" again."
         exit $EXIT_NO_CARGO_PATH
     fi
 }
 
-check_toutui_installed() {
+check_absotui_installed() {
     is_installed="false"
 
     if [[ "$OS" == "linux" ]]; then
-        if [[ -n "$XDG_CONFIG_HOME" && ( -e "$XDG_CONFIG_HOME/toutui" || -e "$HOME/.cargo/bin/toutui" || -e "/usr/local/bin/toutui" ) ]]; then
+        if [[ -n "$XDG_CONFIG_HOME" && ( -e "$XDG_CONFIG_HOME/absotui" || -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ) ]]; then
             is_installed="true"
-        elif [[ -e "$HOME/.config/toutui" || -e "$HOME/.cargo/bin/toutui" || -e "/usr/local/bin/toutui" ]]; then
+        elif [[ -e "$HOME/.config/absotui" || -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ]]; then
             is_installed="true"
         fi
     elif [[ "$OS" == "macOS" ]]; then
-        if [[ -n "$XDG_CONFIG_HOME" && ( -e "$XDG_CONFIG_HOME/toutui" || -e "$HOME/.cargo/bin/toutui" || -e "/usr/local/bin/toutui" ) ]]; then
+        if [[ -n "$XDG_CONFIG_HOME" && ( -e "$XDG_CONFIG_HOME/absotui" || -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ) ]]; then
             is_installed="true"
-        elif [[ -e "$HOME/Library/Preferences/toutui" || -e "$HOME/.cargo/bin/toutui" || -e "/usr/local/bin/toutui" ]]; then
+        elif [[ -e "$HOME/Library/Preferences/absotui" || -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ]]; then
             is_installed="true"
         fi
     fi
@@ -338,9 +331,9 @@ confirm_force_install_update() {
     local message
 
     if [[ "$message_type" == "install" ]]; then
-        message="Toutui is already installed. It's recommended to perform an uninstall before. Do you still want to force the installation? (y/N) : "
+        message="Absotui is already installed. It's recommended to perform an uninstall before. Do you still want to force the installation? (y/N) : "
     elif [[ "$message_type" == "update" ]]; then
-        message="Toutui in not installed. Install toutui before perform an update. Do you want to force update (not recommended)? (y/N) :"
+        message="Absotui in not installed. Install absotui before perform an update. Do you want to force update (not recommended)? (y/N) :"
 
     fi
 
@@ -389,8 +382,8 @@ install_packages() {
 post_install_msg() {
     if ! [[ -f "$CONFIG_DIR/.env" ]]; then
         echo "[INFO] No secret found in .env. Do this:"
-        echo "    $ mkdir -p ~/.config/toutui"
-        echo "    $ echo 'TOUTUI_SECRET_KEY=secret' > ~/.config/toutui/.env"
+        echo "    $ mkdir -p ~/.config/absotui"
+        echo "    $ echo 'ABSOTUI_SECRET_KEY=secret' > ~/.config/absotui/.env"
     fi
 }
 
@@ -401,9 +394,9 @@ install_config() {
     local env="${CONFIG_DIR}/.env"
     local prompt="Please provide a secret key to encrypt the token stored in the database ($env): "
     local key=
-    until [[ -f "$env" && $(sed "s/TOUTUI_SECRET_KEY=//g" "$env") != "" ]]; do
+    until [[ -f "$env" && $(sed "s/ABSOTUI_SECRET_KEY=//g" "$env") != "" ]]; do
         read -p "$prompt: " key
-        if ! [[ $key == "" ]]; then echo "TOUTUI_SECRET_KEY=${key}" > "$env"; echo;fi
+        if ! [[ $key == "" ]]; then echo "ABSOTUI_SECRET_KEY=${key}" > "$env"; echo;fi
     done
 
     # config.
@@ -475,7 +468,7 @@ install_config() {
 		# Add freshly merged section to future user's config
                 merged_config+="${merged_section}"$'\n'
             done <<< "$sections"
-	    # Enjoy Toutui's respect for their users' config files <|:^)
+	    # Enjoy Absotui's respect for their users' config files <|:^)
             echo -e "$merged_config" > "$user_config"
         else
             cp "$example_config" "$user_config" || (echo "[ERROR] Cannot copy \"config.toml\"."; exit $EXIT_CONFIG)
@@ -574,14 +567,14 @@ install_message() {
     echo "Install dependencies if needed: VLC, Netcat, Rust, for macos: Homebrew and gsed"
     echo "Add the binary in /usr/local/bin (option 1) or ~/.cargo/bin (option 2)"
     echo "For Linux:"
-    echo "Add the directory "toutui" in $HOME/.config (or any other path specified in XDG_CONFIG_HOME) with inside the following files: "
-    echo ".env, db.sqlite3, config.toml, toutui.log"
-    echo "toutui.desktop will be added in $HOME/.local/share/applications"
+    echo "Add the directory "absotui" in $HOME/.config (or any other path specified in XDG_CONFIG_HOME) with inside the following files: "
+    echo ".env, db.sqlite3, config.toml, absotui.log"
+    echo "absotui.desktop will be added in $HOME/.local/share/applications"
     echo "For macOS:"
-    echo "Add the directory "toutui" in $HOME/Library/Preferences (or any other path specified in XDG_CONFIG_HOME) with inside the following files: "
-    echo ".env, db.sqlite3, config.toml, toutui.log"
+    echo "Add the directory "absotui" in $HOME/Library/Preferences (or any other path specified in XDG_CONFIG_HOME) with inside the following files: "
+    echo ".env, db.sqlite3, config.toml, absotui.log"
     echo " "
-    echo " You can run "toutui --uninstall"/yay -R toutui-bin or the official uninstall curl link to remove all these added files."
+    echo " You can run "absotui --uninstall"/yay -R absotui-bin or the official uninstall curl link to remove all these added files."
     echo 'Only dependencies will not be uninstalled (e.g. VLC, Netcat, Rust, gsed, Homebrew)'
     echo " "
 }
@@ -612,14 +605,14 @@ install_menu() {
                 echo "rust, netcat, vlc, (optional : kitty)"
                 echo "follow these steps: "
                 echo "clone the main branch (might be unstable):"
-                echo "git clone https://github.com/albandavid/toutui"
+                echo "git clone https://github.com/pdwaldrop/absotui"
                 echo "or clone the last stable release:"
-                echo "git clone --branch stable --single-branch https://github.com/albandavid/toutui"
-                echo "cd toutui/"
-                echo "mkdir -p ~/.config/toutui"
-                echo "cp config.example.toml ~/.config/toutui/config.toml"
+                echo "git clone --branch stable --single-branch https://github.com/pdwaldrop/absotui"
+                echo "cd absotui/"
+                echo "mkdir -p ~/.config/absotui"
+                echo "cp config.example.toml ~/.config/absotui/config.toml"
                 echo "token encryption in the database (note: replace secret) : "
-                echo "echo toutui_secret_key=secret >> ~/.config/toutui/.env"
+                echo "echo absotui_secret_key=secret >> ~/.config/absotui/.env"
                 echo "cargo run --release"
                 echo "update :"
                 echo "git pull {URL}"
@@ -643,15 +636,15 @@ check_and_cleanup_binary_install() {
 
     local temp_dir=$1
 
-    if [[ ! -e "$temp_dir/toutui" ]]; then
+    if [[ ! -e "$temp_dir/absotui" ]]; then
         echo "[ERROR] Failed to download the binary. Please try again later."
         EXIT_FAIL
     fi
-    if [[ -e "/usr/local/bin/toutui" && -e "$temp_dir/toutui" ]]; then
-        sudo rm "/usr/local/bin/toutui"
+    if [[ -e "/usr/local/bin/absotui" && -e "$temp_dir/absotui" ]]; then
+        sudo rm "/usr/local/bin/absotui"
     fi
-    if [[ -e "$HOME/.cargo/bin/toutui" && -e "$temp_dir/toutui" ]]; then
-        sudo rm "$HOME/.cargo/bin/toutui"
+    if [[ -e "$HOME/.cargo/bin/absotui" && -e "$temp_dir/absotui" ]]; then
+        sudo rm "$HOME/.cargo/bin/absotui"
     fi
 }
 
@@ -662,18 +655,18 @@ dl_handle_compressed_binary() {
     echo "[INFO] Downloading the compressed binary from $final_url"
     sudo curl -L "$final_url" -o "$tmpdir/$binary_name"
 
-    if [[ "$binary_name" == "toutui-aarch64-unknown-linux-gnu.tar.gz" ]]; then
-        check_shasum "$tmpdir/$binary_name" "toutui-aarch64-unknown-linux-gnu.tar.gz" "${sha256sums[1]}" "dir"
-    elif [[ "$binary_name" == "toutui-universal-apple-darwin.tar.gz" ]]; then
-        check_shasum "$tmpdir/$binary_name" "toutui-universal-apple-darwin.tar.gz" "${sha256sums[2]}" "dir"
-    elif [[ "$binary_name" == "toutui-x86_64-unknown-linux-gnu.tar.gz" ]]; then
-        check_shasum "$tmpdir/$binary_name" "toutui-x86_64-unknown-linux-gnu.tar.gz" "${sha256sums[3]}" "dir"
+    if [[ "$binary_name" == "absotui-aarch64-unknown-linux-gnu.tar.gz" ]]; then
+        check_shasum "$tmpdir/$binary_name" "absotui-aarch64-unknown-linux-gnu.tar.gz" "${sha256sums[1]}" "dir"
+    elif [[ "$binary_name" == "absotui-universal-apple-darwin.tar.gz" ]]; then
+        check_shasum "$tmpdir/$binary_name" "absotui-universal-apple-darwin.tar.gz" "${sha256sums[2]}" "dir"
+    elif [[ "$binary_name" == "absotui-x86_64-unknown-linux-gnu.tar.gz" ]]; then
+        check_shasum "$tmpdir/$binary_name" "absotui-x86_64-unknown-linux-gnu.tar.gz" "${sha256sums[3]}" "dir"
     fi
 
     sudo tar -xvzf "$tmpdir/$binary_name" -C "$tmpdir"
     check_and_cleanup_binary_install "$tmpdir"
     echo "[INFO] Copying the binary from temp directory to /usr/local/bin"
-    sudo cp "$tmpdir/toutui" "/usr/local/bin"
+    sudo cp "$tmpdir/absotui" "/usr/local/bin"
     rm -rf "$tmpdir"
 }
 
@@ -681,18 +674,18 @@ setup_launcher() {
     if [[ "$OS" == "linux" ]]; then
         local tmpdir
         tmpdir=$(mktemp -d)
-        curl -sSL "$url_toutui_desktop" -o "$tmpdir/toutui.desktop"
-        check_shasum "$tmpdir/toutui.desktop" "toutui.desktop" "${sha256sums[4]}" "dir"
+        curl -sSL "$url_absotui_desktop" -o "$tmpdir/absotui.desktop"
+        check_shasum "$tmpdir/absotui.desktop" "absotui.desktop" "${sha256sums[4]}" "dir"
         mkdir -p "$HOME/.local/share/applications"
-        sudo cp "$tmpdir/toutui.desktop" "$HOME/.local/share/applications/toutui.desktop"
+        sudo cp "$tmpdir/absotui.desktop" "$HOME/.local/share/applications/absotui.desktop"
         rm -rf $tmpdir
     fi
    # elif [[ "$OS" == "macOS" ]]; then
-   #     mkdir -p "/Applications/toutui.app/Contents"
-   #     mkdir -p "/Applications/toutui.app/Contents/MacOS"
-   #     curl -L "https://raw.githubusercontent.com/AlbanDAVID/Toutui/install_with_cargo/curl/Info.plist" -o "/Applications/toutui.app/Contents/Info.plist"
-   #     curl -L "https://raw.githubusercontent.com/AlbanDAVID/Toutui/install_with_cargo/curl/launch.command" -o "/Applications/toutui.app/Contents/MacOS/launch.command"
-   #     chmod +x "/Applications/toutui.app/Contents/MacOS/launch.command"
+   #     mkdir -p "/Applications/absotui.app/Contents"
+   #     mkdir -p "/Applications/absotui.app/Contents/MacOS"
+   #     curl -L "https://raw.githubusercontent.com/pdwaldrop/Absotui/install_with_cargo/curl/Info.plist" -o "/Applications/absotui.app/Contents/Info.plist"
+   #     curl -L "https://raw.githubusercontent.com/pdwaldrop/Absotui/install_with_cargo/curl/launch.command" -o "/Applications/absotui.app/Contents/MacOS/launch.command"
+   #     chmod +x "/Applications/absotui.app/Contents/MacOS/launch.command"
    # fi
 }
 
@@ -707,13 +700,13 @@ install_binary() {
     # determine binary to download
     if [[ "$OS" == "linux" && "$arch" == "x86_64" ]]; then
         echo "[INFO] Linux x86_64 detected"
-        binary_name="toutui-x86_64-unknown-linux-gnu.tar.gz"
+        binary_name="absotui-x86_64-unknown-linux-gnu.tar.gz"
         final_url="$url_latest_binary/$full_version/$binary_name"
         dl_handle_compressed_binary "$final_url" "$binary_name"
     fi
     if [[ "$OS" == "linux" && "$arch" == "aarch64" ]]; then
         echo "[INFO] Linux aarch64 detected"
-        binary_name="toutui-aarch64-unknown-linux-gnu.tar.gz"
+        binary_name="absotui-aarch64-unknown-linux-gnu.tar.gz"
         final_url="$url_latest_binary/$full_version/$binary_name"
         dl_handle_compressed_binary "$final_url" "$binary_name"
     fi
@@ -723,13 +716,13 @@ install_binary() {
     fi
     if [[ "$OS" == "macOS" && "$arch" == "arm64" ]]; then
         echo "[INFO] macOS arm64 detected"
-        binary_name="toutui-universal-apple-darwin.tar.gz" # for intel and sillicon
+        binary_name="absotui-universal-apple-darwin.tar.gz" # for intel and sillicon
         final_url="$url_latest_binary/$full_version/$binary_name"
         dl_handle_compressed_binary "$final_url" "$binary_name"
     fi
     if [[ "$OS" == "macOS" && "$arch" == "x86_64" ]]; then
         echo "[INFO] macOS x86_64 detected"
-        binary_name="toutui-universal-apple-darwin.tar.gz" # for intel and sillicon
+        binary_name="absotui-universal-apple-darwin.tar.gz" # for intel and sillicon
         final_url="$url_latest_binary/$full_version/$binary_name"
         dl_handle_compressed_binary "$final_url" "$binary_name"
     fi
@@ -775,8 +768,8 @@ confirm_install_deps_macos() {
 
 }
 
-install_toutui() {
-    check_toutui_installed
+install_absotui() {
+    check_absotui_installed
     if [[ "$is_installed" == "true" ]]; then
         confirm_force_install_update "install"
     fi
@@ -788,13 +781,13 @@ install_toutui() {
         if [[ "$OS" == "linux" ]]; then
             install_deps # install essential and/or optional deps
         fi
-        install_config # create ~/.config/toutui/ etc.
+        install_config # create ~/.config/absotui/ etc.
         install_binary
         setup_launcher
         if [[ "$OS" == "linux" ]]; then
-            echo "[DONE] Install complete. Launch toutui from your favorite app launcher or type toutui in your terminal to run it!"
+            echo "[DONE] Install complete. Launch absotui from your favorite app launcher or type absotui in your terminal to run it!"
         elif [[ "$OS" == "macOS" ]]; then
-            echo "[DONE] Install complete. Type toutui in your terminal to run it!"
+            echo "[DONE] Install complete. Type absotui in your terminal to run it!"
         fi
         echo "[ADVICE] Explore and try various themes: https://github.com/AlbanDAVID/Toutui-theme"
         echo "[ADVICE] Best experience with Kitty or Alacritty terminal."
@@ -804,18 +797,18 @@ install_toutui() {
         if [[ "$OS" == "linux" ]]; then
             install_deps # install essential and/or optional deps
         fi
-        install_config # create ~/.config/toutui/ etc.
-        install_rust # cornerstone! toutui is written by a crab
-        #cargo install --git https://github.com/AlbanDAVID/Toutui --branch install_with_cargo
+        install_config # create ~/.config/absotui/ etc.
+        install_rust # cornerstone! absotui is written by a crab
+        #cargo install --git https://github.com/pdwaldrop/Absotui --branch install_with_cargo
         cargo install --git "$url_cargo_install" --branch stable
         echo "[INFO] Binary placed in ~.cargo/bin"
         setup_launcher
-        # copy Toutui binary to system path
-        # sudo cp ./target/release/Toutui "${INSTALL_DIR}/toutui" || exit $EXIT_BUILD_FAIL
+        # copy Absotui binary to system path
+        # sudo cp ./target/release/Absotui "${INSTALL_DIR}/absotui" || exit $EXIT_BUILD_FAIL
         if [[ "$OS" == "linux" ]]; then
-            echo "[DONE] Install complete. Launch toutui from your favorite app launcher or type toutui in your terminal to run it!"
+            echo "[DONE] Install complete. Launch absotui from your favorite app launcher or type absotui in your terminal to run it!"
         elif [[ "$OS" == "macOS" ]]; then
-            echo "[DONE] Install complete. Type toutui in your terminal to run it!"
+            echo "[DONE] Install complete. Type absotui in your terminal to run it!"
         fi
         echo "[ADVICE] Explore and try various themes: https://github.com/AlbanDAVID/Toutui-theme"
         echo "[ADVICE] Best experience with Kitty or Alacritty terminal."
@@ -846,7 +839,7 @@ update_menu() {
                 break
                 ;;
             3)
-                echo "cd toutui"
+                echo "cd absotui"
                 echo "git pull {URL}"
                 echo "cargo run --release"
                 exit 0
@@ -864,18 +857,18 @@ update_menu() {
     done
 }
 
-get_toutui_local_release() {
+get_absotui_local_release() {
 #    if ! [[ -f Cargo.toml ]]; then
 #        echo "[ERROR] Cannot find \"Cargo.toml\"."
 #        exit $EXIT_NO_CARGO_TOML
 #    fi
 #    grep "version" Cargo.toml | head -1 | sed -E "s/^version\s*=\s*\"([^\"]*)\"\s*$/\1/"
 
-toutui --version | cut -d' ' -f2
+absotui --version | cut -d' ' -f2
 
 }
 
-get_toutui_github_release() {
+get_absotui_github_release() {
     curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"v([^\"]*)\",|\1|"
 }
 
@@ -887,8 +880,8 @@ display_changelog() {
 }
 
 check_and_cleanup_source_install() {
-    if [[ -e "/usr/local/bin/toutui" ]]; then
-        sudo rm "/usr/local/bin/toutui"
+    if [[ -e "/usr/local/bin/absotui" ]]; then
+        sudo rm "/usr/local/bin/absotui"
     fi
 }
 
@@ -934,19 +927,19 @@ pull_latest_version() {
             fi
             install_config
             # cargo build --release
-            # sudo cp ./target/release/Toutui "${INSTALL_DIR}/toutui" || exit $EXIT_BUILD_FAIL
+            # sudo cp ./target/release/Absotui "${INSTALL_DIR}/absotui" || exit $EXIT_BUILD_FAIL
             echo "[OK] Latest version installed (v$version)."
             ;;
     esac
 }
 
-update_toutui() {
-    check_toutui_installed
+update_absotui() {
+    check_absotui_installed
     if [[ "$is_installed" == "false" ]]; then
         confirm_force_install_update "update"
     fi
-    local local_release=$(get_toutui_local_release)
-    local github_release=$(get_toutui_github_release)
+    local local_release=$(get_absotui_local_release)
+    local github_release=$(get_absotui_github_release)
     echo "[INFO] Local:  $local_release"
     echo "[INFO] GitHub: $github_release"
     if [[ $local_release == $github_release ]]; then
@@ -966,14 +959,14 @@ uninstall_message() {
     echo "Uninstall will do this:"
     echo "Delete the binary in /usr/local/bin or ~/.cargo/bin"
     echo "For Linux:"
-    echo "The directory "toutui" in $HOME/.config (or any other path specified in XDG_CONFIG_HOME) wil be deleted: "
+    echo "The directory "absotui" in $HOME/.config (or any other path specified in XDG_CONFIG_HOME) wil be deleted: "
     echo "[IMPORTANT] save your config.toml if you need it later"
-    echo "[IMPORTANT] XDG_CONFIG_HOME must be the same as it was at the time Toutui was installed. (in case you change it)"
-    echo "toutui.desktop will be deleted from $HOME/.local/share/applications"
+    echo "[IMPORTANT] XDG_CONFIG_HOME must be the same as it was at the time Absotui was installed. (in case you change it)"
+    echo "absotui.desktop will be deleted from $HOME/.local/share/applications"
     echo "For macOS:"
-    echo "The directory "toutui" in $HOME/Library/Preferences (or any other path specified in XDG_CONFIG_HOME) will be deleted: "
+    echo "The directory "absotui" in $HOME/Library/Preferences (or any other path specified in XDG_CONFIG_HOME) will be deleted: "
     echo "[IMPORTANT] save your config.toml if you need it later"
-    echo "[IMPORTANT] XDG_CONFIG_HOME must be the same as it was at the time Toutui was installed. (in case you change it)"
+    echo "[IMPORTANT] XDG_CONFIG_HOME must be the same as it was at the time Absotui was installed. (in case you change it)"
     echo " "
     echo 'Only dependencies will not be uninstalled (e.g. VLC, Netcat, Rust, Homebrew, gsed)'
     echo " "
@@ -983,20 +976,20 @@ uninstall_process() {
     if [[ "$OS" == "linux" ]]; then
 
         # delete the config folder
-        if [[ -n "$XDG_CONFIG_HOME" && -e "$XDG_CONFIG_HOME/toutui" ]]; then
-            sudo rm -r "$XDG_CONFIG_HOME/toutui"
-            echo "$XDG_CONFIG_HOME/toutui deleted."
+        if [[ -n "$XDG_CONFIG_HOME" && -e "$XDG_CONFIG_HOME/absotui" ]]; then
+            sudo rm -r "$XDG_CONFIG_HOME/absotui"
+            echo "$XDG_CONFIG_HOME/absotui deleted."
         fi
 
-        if [[ -e "$HOME/.config/toutui" ]]; then
-            sudo rm -r "$HOME/.config/toutui"
-            echo "$HOME/.config/toutui deleted."
+        if [[ -e "$HOME/.config/absotui" ]]; then
+            sudo rm -r "$HOME/.config/absotui"
+            echo "$HOME/.config/absotui deleted."
         fi
 
-        # delete toutui.desktopp
-        if [[ -e "$HOME/.local/share/applications/toutui.desktop" ]] ; then
-            sudo rm "$HOME/.local/share/applications/toutui.desktop"
-            echo "$HOME/.local/share/applications/toutui.desktop deleted."
+        # delete absotui.desktopp
+        if [[ -e "$HOME/.local/share/applications/absotui.desktop" ]] ; then
+            sudo rm "$HOME/.local/share/applications/absotui.desktop"
+            echo "$HOME/.local/share/applications/absotui.desktop deleted."
         fi
 
     fi
@@ -1004,36 +997,36 @@ uninstall_process() {
     if [[ "$OS" == "macOS" ]]; then
 
         # delete the config folder
-        if [[ -n "$XDG_CONFIG_HOME" && -e "$XDG_CONFIG_HOME/toutui" ]]; then
-            sudo rm -r "$XDG_CONFIG_HOME/toutui"
-            echo "$XDG_CONFIG_HOME/toutui deleted."
+        if [[ -n "$XDG_CONFIG_HOME" && -e "$XDG_CONFIG_HOME/absotui" ]]; then
+            sudo rm -r "$XDG_CONFIG_HOME/absotui"
+            echo "$XDG_CONFIG_HOME/absotui deleted."
         fi
 
-        if [[ -e "$HOME/Library/Preferences/toutui" ]]; then
-            sudo rm -r "$HOME/Library/Preferences/toutui"
-            echo "$HOME/Library/Preferences/toutui deleted."
+        if [[ -e "$HOME/Library/Preferences/absotui" ]]; then
+            sudo rm -r "$HOME/Library/Preferences/absotui"
+            echo "$HOME/Library/Preferences/absotui deleted."
         fi
     fi
 
 
     # delete the binary
-    if [[ -e "/usr/local/bin/toutui" ]]; then
-        sudo rm "/usr/local/bin/toutui"
-        echo "/usr/local/bin/toutui deleted."
+    if [[ -e "/usr/local/bin/absotui" ]]; then
+        sudo rm "/usr/local/bin/absotui"
+        echo "/usr/local/bin/absotui deleted."
     fi
-    if [[ -e "$HOME/.cargo/bin/toutui" ]]; then
-        sudo rm "$HOME/.cargo/bin/toutui"
-        echo "$HOME/.cargo/bin/toutui deleted."
+    if [[ -e "$HOME/.cargo/bin/absotui" ]]; then
+        sudo rm "$HOME/.cargo/bin/absotui"
+        echo "$HOME/.cargo/bin/absotui deleted."
     fi
 
 
 }
 
-uninstall_toutui() {
+uninstall_absotui() {
     uninstall_message
     local answer=
     while :; do
-        read -p "Are you sure to uninstall toutui? (Y/n) : " answer
+        read -p "Are you sure to uninstall absotui? (Y/n) : " answer
         if [[ $answer =~ (n|N) ]]; then answer=no; break; fi
         if [[ $answer == "" || $answer =~ (y|Y) ]]; then answer=yes; break; fi
     done
@@ -1043,7 +1036,7 @@ uninstall_toutui() {
         yes)
             echo "[INFO] Starting uninstall..."
             uninstall_process
-            echo "[OK] Toutui has been successfully uninstalled."
+            echo "[OK] Absotui has been successfully uninstalled."
             ;;
     esac
 
@@ -1076,4 +1069,4 @@ main "$@"
 # TODO:
 # - clone repo from here (making this bloated bash script "portable")
 # - test automatic dependencies install on more distributions
-# - allow calling toutui from outside the terminal (for macOS, available for Linux)
+# - allow calling absotui from outside the terminal (for macOS, available for Linux)

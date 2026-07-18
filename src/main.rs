@@ -38,8 +38,8 @@ async fn main() -> Result<()> {
     // this function allow to write all the logs in a file 
     setup_logs().expect("Failed to execute logger");
 
-    // set dotenv to ~/.config.toutui/.env for linux
-    // Library/Application Support/toutui/.env for macos
+    // set dotenv to ~/.config.absotui/.env for linux
+    // Library/Application Support/absotui/.env for macos
     // (dotenv will be use in `encrypt_token.rs`)
     let home_dir = dirs::home_dir().expect("Unable to find the user's home directory");
     // if env::var("XDG_CONFIG_HOME") is not empty env_path will take designed path
@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
         }
         });
     // Construct the dotenv 
-    let env_path = config_path.join("toutui").join(".env");
+    let env_path = config_path.join("absotui").join(".env");
     dotenv::from_filename(&env_path.clone()).ok();
 
     // Init database

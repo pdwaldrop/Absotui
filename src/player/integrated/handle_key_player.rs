@@ -39,7 +39,7 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
         // Allow vlc buffer issue. 
         // Futhermore, need a thread for macos otherwise vlc buffer issue
         // Otherwise buffer issue and the player freeze
-        // But maybe it's not necessary because I test toutui on macos with a VM
+        // But maybe it's not necessary because I test absotui on macos with a VM
         // and maybe the VM add a little delay.. but for now I try like this
 
         // jump forward

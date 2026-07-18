@@ -37,7 +37,7 @@ impl AppLogin {
             Block::default()
             .borders(Borders::ALL)
             .title("Server address")
-            .title_bottom(Line::from(format!("🦜Toutui v{} - Esc to quit.", VERSION)).right_aligned())
+            .title_bottom(Line::from(format!("🦜Absotui v{} - Esc to quit.", VERSION)).right_aligned())
             .border_style(Style::default()
                 .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
         );
@@ -49,7 +49,7 @@ impl AppLogin {
             Block::default()
             .borders(Borders::ALL)
             .title("Username")
-            .title_bottom(Line::from(format!("🦜Toutui v{} - Esc to quit.", VERSION)).right_aligned())
+            .title_bottom(Line::from(format!("🦜Absotui v{} - Esc to quit.", VERSION)).right_aligned())
             .border_style(Style::default()
                 .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
         );
@@ -59,7 +59,7 @@ impl AppLogin {
             Block::default()
             .borders(Borders::ALL)
             .title("Password")
-            .title_bottom(Line::from(format!("🦜Toutui v{} - Esc to quit.", VERSION)).right_aligned())
+            .title_bottom(Line::from(format!("🦜Absotui v{} - Esc to quit.", VERSION)).right_aligned())
             .border_style(Style::default()
                 .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
         );

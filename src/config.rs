@@ -49,7 +49,7 @@ pub fn load_config() -> Result<ConfigFile> {
             path
         });
 
-    let config_path = config_home_path.join("toutui/config.toml");
+    let config_path = config_home_path.join("absotui/config.toml");
     let config_path_str = config_path.to_str().unwrap().to_string();
 
     let config = ConfigLib::builder()

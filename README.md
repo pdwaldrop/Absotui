@@ -1,13 +1,14 @@
-## ⚠️ I'm not able to properly maintain this project anymore. That's why I archived this repo. Thus, please don't wait for any new releases and issue fixing. Of course, you can still install the app and use it. Although it's a beta version, it might still work well for you. Thanks!
+## ℹ️ This is a fork
+Absotui is a fork of [Toutui](https://github.com/AlbanDAVID/Toutui), a TUI Audiobookshelf client whose original author archived it in December 2025 ("I'm not able to properly maintain this project anymore... please don't wait for any new releases and issue fixing."). This fork exists to keep the project going and as a personal project to learn Rust, so expect things to move slowly and change shape as we go.
 
-[![GitHub release](https://img.shields.io/github/v/release/AlbanDAVID/Toutui?label=Latest%20Release&color=green&cacheSeconds=3600)](https://github.com/AlbanDAVID/Toutui/releases/latest)
-![AUR Version](https://img.shields.io/aur/version/toutui-bin?color=green&label=AUR)
-[![Release](https://github.com/AlbanDAVID/Toutui/actions/workflows/release.yml/badge.svg)](https://github.com/AlbanDAVID/Toutui/actions/workflows/release.yml)
+[![GitHub release](https://img.shields.io/github/v/release/pdwaldrop/Absotui?label=Latest%20Release&color=green&cacheSeconds=3600)](https://github.com/pdwaldrop/Absotui/releases/latest)
+[![Release](https://github.com/pdwaldrop/Absotui/actions/workflows/release.yml/badge.svg)](https://github.com/pdwaldrop/Absotui/actions/workflows/release.yml)
 
-# 🦜 Toutui: A TUI Audiobookshelf client for Linux and macOS
+# 🦜 Absotui: A TUI Audiobookshelf client for Linux and macOS
 
 <p align="center">
-    <em>In French, being "tout ouïe" (toutui) means being all ears.</em>
+    <em>The name plays on "ABS" (Audiobookshelf) + "TUI" (terminal user interface), read like "absolutely."<br>
+    The original project, Toutui, took its name from the French phrase "tout ouïe" ("all ears").</em>
 </p>
 
 <p align="center">
@@ -15,7 +16,7 @@
 </p>
 
 <div align="center">
-🎨 Explore and try various themes <a href="https://github.com/AlbanDAVID/Toutui-theme">here.</a>
+🎨 Explore and try various themes <a href="https://github.com/AlbanDAVID/Toutui-theme">here</a> (the original project's theme repo — themes there should still be compatible).
 </div>
 
 ## ✨ Features  
@@ -26,20 +27,8 @@
  **Streaming Support:** Play directly without downloading  
  **Customizable Color Theme:** A config file will allow you to customize the color theme. Explore and try various themes [here](https://github.com/AlbanDAVID/Toutui-theme).
 
-## 📰 Media
-<img src=".github/korben.png" align="top" width="50" alt="Korben"/> Featured on [Korben](https://korben.info/toutui-client-terminal-audiobookshelf.html), a well-known French tech blog covering open source and technology.
-
-
 ## 🛠️ Roadmap  
-**Short-term Goals**  
-- Since this is a beta version, the main focus is on tracking and fixing bugs.
-- Improve the design of the integrated player.
-- **Currently working on the next release: [v1.0.0-stable].**
-
-
-**Mid-term Goals**   
-- CI/CD Implementation  
-- Add future features described bellow.
+This fork just got started, so there's no fixed roadmap yet — for now the focus is on getting it running reliably and learning the codebase. See [known bugs](known_bugs.md) for the current state of things inherited from the original project.
 
 ## 🔮 Future features
 Here are some features that could be added in future releases:
@@ -49,22 +38,22 @@ Here are some features that could be added in future releases:
 - Offline mode
   
 ## ⚠️ Caution: Beta Version  
-This beta app is still in **heavy development and contains bugs**.  
-❗Please check [here](https://github.com/AlbanDAVID/Toutui/blob/main/known_bugs.md) for known bugs especially **MAJOR BUGS** before using the app, so you can use it with full awareness of any known issues.  
-If you encounter any issues that are **not yet listed** in the Issues section or into [known bugs](https://github.com/AlbanDAVID/Toutui/blob/main/known_bugs.md), please **open a new issue** to report them.  
+This app is still in **heavy development and contains bugs**.  
+❗Please check [here](known_bugs.md) for known bugs especially **MAJOR BUGS** before using the app, so you can use it with full awareness of any known issues.  
+If you encounter any issues that are **not yet listed** in the Issues section or [known bugs](known_bugs.md), please **open a new issue** to report them.  
 
 🔐 Although it's a beta version, you can use this app with **minimal risk** to your Audiobookshelf library.  
 At worst, you may experience **sync issues**, but there is **no risk** of data loss, deletion, or irreversible changes (API is just used to retrieve books and sync them).
 
 ## 📝 Notes
 ### 🐛 **Issues**    
-For any issues, check first the [wiki](https://github.com/AlbanDAVID/Toutui/wiki/) and [issues](https://github.com/AlbanDAVID/Toutui/issues). Otherwise, open a new one.
+For any issues, check first the [issues](https://github.com/pdwaldrop/Absotui/issues) here. Otherwise, open a new one. (Also worth checking the [original project's wiki](https://github.com/AlbanDAVID/Toutui/wiki/) for general usage help, since most of the underlying app hasn't changed yet.)
 
 ### 🤝 **Contributing**  
-Do not hesitate to contribute to this project by submitting your code, ideas, or feedback. Please make sure to read the [contributing guidelines](https://github.com/AlbanDAVID/Toutui/blob/main/CONTRIBUTING.md) first.
+Do not hesitate to contribute to this project by submitting your code, ideas, or feedback. Please make sure to read the [contributing guidelines](CONTRIBUTING.md) first.
 
 ### 🔁 Branching workflow 
-This project follow this [branching workflow](https://gist.github.com/digitaljhelms/4287848). 
+This project follows this [branching workflow](https://gist.github.com/digitaljhelms/4287848). 
 
 ### 🎨 **UI**
 Explore and share themes [here](https://github.com/AlbanDAVID/Toutui-theme).    
@@ -76,112 +65,86 @@ To ensure the best experience, it's recommended to use **Kitty** or **Alacritty*
 ## 🚨 Installation Instructions
 
 >[!WARNING]
-> - **This is a beta app, please read [this](https://github.com/AlbanDAVID/Toutui?tab=readme-ov-file#%EF%B8%8F-caution-beta-version).**
->  - For any issues, check first the [wiki](https://github.com/AlbanDAVID/Toutui/wiki/) and [issues](https://github.com/AlbanDAVID/Toutui/issues). Otherwise, open a new one.
+> - **This is a beta app, please read [this](#%EF%B8%8F-caution-beta-version).**
+>  - For any issues, check first the [issues](https://github.com/pdwaldrop/Absotui/issues) here. Otherwise, open a new one.
 
-### <img src=".github/archlinux-icon.svg" align="top" width="24" alt="(Arch Linux)"/> Arch Linux
-[![GitHub release](https://img.shields.io/github/v/release/AlbanDAVID/Toutui?label=Latest%20Release&color=green&cacheSeconds=3600)](https://github.com/AlbanDAVID/Toutui/releases/latest)
-![AUR Version](https://img.shields.io/aur/version/toutui-bin?color=green&label=AUR)
+>[!NOTE]
+> There's no AUR package or prebuilt binary release for this fork yet — for now, building from source is the reliable path. The install script below is present but its binary-download option won't work until releases exist.
 
-Installation and initial configuration
-```
-yay -S toutui
-mkdir -p ~/.config/toutui
-cp /usr/share/toutui/config.example.toml ~/.config/toutui/config.toml
-# Token encryption in the database (NOTE: replace 'secret'):
-echo 'TOUTUI_SECRET_KEY=secret' >> ~/.config/toutui/.env
-```
-Update
-```
-yay -S toutui
-```
-Uninstall
-```
-yay -R toutui-bin
-```
-
-### ⚡ Easy installation 
+### ⚡ Easy installation (install script)
 
 **Run the following in your terminal, then follow the on-screen instructions:**    
 
-[![GitHub release](https://img.shields.io/github/v/release/AlbanDAVID/Toutui?label=Latest%20Release&color=green&cacheSeconds=3600)](https://github.com/AlbanDAVID/Toutui/releases/latest)
-
-
 ```bash
-bash -c 'expected_sha256="b5c41bcd3c480fd2ca6ec0031ccecf2cf7cf4ae01f591cad64a320fa7d72331d" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/AlbanDAVID/Toutui/raw/stable/hello_toutui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
+bash -c 'expected_sha256="b3a36a51b97652040c5a95aac4690df2f5bfc1197e9fc32694087301a942f8bc" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
 ```
 
 #### **Update**
 
 > [!IMPORTANT]  
-> `toutui --update` is not working. You can do this instead: 
+> `absotui --update` is not working. You can do this instead: 
 > ``` 
-> bash -c 'expected_sha256="b5c41bcd3c480fd2ca6ec0031ccecf2cf7cf4ae01f591cad64a320fa7d72331d" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/AlbanDAVID/Toutui/raw/stable/hello_toutui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
+> bash -c 'expected_sha256="b3a36a51b97652040c5a95aac4690df2f5bfc1197e9fc32694087301a942f8bc" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
 > ```
 
 Quit the app and run the following in your terminal
 
 ```bash
-bash -c 'expected_sha256="b5c41bcd3c480fd2ca6ec0031ccecf2cf7cf4ae01f591cad64a320fa7d72331d" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/AlbanDAVID/Toutui/raw/stable/hello_toutui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
+bash -c 'expected_sha256="b3a36a51b97652040c5a95aac4690df2f5bfc1197e9fc32694087301a942f8bc" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
 ```
 
 #### **Uninstall**
 
 > [!IMPORTANT]  
-> `toutui --uninstall` is not working. You can do this instead: 
+> `absotui --uninstall` is not working. You can do this instead: 
 > ``` 
-> bash -c 'expected_sha256="b5c41bcd3c480fd2ca6ec0031ccecf2cf7cf4ae01f591cad64a320fa7d72331d" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/AlbanDAVID/Toutui/raw/stable/hello_toutui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
+> bash -c 'expected_sha256="b3a36a51b97652040c5a95aac4690df2f5bfc1197e9fc32694087301a942f8bc" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
 > ```
 
 Quit the app and run the following in your terminal
 
 
 ```bash
-bash -c 'expected_sha256="b5c41bcd3c480fd2ca6ec0031ccecf2cf7cf4ae01f591cad64a320fa7d72331d" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/AlbanDAVID/Toutui/raw/stable/hello_toutui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
+bash -c 'expected_sha256="b3a36a51b97652040c5a95aac4690df2f5bfc1197e9fc32694087301a942f8bc" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
 ```
 
 #### **Notes**  
 
 ##### Files installed:
-In `/usr/local/bin` (option 1, from install script) or `~/.cargo/bin` (option 2, from install script) or `/usr/bin` (yay)  :
-- `toutui` - The binary file.
+In `/usr/local/bin` (option 1, from install script) or `~/.cargo/bin` (option 2, from install script):
+- `absotui` - The binary file.
 
-In `~/.config/toutui` for Linux or `~/Library/Preferences` for macOS:    
+In `~/.config/absotui` for Linux or `~/Library/Preferences` for macOS:    
 **Note**: This is the default path if `XDG_CONFIG_HOME` is empty. 
 - `.env` - Contains the secret key.
 - `config.toml` - Configuration file.
-- `toutui.log` - Log file.
+- `absotui.log` - Log file.
 - `db.sqlite3` - SQLite database file.
 
-In `~/.local/share/applications` (option 1, from install script) or `/usr/share/applications` (yay) for Linux:
-- `toutui.desktop` - Config file to launch Toutui from a launcher app.
-
-In `/usr/share/toutui` (yay):
-- `config.example.toml` - Configuration file.
+In `~/.local/share/applications` for Linux:
+- `absotui.desktop` - Config file to launch Absotui from a launcher app.
 
 ### Install from source
 
 >[!WARNING]
-> This is a beta app, please read [this](https://github.com/AlbanDAVID/Toutui?tab=readme-ov-file#%EF%B8%8F-caution-beta-version).  
+> This is a beta app, please read [this](#%EF%B8%8F-caution-beta-version).  
 
 #### **Requirements**
 - `Rust`
 - `Netcat`
 - `VLC`
 
-[![GitHub release](https://img.shields.io/github/v/release/AlbanDAVID/Toutui?label=Latest%20Release&color=green&cacheSeconds=3600)](https://github.com/AlbanDAVID/Toutui/releases/latest)
-
-Note: `main` might be unstable. Prefer `git clone --branch stable --single-branch https://github.com/AlbanDAVID/Toutui` if you want to have the last stable release.    
+Note: `main` might be unstable. Prefer `git clone --branch stable --single-branch https://github.com/pdwaldrop/Absotui` if you want to have the last stable release (once one exists).    
 ```bash
-git clone https://github.com/AlbanDAVID/Toutui
-cd Toutui/
-mkdir -p ~/.config/toutui
-cp config.example.toml ~/.config/toutui/config.toml
+git clone https://github.com/pdwaldrop/Absotui
+cd Absotui/
+mkdir -p ~/.config/absotui
+cp config.example.toml ~/.config/absotui/config.toml
 ```
 
 Token encryption in the database (<u>**NOTE**</u>: replace `secret`)
 ```bash
-echo TOUTUI_SECRET_KEY=secret >> ~/.config/toutui/.env
+echo ABSOTUI_SECRET_KEY=secret >> ~/.config/absotui/.env
 ```
 
 ```bash
@@ -193,7 +156,7 @@ cargo run --release
 When a new release is available, follow these steps:
 
 ```bash
-git pull https://github.com/AlbanDAVID/Toutui
+git pull https://github.com/pdwaldrop/Absotui
 cargo run --release
 ```
 
@@ -201,12 +164,12 @@ cargo run --release
 ##### Exec the binary:
 ```bash
 cd target/release
-./Toutui
+./absotui
 ```
 
 ##### Files installed:
-After installation, you will have the following files in `~/.config/toutui`
+After installation, you will have the following files in `~/.config/absotui`
 - `.env` - Contains the secret key.
 - `config.toml` - Configuration file.
-- `toutui.log` - Log file.
+- `absotui.log` - Log file.
 - `db.sqlite3` - SQLite database file.

@@ -31,8 +31,8 @@ pub async fn check_update() -> Option<String> {
 pub async fn get_latest_release_gh() -> Result<String, Box<dyn std::error::Error>> {
     let client = Client::new();
     let response = client
-        .get("https://api.github.com/repos/AlbanDAVID/Toutui/releases/latest")
-        .header(USER_AGENT, "Toutui-Updater")
+        .get("https://api.github.com/repos/pdwaldrop/Absotui/releases/latest")
+        .header(USER_AGENT, "Absotui-Updater")
         .send()
         .await?;
     let text = response.text().await?;

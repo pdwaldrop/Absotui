@@ -21,7 +21,7 @@ pub fn setup_logs() -> Result<(), fern::InitError> {
             path
         });
 
-    let log_path = config_home_path.join("toutui/toutui.log");
+    let log_path = config_home_path.join("absotui/absotui.log");
 
     // Create or append into the file
     let log_file = OpenOptions::new()

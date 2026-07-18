@@ -1,5 +1,5 @@
 name: 😬 Bug Report
-description: File a bug/issue allow to improve Toutui
+description: File a bug/issue allow to improve Absotui
 title: '[Bug]: '
 labels: ['bug']
 body:
@@ -8,7 +8,7 @@ body:
       value: '🦜 Thanks for taking the time to fill out this bug report!'
   - type: markdown
     attributes:
-      value: 'Please first check if the bug is listed into [known bugs](https://github.com/AlbanDAVID/Toutui/blob/main/known_bugs.md) or issues.'
+      value: 'Please first check if the bug is listed into [known bugs](https://github.com/pdwaldrop/Absotui/blob/main/known_bugs.md) or issues.'
   - type: textarea
     id: what-happened
     attributes:
@@ -36,7 +36,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Toutui version
+      label: Absotui version
       description: Do not put 'Latest version', please put the actual version here
       placeholder: 'e.g. v0.1.0-beta'
     validations:
@@ -52,7 +52,7 @@ body:
   - type: dropdown
     id: install-distro
     attributes:
-      label: On which OS are you running Toutui?
+      label: On which OS are you running Absotui?
       options:
         - Arch Linux
         - Ubuntu
@@ -64,7 +64,7 @@ body:
   - type: dropdown
     id: install-method
     attributes:
-      label: How did you install Toutui?
+      label: How did you install Absotui?
       options:
         - Easy installation (option 1, download the binary)
         - Easy installation (option 2, compilation)
@@ -75,7 +75,7 @@ body:
   - type: dropdown
     id: terminal-emulator
     attributes:
-      label: On which terminal emulator are you running Toutui?
+      label: On which terminal emulator are you running Absotui?
       options:
         - Alacritty
         - Kitty
@@ -88,7 +88,7 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Logs are present in ~/.config/toutui/toutui.log (Linux) or ~/Library/Preferences/toutui.log (macOS)
+      description: Logs are present in ~/.config/absotui/absotui.log (Linux) or ~/Library/Preferences/absotui.log (macOS)
       placeholder: Paste logs here
   - type: textarea
     id: panicked-message

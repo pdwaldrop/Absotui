@@ -27,7 +27,7 @@ pub async fn post_start_playback_session_book(token: Option<&String>, id_library
         "forceDirectPlay": true, // avoid latency load, allow view chapter, cover etc.(the .m3u8 stream the original format, ex: .m4b) when playing with vlc
         "mediaPlayer": format!("VLC v{}", vlc_version),
         "deviceInfo": {  
-            "clientName": "Toutui",
+            "clientName": "Absotui",
             "clientVersion": format!("v{}", VERSION),
             // to have OS displayed in user activity pannel (audiobookshelf/config/users/)
             "manufacturer": format!("{}", std::env::consts::OS),
@@ -100,7 +100,7 @@ pub async fn post_start_playback_session_pod(token: Option<&String>, id_library_
         "forceDirectPlay": true, // avoid latency load, allow view chapter, cover etc.(the .m3u8 stream the original format, ex: .m4b) when playing with vlc
         "mediaPlayer": format!("VLC v{}", vlc_version),
         "deviceInfo": {  
-            "clientName": "Toutui",
+            "clientName": "Absotui",
             "clientVersion": format!("v{}", VERSION),
             // to have OS displayed in user activity pannel (audiobookshelf/config/users/)
             "manufacturer": format!("{}", std::env::consts::OS),

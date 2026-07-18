@@ -4,9 +4,9 @@
 
 <dict>
   <key>CFBundleName</key>
-  <string>Toutui</string>
+  <string>Absotui</string>
   <key>CFBundleIdentifier</key>
-  <string>com.example.toutui</string>
+  <string>com.example.absotui</string>
   <key>CFBundleVersion</key>
   <string>1.0</string>
   <key>CFBundleExecutable</key>
