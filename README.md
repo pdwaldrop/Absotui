@@ -23,12 +23,14 @@ Absotui is a fork of [Toutui](https://github.com/AlbanDAVID/Toutui), a TUI Audio
  **Cross-platform:** <img src=".github/tux.png" align="top" width="24" alt="Tux (Linux)"/>  Linux and <img src=".github/apple.png" align="top" width="24" alt="Apple (macOS)"/> macOS    
  **Lightweight & Fast:** A minimalist terminal user interface (TUI) written in Rust 🦀  
  **Supports Books & Podcasts:** Enjoy both audiobooks and podcasts  
- **Sync Progress & Stats:** Keep your listening progress in sync  
+ **Sync Progress & Stats:** Keep your listening progress in sync, with accurate percentages even at non-1x playback speeds  
+ **Speed-Adjusted Time Display:** Toggle (`T` key) between real elapsed/remaining time and raw content time  
+ **At-a-Glance Progress:** See per-book progress and which book is actively playing directly in the Continue Listening list  
  **Streaming Support:** Play directly without downloading  
- **Customizable Color Theme:** A config file will allow you to customize the color theme. Explore and try various themes [here](https://github.com/AlbanDAVID/Toutui-theme).
+ **Customizable Color Theme:** A config file will allow you to customize the color theme, including the progress indicator color. Explore and try various themes [here](https://github.com/AlbanDAVID/Toutui-theme).
 
 ## 🛠️ Roadmap  
-This fork just got started, so there's no fixed roadmap yet — for now the focus is on getting it running reliably and learning the codebase. See [known bugs](known_bugs.md) for the current state of things inherited from the original project.
+Recent work: fixed a long-standing progress-percentage bug at non-1x speeds, added the speed/content time toggle, reworked the Continue Listening list to show live progress, and fixed an Audiobookshelf API compatibility bug affecting books with mixed audio/ebook progress. Next up: browsing a book's full chapter list (not just next/prev) with per-chapter progress in the player. See [known bugs](known_bugs.md) for what's still outstanding from the original project.
 
 ## 🔮 Future features
 Here are some features that could be added in future releases:
