@@ -10,14 +10,14 @@ use ratatui::{
         Widget, Wrap
     },
 };
-use crate::utils::convert_seconds::*;
-use crate::config::*;
+use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg};
+use crate::config::load_config;
 
 
 // const version
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// init widget for selected AppView 
+/// init widget for selected `AppView` 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         match self.view_state {
@@ -36,9 +36,8 @@ impl Widget for &mut App {
 
 
 /// Rendering logic
-
 impl App {
-    /// AppView::Home rendering
+    /// `AppView::Home` rendering
     fn render_home(&mut self, area: Rect, buf: &mut Buffer) {
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
@@ -51,7 +50,7 @@ impl App {
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
 
         let items_number = self._titles_cnt_list.len();
-        let render_list_title = format!("Continue Listening [{} items]", items_number);
+        let render_list_title = format!("Continue Listening [{items_number} items]");
 
         let text_render_footer = "j/↓, k/↑: move, l/→: play, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot";
 
@@ -64,7 +63,7 @@ impl App {
         }
     }
 
-    /// AppView::Library rendering
+    /// `AppView::Library` rendering
     fn render_library(&mut self, area: Rect, buf: &mut Buffer) {
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
@@ -77,11 +76,11 @@ impl App {
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
 
         let items_number = self.titles_library.len();
-        let render_list_title = format!("Library [{} items]", items_number);
+        let render_list_title = format!("Library [{items_number} items]");
 
         let mut _text_render_footer = "";
         if self.is_podcast {
-        _text_render_footer = "j/↓, k/↑: move, l/→: episodes, Tab: home, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot"       
+        _text_render_footer = "j/↓, k/↑: move, l/→: episodes, Tab: home, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot";       
         } else {
         _text_render_footer = "j/↓, k/↑: move, l/→: play, Tab: home, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot";
         }
@@ -95,7 +94,7 @@ impl App {
         }
     }
 
-    /// AppView::Settings rendering
+    /// `AppView::Settings` rendering
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
@@ -128,7 +127,7 @@ impl App {
         self.render_desc_settings(item_area2, buf, &self.list_state_settings.clone());
     }
 
-    /// AppView::SettingsAccount rendering
+    /// `AppView::SettingsAccount` rendering
     fn render_settings_account(&mut self, area: Rect, buf: &mut Buffer) {
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
@@ -149,7 +148,7 @@ impl App {
         //self.render_selected_item(item_area, buf, &self.titles_library.clone(), self.auth_names_library.clone());
     }
 
-    /// AppView::SettingsLibrary rendering
+    /// `AppView::SettingsLibrary` rendering
     fn render_settings_library(&mut self, area: Rect, buf: &mut Buffer) {
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
@@ -162,7 +161,7 @@ impl App {
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let items_number = self.libraries_names.len();
-        let render_list_title = format!("Settings Library [{} items]", items_number);
+        let render_list_title = format!("Settings Library [{items_number} items]");
 
         let text_render_footer = "h: back, l/→: change library,\n Tab: home, R: refresh, Q/Esc: quit.";
 
@@ -173,7 +172,7 @@ impl App {
     }
 
 
-    /// AppView::SearchBook rendering
+    /// `AppView::SearchBook` rendering
     fn render_search_book(&mut self, area: Rect, buf: &mut Buffer) {
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
@@ -196,7 +195,7 @@ impl App {
 
         if self.search_mode
             && let Ok(query) = self.search_active() {
-                self.search_query = query.to_string();
+                self.search_query = query.clone();
                 self.search_mode = false; 
             }
 
@@ -211,8 +210,8 @@ impl App {
         let mut titles_search_book_or_pod: Vec<String> = Vec::new();
         let mut index_to_keep: Vec<usize> = Vec::new();
         for (index, title) in idx_and_titles {
-            titles_search_book_or_pod.push(title.to_string());
-            index_to_keep.push(index)
+            titles_search_book_or_pod.push(title.clone());
+            index_to_keep.push(index);
         }
 
         let titles_search_book_or_pod: &[String] = &titles_search_book_or_pod;
@@ -344,7 +343,7 @@ impl App {
         }
     }
 
-    /// AppView::PodcastEpisode
+    /// `AppView::PodcastEpisode`
     fn render_pod_ep(&mut self, area: Rect, buf: &mut Buffer) {
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
@@ -372,7 +371,7 @@ impl App {
                     .render(main_area, buf);
             } else {
                 let items_number = self.titles_pod_ep_search.len();
-                let render_list_title = format!("Episodes [{} items]", items_number);
+                let render_list_title = format!("Episodes [{items_number} items]");
                 // Only render list/info/desc if episodes exist
                 self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep_search.clone(), &mut self.list_state_pod_ep.clone());
                 self.render_info_pod_ep_search(item_area1, buf, &self.list_state_pod_ep.clone() );
@@ -387,7 +386,7 @@ impl App {
                     .render(main_area, buf);
             } else {
                 let items_number = self.titles_pod_ep.len();
-                let render_list_title = format!("Episodes [{} items]", items_number);
+                let render_list_title = format!("Episodes [{items_number} items]");
                 // Only render list/info/desc if episodes exist
                 self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep.clone(), &mut self.list_state_pod_ep.clone());
                 self.render_info_pod_ep(item_area1, buf, &self.list_state_pod_ep.clone() );
@@ -403,11 +402,11 @@ impl App {
             .bold()
             .centered()
             .render(area, buf);
-        Paragraph::new(format!("👋 Connected as {}\n🔗 {}", username, server_address_pretty))
+        Paragraph::new(format!("👋 Connected as {username}\n🔗 {server_address_pretty}"))
             .not_bold()
             .left_aligned()
             .render(area, buf);
-        Paragraph::new(format!("🦜 Absotui v{}\n {}", version, update_msg))
+        Paragraph::new(format!("🦜 Absotui v{version}\n {update_msg}"))
             .right_aligned()
             .render(area, buf);
     }
@@ -480,7 +479,7 @@ impl App {
                             self.pub_year_cnt_list[selected], 
                             duration_cnt_list_conv[selected],
                             self.book_progress_cnt_list[selected][0], // percentage progression
-                            format!("{}",convert_seconds_for_prg(self.duration_cnt_list[selected], self.book_progress_cnt_list_cur_time[selected][0])), // time left
+                            convert_seconds_for_prg(self.duration_cnt_list[selected], self.book_progress_cnt_list_cur_time[selected][0]), // time left
                             self.book_progress_cnt_list[selected][1], // is finished
                     ))
                         .left_aligned()

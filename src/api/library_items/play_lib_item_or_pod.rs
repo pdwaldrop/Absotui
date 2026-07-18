@@ -10,15 +10,14 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Play a Library Item or Podcast Episode
 /// This endpoint starts a playback session for a library item or podcast episode.
-/// https://api.audiobookshelf.org/#play-a-library-item-or-podcast-episode
-
-// play book 
+/// <https://api.audiobookshelf.org/#play-a-library-item-or-podcast-episode>
+// play book
 pub async fn post_start_playback_session_book(token: Option<&String>, id_library_item: &str, server_address: String) -> Result<Vec<String>, reqwest::Error> {
     let mut vlc_version = String::new();
     match get_vlc_version().await {
         Ok(version) => {vlc_version = version;}
         Err(e) => {
-            log::error!("[get_vlc_version] {}",e);
+            log::error!("[get_vlc_version] {e}");
         }
     }
     let client = Client::new();
@@ -36,9 +35,7 @@ pub async fn post_start_playback_session_book(token: Option<&String>, id_library
 
     let response = client
         .post(format!(
-                "{}/api/items/{}/play", 
-                server_address,
-                id_library_item
+                "{server_address}/api/items/{id_library_item}/play"
         ))
         .header("Content-Type", "application/json")
         .header(AUTHORIZATION, format!("Bearer {}", token.unwrap()))
@@ -109,10 +106,7 @@ pub async fn post_start_playback_session_pod(token: Option<&String>, id_library_
 
     let response = client
         .post(format!(
-                "{}/api/items/{}/play/{}", 
-                server_address,
-                id_library_item, 
-                pod_ep_id,
+                "{server_address}/api/items/{id_library_item}/play/{pod_ep_id}",
         ))
         .header("Content-Type", "application/json")
         .header(AUTHORIZATION, format!("Bearer {}", token.unwrap()))

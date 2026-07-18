@@ -1,11 +1,11 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use color_eyre::eyre::{Result, Report};
-use crate::db::crud::*;
+use crate::db::crud::db_insert_usr;
 use crate::db::database_struct::User;
-use crate::api::libraries::get_all_libraries::*;
-use crate::api::utils::collect_get_all_libraries::*;
-use crate::utils::encrypt_token::*;
+use crate::api::libraries::get_all_libraries::get_all_libraries;
+use crate::api::utils::collect_get_all_libraries::{collect_library_names, collect_media_types, collect_library_ids};
+use crate::utils::encrypt_token::encrypt_token;
 use log::info;
 
 
@@ -26,12 +26,11 @@ struct UserInfo {
 }
 
 /// Login
-/// https://api.audiobookshelf.org/#server
-
+/// <https://api.audiobookshelf.org/#server>
 /// The login function takes a username, password, url ans  makes a POST request and returns a token.
 /// After, some data are fetched with this token and written in database
 pub async fn auth_process(username: &str, password: &str, server_address: &str) -> Result<()> {
-    let login_url = format!("{}/login", server_address);
+    let login_url = format!("{server_address}/login");
     let client = Client::new();
 
     // Struct for data request
@@ -59,14 +58,14 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
 
         // Token encryption before insert it in the database
         let _token_to_encrypt = login_response.user.token.as_str();
-        let mut token_encrypted = "".to_string();
+        let mut token_encrypted = String::new();
         match encrypt_token(_token_to_encrypt) {
             Ok(encrypted_token) => {
                 token_encrypted = encrypted_token;
-                info!("Token successfully encrypted")
+                info!("Token successfully encrypted");
             }
             Err(e) => {
-                println!("Error: {}", e);
+                println!("Error: {e}");
             }
         }
 

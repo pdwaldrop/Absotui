@@ -1,6 +1,6 @@
 use color_eyre::Result;
 use ratatui::DefaultTerminal;
-use crate::config::*;
+use crate::config::{ConfigFile, load_config};
 
 
 pub enum AppViewLogin {

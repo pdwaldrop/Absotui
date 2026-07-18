@@ -6,11 +6,11 @@ pub fn convert_seconds(vec_seconds: Vec<f64>) -> Vec<String> {
             let minutes = total_minutes % 60;
 
             if hours == 0 {
-                format!("{}m", minutes)
+                format!("{minutes}m")
             } else if minutes == 0 {
-                format!("{}h", hours)
+                format!("{hours}h")
             } else {
-                format!("{}h{}m", hours, minutes)
+                format!("{hours}h{minutes}m")
             }
         })
         .collect()
@@ -27,11 +27,11 @@ pub fn convert_seconds_for_prg(duration: f64, current_time: f64) -> String {
                 String::new()
             }
             else if hours == 0 {
-                format!("{}m left,", minutes)
+                format!("{minutes}m left,")
             } else if minutes == 0 {
-                format!("{}h left,", hours)
+                format!("{hours}h left,")
             } else {
-                format!("{}h{}m left,", hours, minutes)
+                format!("{hours}h{minutes}m left,")
             }
         }
 

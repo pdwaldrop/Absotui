@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use crate::db::crud::*;
+use crate::db::crud::{init_db, select_default_usr};
 use color_eyre::Result;
 
 pub struct Database  {

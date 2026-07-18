@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 
-/// init widget for selected AppView 
+/// init widget for selected `AppView` 
 impl Widget for &mut AppLogin {
     fn render(self, area: Rect, buf: &mut Buffer) {
         match self.view_state {
@@ -18,7 +18,6 @@ impl Widget for &mut AppLogin {
 
 
 /// Rendering logic
-
 impl AppLogin {
 
     fn render_auth(&mut self, _area: Rect, _buf: &mut Buffer) {

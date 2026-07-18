@@ -2,10 +2,10 @@ use std::io::{self, Write, BufRead, BufReader};
 use std::net::TcpStream;
 
 pub fn vlc_tcp_stream(address: &str, port: &str, cmd: &str) -> io::Result<String> {
-    let mut stream = TcpStream::connect(format!("{}:{}", address, port))?;
+    let mut stream = TcpStream::connect(format!("{address}:{port}"))?;
     
     // Send command
-    writeln!(stream, "{}", cmd)?;
+    writeln!(stream, "{cmd}")?;
 
     // Read response
     let reader = BufReader::new(stream);

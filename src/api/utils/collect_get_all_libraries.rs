@@ -1,7 +1,7 @@
 use crate::api::libraries::get_all_libraries::Root;
 
 
-/// collect media_type (podcast or book)
+/// collect `media_type` (podcast or book)
 pub async fn collect_media_types(library: &Root) -> Vec<String> {
     let mut media_types = Vec::new();
 
@@ -12,7 +12,7 @@ pub async fn collect_media_types(library: &Root) -> Vec<String> {
     media_types
 }
 
-/// library_names
+/// `library_names`
 pub async fn collect_library_names(library: &Root) -> Vec<String> {
     let mut library_names = Vec::new();
 
@@ -23,7 +23,7 @@ pub async fn collect_library_names(library: &Root) -> Vec<String> {
     library_names
 }
 
-/// collect library_ids
+/// collect `library_ids`
 pub async fn collect_library_ids(library: &Root) -> Vec<String> {
     let mut library_ids = Vec::new();
 

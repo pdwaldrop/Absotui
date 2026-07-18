@@ -1,5 +1,5 @@
 use log::info;
-use crate::db::crud::*;
+use crate::db::crud::{get_listening_session, get_speed_rate};
 
 pub fn player_info(username: &str) -> Vec<String> {
     let mut player_info = Vec::new();
@@ -37,7 +37,7 @@ pub fn player_info(username: &str) -> Vec<String> {
         }
         Err(e) => {
             player_info.push("Error".to_string());
-            info!("[player_info] Error retrieving data: {}", e);
+            info!("[player_info] Error retrieving data: {e}");
         }
     }
 
@@ -52,10 +52,10 @@ fn format_time(seconds: u32) -> String {
     let secs = seconds % 60;
 
     if hours > 0 {
-        format!("{}:{:02}:{:02}", hours, minutes, secs)
+        format!("{hours}:{minutes:02}:{secs:02}")
     } else if minutes > 0 {
-        format!("{}:{:02}", minutes, secs)
+        format!("{minutes}:{secs:02}")
     } else {
-        format!("0:{}", secs)
+        format!("0:{secs}")
     }
 }

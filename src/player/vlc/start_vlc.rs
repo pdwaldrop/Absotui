@@ -1,6 +1,6 @@
 use std::process::Command;
 use std::process::Output;
-use crate::db::crud::*;
+use crate::db::crud::get_speed_rate;
 
 pub async fn start_vlc(
     current_time: &String, 
@@ -21,11 +21,11 @@ pub async fn start_vlc(
     let output: Output = Command::new(&program)
         .arg("-I") // for macos
         .arg("dummy") // for macos
-        .arg(format!("--start-time={}", current_time))
+        .arg(format!("--start-time={current_time}"))
         .arg("--extraintf")
         .arg("rc")
         .arg("--rc-host")
-        .arg(format!("{}:{}",address, port))
+        .arg(format!("{address}:{port}"))
         .arg(format!("{}{}?token={}", server_address, content_url, token.unwrap()))
         .arg("--rate")
         .arg(speed_rate)

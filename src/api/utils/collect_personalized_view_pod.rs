@@ -1,5 +1,5 @@
 use crate::api::libraries::get_library_perso_view_pod::Root;
-use crate::utils::convert_seconds::*;
+use crate::utils::convert_seconds::convert_seconds;
 
 /// collect id pod for continue listening
 pub async fn collect_ids_pod_cnt_list(roots: &[Root]) -> Vec<String> {
@@ -55,7 +55,7 @@ pub async fn collect_nums_ep_pod_cnt_list(roots: &[Root]) -> Vec<String> {
                     if let Some(episode) = &recent_episode.episode {
                         nums_ep_pod_cnt_list.push(episode.clone());
                     } else {
-                        nums_ep_pod_cnt_list.push("N/A".to_string())
+                        nums_ep_pod_cnt_list.push("N/A".to_string());
                     }
                 }
             }

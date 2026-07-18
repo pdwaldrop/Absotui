@@ -9,12 +9,12 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
 };
-use crate::api::server::auth_process::*;
+use crate::api::server::auth_process::auth_process;
 use crossterm::event::{self, KeyEvent, KeyCode};  
 use log::{info, error};
-use crate::utils::exit_app::*;
-use crate::utils::pop_up_message::*;
-use crate::db::crud::*;
+use crate::utils::exit_app::clean_exit;
+use crate::utils::pop_up_message::pop_message;
+use crate::db::crud::{get_others, update_login_err};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -37,7 +37,7 @@ impl AppLogin {
             Block::default()
             .borders(Borders::ALL)
             .title("Server address")
-            .title_bottom(Line::from(format!("🦜Absotui v{} - Esc to quit.", VERSION)).right_aligned())
+            .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
             .border_style(Style::default()
                 .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
         );
@@ -49,7 +49,7 @@ impl AppLogin {
             Block::default()
             .borders(Borders::ALL)
             .title("Username")
-            .title_bottom(Line::from(format!("🦜Absotui v{} - Esc to quit.", VERSION)).right_aligned())
+            .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
             .border_style(Style::default()
                 .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
         );
@@ -59,7 +59,7 @@ impl AppLogin {
             Block::default()
             .borders(Borders::ALL)
             .title("Password")
-            .title_bottom(Line::from(format!("🦜Absotui v{} - Esc to quit.", VERSION)).right_aligned())
+            .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
             .border_style(Style::default()
                 .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
         );
@@ -98,11 +98,11 @@ impl AppLogin {
             let error_message_login = match get_others() {
                 Ok(Some(value)) => value.login_err,
                 Ok(None) => {
-                    "".to_string()
+                    String::new()
                 }
                 Err(e) => {
-                    info!("ERROR: Failed to get login error: {}", e);
-                    "".to_string()
+                    info!("ERROR: Failed to get login error: {e}");
+                    String::new()
                 }};
             let _ = pop_message(&mut stdout, 6, error_message_login.as_str());
 
@@ -161,9 +161,9 @@ impl AppLogin {
                         let _ = update_login_err("");
                     }
                     Err(e) => {
-                        error!("[auth_process] Login failed: {}", e);
-                        eprintln!("ERROR: {}", e);
-                        let err = format!("ERROR: {}", e);
+                        error!("[auth_process] Login failed: {e}");
+                        eprintln!("ERROR: {e}");
+                        let err = format!("ERROR: {e}");
                         let _ = update_login_err(err.as_str());
                     }
                 }});

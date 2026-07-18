@@ -28,17 +28,16 @@ pub struct Root {
 }
 
 /// This endpoint retrieves your media progress that is associated with the given library item ID or podcast episode ID.
-/// https://api.audiobookshelf.org/#get-a-media-progress
-
+/// <https://api.audiobookshelf.org/#get-a-media-progress>
 // get progress for a book
 pub async fn get_book_progress(token: &str, book_id: &String, server_address: String) -> Result<Root> {
     let client = Client::new();
-    let url = format!("{}/api/me/progress/{}", server_address, book_id);
+    let url = format!("{server_address}/api/me/progress/{book_id}");
 
     // Send GET request
     let response = client
         .get(url)
-        .header(AUTHORIZATION, format!("Bearer {}", token))
+        .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 

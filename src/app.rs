@@ -1,35 +1,35 @@
-use crate::api::utils::collect_personalized_view::*;
-use crate::api::utils::collect_personalized_view_pod::*;
-use crate::api::utils::collect_get_all_books::*;
-use crate::api::utils::collect_get_pod_ep::*;
-use crate::api::utils::collect_get_all_libraries::*;
-use crate::api::utils::collect_get_media_progress::*;
-use crate::api::me::get_media_progress::*;
-use crate::api::libraries::get_library_perso_view::*;
-use crate::api::libraries::get_library_perso_view_pod::*;
-use crate::api::libraries::get_all_books::*;
-use crate::api::libraries::get_all_libraries::*;
-use crate::api::library_items::get_pod_ep::*;
-use crate::logic::handle_input::handle_l_book::*;
-use crate::logic::handle_input::handle_l_pod::*;
-use crate::logic::handle_input::handle_l_pod_home::*;
-use crate::config::*;
-use crate::db::crud::*;
+use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, collect_auth_names_cnt_list, collect_pub_year_cnt_list, collect_duration_cnt_list, collect_desc_cnt_list, collect_ids_cnt_list};
+use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list};
+use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library};
+use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_pod_ep, collect_subtitles_pod_ep, collect_seasons_pod_ep, collect_episodes_pod_ep, collect_authors_pod_ep, collect_descs_pod_ep, collect_titles_pod, collect_durations_pod_ep};
+use crate::api::utils::collect_get_all_libraries::{collect_library_names, collect_media_types, collect_library_ids};
+use crate::api::utils::collect_get_media_progress::{collect_progress_percentage_book, collect_is_finished_book, collect_current_time_prg};
+use crate::api::me::get_media_progress::get_book_progress;
+use crate::api::libraries::get_library_perso_view::get_continue_listening;
+use crate::api::libraries::get_library_perso_view_pod::get_continue_listening_pod;
+use crate::api::libraries::get_all_books::get_all_books;
+use crate::api::libraries::get_all_libraries::get_all_libraries;
+use crate::api::library_items::get_pod_ep::get_pod_ep;
+use crate::logic::handle_input::handle_l_book::handle_l_book;
+use crate::logic::handle_input::handle_l_pod::handle_l_pod;
+use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
+use crate::config::{ConfigFile, load_config};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, update_is_vlc_running, delete_user, update_id_selected_lib};
 use crate::db::database_struct::Database;
 use color_eyre::Result;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
     widgets::ListState,
 };
-use crate::utils::pop_up_message::*;
-use crate::utils::changelog::*;
-use crate::utils::encrypt_token::*;
+use crate::utils::pop_up_message::pop_message;
+use crate::utils::changelog::changelog;
+use crate::utils::encrypt_token::decrypt_token;
 use std::io::stdout;
-use crate::player::vlc::quit_vlc::*;
-use crate::logic::sync_session::sync_session_from_database::*;
-use crate::logic::sync_session::wait_prev_session_finished::*;
-use crate::player::integrated::handle_key_player::*;
-use crate::utils::check_update::*;
+use crate::player::vlc::quit_vlc::{quit_vlc, pkill_vlc};
+use crate::logic::sync_session::sync_session_from_database::sync_session_from_database;
+use crate::logic::sync_session::wait_prev_session_finished::wait_prev_session_finished;
+use crate::player::integrated::handle_key_player::handle_key_player;
+use crate::utils::check_update::check_update;
 
 pub enum AppView {
     Home,
@@ -178,7 +178,7 @@ impl App {
                 //info!("Token successfully decrypted")
             }
             Err(e) => {
-                println!("Error: {}", e);
+                println!("Error: {e}");
             }
         }
 
@@ -230,7 +230,7 @@ impl App {
         library_name = libraries_names[index].clone();
         media_type = media_types[index].clone();
     }         
-    let lib_name_type = format!("📖 {} ({})", library_name, media_type);
+    let lib_name_type = format!("📖 {library_name} ({media_type})");
 
     // init is_podcast
     let is_podcast = media_type == "podcast";
@@ -277,7 +277,7 @@ impl App {
         desc_cnt_list = collect_desc_cnt_list(&continue_listening).await;
         _ids_cnt_list = collect_ids_cnt_list(&continue_listening).await;
         for id in _ids_cnt_list.clone() {
-            match get_book_progress(&token, &id, server_address.clone()).await { Ok(val) => {
+            if let Ok(val) = get_book_progress(&token, &id, server_address.clone()).await {
                 let mut values: Vec<String> = Vec::new();
                 let mut values_f64: Vec<f64> = Vec::new();
                 values.push(collect_progress_percentage_book(&val).await);
@@ -285,7 +285,7 @@ impl App {
                 values_f64.push(collect_current_time_prg(&val).await);
                 book_progress_cnt_list.push(values);
                 book_progress_cnt_list_cur_time.push(values_f64);
-            } _ => {
+            } else {
                 // if the book is not starded, `get book progress` is not fetched
                 // so the empty values are handled here : 
                 // avoid an out of bound panick
@@ -296,7 +296,7 @@ impl App {
                 values_f64.push(0.0);
                 book_progress_cnt_list.push(values);
                 book_progress_cnt_list_cur_time.push(values_f64);
-            }}}}
+            }}}
 
     //init for `Library ` (all books  or podcasts of a Library (shelf))
     let all_books = get_all_books(&token, &id_selected_lib, server_address.clone()).await?;
@@ -395,8 +395,8 @@ impl App {
     let durations_pod_ep: Vec<String> = Vec::new();
 
     if is_podcast {
-    for i in 0..ids_library.len() 
-    {let podcast_episode = get_pod_ep(&token, server_address.clone(), ids_library[i].as_str()).await?;
+    for id_library in &ids_library
+    {let podcast_episode = get_pod_ep(&token, server_address.clone(), id_library.as_str()).await?;
         let title = collect_titles_pod_ep(&podcast_episode).await;
         all_titles_pod_ep.push(title);
         let id = collect_ids_pod_ep(&podcast_episode).await;
@@ -452,10 +452,7 @@ impl App {
     }
 
     // Init for check_update
-    let update_msg = match check_update().await {
-        Some(msg) => msg,
-        None => "".to_string(),
-    };
+    let update_msg = check_update().await.unwrap_or_default();
 
     // Init ListeState for `Home` list (continue listening)
     let mut list_state_cnt_list = ListState::default(); // init the ListState ratatui's widget
@@ -689,8 +686,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         KeyCode::Tab => {
             if self.is_from_search_pod {
                 self.is_from_search_pod = false;
-            };
-            self.toggle_view()
+            }
+            self.toggle_view();
         }
 
         KeyCode::Char('Q') | KeyCode::Esc => {
@@ -710,7 +707,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
 
             tokio::spawn(async move {
-                let _ = sync_session_from_database(token, server_address, username, true, "Q", player_address, port).await;
+                let () = sync_session_from_database(token, server_address, username, true, "Q", player_address, port).await;
             });
 
         }        
@@ -753,9 +750,9 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 AppView::Settings => {self.view_state = AppView::Home} 
                 AppView::PodcastEpisode => {
                     if self.is_from_search_pod {
-                        self.view_state = AppView::SearchBook
+                        self.view_state = AppView::SearchBook;
                     } else {
-                        self.view_state = AppView::Library
+                        self.view_state = AppView::Library;
                     }
                 }
                 _ => {}
@@ -834,7 +831,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                             // in case where the app has been disgrafully closed (crash, kill)
                             // the last listening session is closed when app is restarted
-                            let _ = sync_session_from_database(
+                            let () = sync_session_from_database(
                                 token.clone(), 
                                 server_address.clone(), 
                                 username.clone(), 
@@ -877,7 +874,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                             // in case where the app has been disgrafully closed (crash, kill)
                             // the last listening session is closed when app is restarted
-                            let _ = sync_session_from_database(
+                            let () = sync_session_from_database(
                                 token.clone(), 
                                 server_address.clone(), 
                                 username.clone(), 
@@ -956,7 +953,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                 // in case where the app has been disgrafully closed (crash, kill)
                                 // the last listening session is closed when app is restarted
-                                let _ = sync_session_from_database(
+                                let () = sync_session_from_database(
                                     token.clone(), 
                                     server_address.clone(), 
                                     username.clone(), 
@@ -1013,7 +1010,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                 // in case where the app has been disgrafully closed (crash, kill)
                                 // the last listening session is closed when app is restarted
-                                let _ = sync_session_from_database(
+                                let () = sync_session_from_database(
                                     token.clone(), 
                                     server_address.clone(), 
                                     username.clone(), 
@@ -1069,7 +1066,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                     // in case where the app has been disgrafully closed (crash, kill)
                                     // the last listening session is closed when app is restarted
-                                    let _ = sync_session_from_database(
+                                    let () = sync_session_from_database(
                                         token.clone(), 
                                         server_address.clone(), 
                                         username.clone(), 
@@ -1122,7 +1119,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                     // in case where the app has been disgrafully closed (crash, kill)
                                     // the last listening session is closed when app is restarted
-                                    let _ = sync_session_from_database(
+                                    let () = sync_session_from_database(
                                         token.clone(), 
                                         server_address.clone(), 
                                         username.clone(), 
@@ -1173,7 +1170,7 @@ fn toggle_view(&mut self) {
 }
 
 /// Select functions that apply to both views
-/// all select functions are from ListState widget
+/// all select functions are from `ListState` widget
 pub fn select_next(&mut self) {
     match self.view_state {
         AppView::Home => { if let Some(selected) = self.list_state_cnt_list.selected() {

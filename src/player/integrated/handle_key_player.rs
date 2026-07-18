@@ -1,11 +1,11 @@
 use std::io::{self, Write};
 use std::net::TcpStream;
-use crate::db::crud::*;
+use crate::db::crud::{get_listening_session, update_is_playback, update_speed_rate, get_speed_rate};
 use std::thread;
 use std::time::Duration;
 
 pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut bool, username: &str) -> io::Result<()> {
-    let mut stream = TcpStream::connect(format!("{}:{}", address, port))?;
+    let mut stream = TcpStream::connect(format!("{address}:{port}"))?;
 
     let jump = "10";
 
@@ -45,7 +45,7 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
         // jump forward
         "p" => {
             writeln!(stream, "pause")?; 
-            writeln!(stream, "seek +{}", jump)?;
+            writeln!(stream, "seek +{jump}")?;
             if cfg!(target_os = "macos") {
             thread::sleep(Duration::from_millis(500));
             }
@@ -54,7 +54,7 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
         // jump backward
         "u" => {
             writeln!(stream, "pause")?;
-            writeln!(stream, "seek -{}", jump)?;
+            writeln!(stream, "seek -{jump}")?;
             if cfg!(target_os = "macos") {
             thread::sleep(Duration::from_millis(500));
             }
@@ -90,13 +90,13 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
         "O" => {
             let _ = update_speed_rate(username, true);
             let speed_rate = get_speed_rate(username);
-            writeln!(stream, "rate {}", speed_rate)?;
+            writeln!(stream, "rate {speed_rate}")?;
         }
         // speed rate down
         "I" => {
             let _ = update_speed_rate(username, false);
             let speed_rate = get_speed_rate(username);
-            writeln!(stream, "rate {}", speed_rate)?;
+            writeln!(stream, "rate {speed_rate}")?;
         }
         // shutdown
         "Y" => {

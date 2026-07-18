@@ -2,7 +2,7 @@ use rusqlite::{params, Connection, Result};
 use crate::db::database_struct::User;
 use crate::db::database_struct::ListeningSession;
 use crate::db::database_struct::Others;
-use crate::utils::pop_up_message::*;
+use crate::utils::pop_up_message::pop_message;
 use std::io::stdout;
 use log::{info, error};
 use std::env;
@@ -12,9 +12,7 @@ use std::path::PathBuf;
 // Update is_show_key_bindings
 pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -24,24 +22,24 @@ pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE users SET is_show_key_bindings = ?1 WHERE username = ?2",
             params![value, username],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_show_key_bindings] {}", err_message);
-    }}
+        error!("[update_is_show_key_bindings] {err_message}");
+    }
 
     Ok(())
 }
@@ -49,9 +47,7 @@ pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
 
 // get is_show_key_bindings
 pub fn get_is_show_key_bindings(username: &str) -> String {
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -61,7 +57,7 @@ pub fn get_is_show_key_bindings(username: &str) -> String {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
@@ -76,7 +72,7 @@ pub fn get_is_show_key_bindings(username: &str) -> String {
     };
 
     match stmt.query_row(params![username], |row| row.get::<_, String>(0)) {
-        Ok(id) => id.to_string(),
+        Ok(id) => id.clone(),
         Err(_) => String::from("No db found"),
     }
 }
@@ -84,9 +80,7 @@ pub fn get_is_show_key_bindings(username: &str) -> String {
 // Update is_vlc_running
 pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -96,23 +90,23 @@ pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE users SET is_vlc_running = ?1 WHERE username = ?2",
             params![value, username],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_vlc_running] {}", err_message);
-    }}
+        error!("[update_is_vlc_running] {err_message}");
+    }
 
     Ok(())
 }
@@ -120,9 +114,7 @@ pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
 
 // get is_vlc_running
 pub fn get_is_vlc_running(username: &str) -> String {
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -132,7 +124,7 @@ pub fn get_is_vlc_running(username: &str) -> String {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
@@ -147,7 +139,7 @@ pub fn get_is_vlc_running(username: &str) -> String {
     };
 
     match stmt.query_row(params![username], |row| row.get::<_, String>(0)) {
-        Ok(id) => id.to_string(),
+        Ok(id) => id.clone(),
         Err(_) => String::from("No db found"),
     }
 }
@@ -155,9 +147,7 @@ pub fn get_is_vlc_running(username: &str) -> String {
 // Update speed_rate
 pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -167,13 +157,13 @@ pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         if is_speed_rate_up {
         conn.execute(
@@ -186,11 +176,11 @@ pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
             params![username],
         )?;
         }
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_speed_rate] {}", err_message);
-    }}
+        error!("[update_speed_rate] {err_message}");
+    }
 
     Ok(())
 }
@@ -198,9 +188,7 @@ pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
 
 // get speed_rate
 pub fn get_speed_rate(username: &str) -> String {
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -210,7 +198,7 @@ pub fn get_speed_rate(username: &str) -> String {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
@@ -233,9 +221,7 @@ pub fn get_speed_rate(username: &str) -> String {
 // get listening_session
 pub fn get_listening_session() -> Result<Option<ListeningSession>> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -245,13 +231,13 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
         let mut stmt = conn.prepare(
             "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter
              FROM listening_session
@@ -276,11 +262,11 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
             };
             return Ok(Some(session));
         }
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[get_listening_session] {}", err_message);
-    }}
+        error!("[get_listening_session] {err_message}");
+    }
 
     Ok(None)
 }
@@ -300,9 +286,7 @@ pub fn insert_listening_session(
 
 ) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -312,24 +296,24 @@ pub fn insert_listening_session(
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
         conn.execute("DELETE FROM listening_session", params![])?;
         conn.execute(
             "INSERT INTO listening_session (id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter) 
              VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![id_session, id_item, current_time, duration, id_pod, elapsed_time, title, author, is_playback, chapter],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[insert_listening_session] {}", err_message);
-    }}
+        error!("[insert_listening_session] {err_message}");
+    }
 
     Ok(())
 }
@@ -337,9 +321,7 @@ pub fn insert_listening_session(
 // Update chapter (for `listening_session` table)
 pub fn update_chapter(value: &str, id_session: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -349,32 +331,30 @@ pub fn update_chapter(value: &str, id_session: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE listening_session SET chapter = ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_chapter] {}", err_message);
-    }}
+        error!("[update_chapter] {err_message}");
+    }
 
     Ok(())
 }
 // Update is_playback (for `listening_session` table)
 pub fn update_is_playback(value: &str, id_session: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -384,32 +364,30 @@ pub fn update_is_playback(value: &str, id_session: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE listening_session SET is_playback = ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_playback] {}", err_message);
-    }}
+        error!("[update_is_playback] {err_message}");
+    }
 
     Ok(())
 }
 // Update current_time (for `listening_session` table)
 pub fn update_current_time(value: u32, id_session: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -419,23 +397,23 @@ pub fn update_current_time(value: u32, id_session: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE listening_session SET current_time_playback = ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_current_time] {}", err_message);
-    }}
+        error!("[update_current_time] {err_message}");
+    }
 
     Ok(())
 }
@@ -443,9 +421,7 @@ pub fn update_current_time(value: u32, id_session: &str) -> Result<()> {
 // Update elapsed_time (for `listening_session` table)
 pub fn update_elapsed_time(value: u32, id_session: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -455,23 +431,23 @@ pub fn update_elapsed_time(value: u32, id_session: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE listening_session SET elapsed_time = elapsed_time + ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_elapsed_time] {}", err_message);
-    }}
+        error!("[update_elapsed_time] {err_message}");
+    }
 
     Ok(())
 }
@@ -479,9 +455,7 @@ pub fn update_elapsed_time(value: u32, id_session: &str) -> Result<()> {
 // Update is_finished (for `listening_session` table)
 pub fn update_is_finished(value: &str, id_session: &str) -> Result<()> {
     
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -491,23 +465,23 @@ pub fn update_is_finished(value: &str, id_session: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE listening_session SET is_finished = ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_finished] {}", err_message);
-    }}
+        error!("[update_is_finished] {err_message}");
+    }
 
     Ok(())
 }
@@ -515,9 +489,7 @@ pub fn update_is_finished(value: &str, id_session: &str) -> Result<()> {
 // Delete an user
 pub fn delete_user(username: &str) -> Result<()> {
     
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -527,13 +499,13 @@ pub fn delete_user(username: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
-    let message = format!("User '{}' deleted. Please restart the app to apply the changes.", username);
+    let message = format!("User '{username}' deleted. Please restart the app to apply the changes.");
     let err_message = "Error connecting to the database.";
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         let rows_deleted = conn.execute(
             "DELETE FROM users WHERE username = ?1",
@@ -547,11 +519,11 @@ pub fn delete_user(username: &str) -> Result<()> {
         } else {
             //println!("No user found with this username '{}'.", username);
         }
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[delete user] {}", err_message);
-    }}
+        error!("[delete user] {err_message}");
+    }
 
     Ok(())
 }
@@ -559,9 +531,7 @@ pub fn delete_user(username: &str) -> Result<()> {
 // Update is_loop_break
 pub fn update_is_loop_break(value: &str, username: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -571,23 +541,23 @@ pub fn update_is_loop_break(value: &str, username: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE users SET is_loop_break = ?1 WHERE username = ?2",
             params![value, username],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_loop_break] {}", err_message);
-    }}
+        error!("[update_is_loop_break] {err_message}");
+    }
 
     Ok(())
 }
@@ -595,9 +565,7 @@ pub fn update_is_loop_break(value: &str, username: &str) -> Result<()> {
 
 // get is_loop_break
 pub fn get_is_loop_break(username: &str) -> String {
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -607,7 +575,7 @@ pub fn get_is_loop_break(username: &str) -> String {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
@@ -630,9 +598,7 @@ pub fn get_is_loop_break(username: &str) -> String {
 // Update is_vlv_launched_first_time
 pub fn update_is_vlc_launched_first_time(value: &str, username: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -642,31 +608,29 @@ pub fn update_is_vlc_launched_first_time(value: &str, username: &str) -> Result<
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE users SET is_vlc_launched_first_time = ?1 WHERE username = ?2",
             params![value, username],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[is_vlc_launched_first_time] {}", err_message);
-    }}
+        error!("[is_vlc_launched_first_time] {err_message}");
+    }
 
     Ok(())
 }
 // get is_vlc_launched_first_time
 pub fn get_is_vlc_launched_first_time(username: &str) -> String {
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -676,7 +640,7 @@ pub fn get_is_vlc_launched_first_time(username: &str) -> String {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
@@ -698,9 +662,7 @@ pub fn get_is_vlc_launched_first_time(username: &str) -> String {
 // Update id_selected_lib
 pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -710,13 +672,13 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let message = "The library has been updated. Please refresh the app to apply the changes.";
     let err_message = "Error connecting to the database.";
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
 
         conn.execute(
             "UPDATE users SET id_selected_lib = ?1 WHERE username = ?2",
@@ -726,11 +688,11 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
         let _ = pop_message(&mut stdout, 3, message);
         info!("[update_id_selected_lib] The library has been updated");
 
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_id_selected_lib] {}", err_message);
-    }}
+        error!("[update_id_selected_lib] {err_message}");
+    }
 
     Ok(())
 }
@@ -754,9 +716,7 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
 
 // Insert user in database
 pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {   
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -766,7 +726,7 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
@@ -779,7 +739,7 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
             user.username,
             user.server_address,
             user.token,
-            if user.is_default_usr { 1 } else { 0 },
+            i32::from(user.is_default_usr),
             user.name_selected_lib,
             user.id_selected_lib,
             user.is_loop_break,
@@ -796,9 +756,7 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
 // get others
 pub fn get_others() -> Result<Option<Others>> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -808,13 +766,13 @@ pub fn get_others() -> Result<Option<Others>> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
         let mut stmt = conn.prepare(
             "SELECT login_err
              FROM others
@@ -829,20 +787,18 @@ pub fn get_others() -> Result<Option<Others>> {
             };
             return Ok(Some(others));
         }
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[get_others] {}", err_message);
-    }}
+        error!("[get_others] {err_message}");
+    }
 
     Ok(None)
 }
 // Update login_err (for `others` table)
 pub fn update_login_err(value: &str) -> Result<()> {
 
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -852,13 +808,13 @@ pub fn update_login_err(value: &str) -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
     let err_message = "Error connecting to the database.";
 
-    match Connection::open(db_path) { Ok(conn) => {
+    if let Ok(conn) = Connection::open(db_path) {
         conn.execute(
             "INSERT INTO others (login_err) SELECT '' WHERE NOT EXISTS (SELECT 1 FROM others LIMIT 1)",
             [],
@@ -867,20 +823,18 @@ pub fn update_login_err(value: &str) -> Result<()> {
             "UPDATE others SET login_err = ?1 WHERE rowid = 1",
             params![value],
         )?;
-    } _ => {
+    } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_login_err] {}", err_message);
-    }}
+        error!("[update_login_err] {err_message}");
+    }
 
     Ok(())
 }
 
 // Select default user
 pub fn select_default_usr() -> Result<Vec<String>> {
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -890,7 +844,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
@@ -936,7 +890,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
                 result.push(user.is_show_key_bindings);
             }
             Err(e) => {
-                println!("Error occurred: {}", e);
+                println!("Error occurred: {e}");
                 //return Err(rusqlite::Error::FromSqlConversionFailure(0, "Failed to map user".to_string()));
             }
         }
@@ -951,9 +905,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
 
 // Init db and table if not exist
 pub fn init_db() -> Result<()> {
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -963,7 +915,7 @@ pub fn init_db() -> Result<()> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 

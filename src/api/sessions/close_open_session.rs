@@ -10,9 +10,7 @@ pub async fn close_session_without_send_prg_data(token: Option<&String>, session
 
     let _response = client
         .post(format!(
-                "{}/api/session/{}/close", 
-                server_address,
-                session_id
+                "{server_address}/api/session/{session_id}/close"
         ))
         .header("Content-Type", "application/json")
         .header(AUTHORIZATION, format!("Bearer {}", token.unwrap()))

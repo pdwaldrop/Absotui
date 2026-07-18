@@ -15,19 +15,19 @@ use color_eyre::Result;
 use std::time::Duration;
 use crossterm::event::{self, KeyCode};
 use std::io::stdout;
-use crate::utils::pop_up_message::*;
-use crate::utils::logs::*;
+use crate::utils::pop_up_message::{clear_message, pop_message};
+use crate::utils::logs::setup_logs;
 use log::info;
-use crate::db::crud::*;
+use crate::db::crud::{update_is_vlc_launched_first_time, get_is_vlc_launched_first_time, get_is_vlc_running};
 use ratatui::{
     style::{Color, Style},
     widgets::Block
 };
-use crate::player::integrated::player_info::*;
-use crate::ui::player_tui::*;
+use crate::player::integrated::player_info::player_info;
+use crate::ui::player_tui::render_player;
 use std::env;
 use std::path::PathBuf;
-use crate::utils::clap::*;
+use crate::utils::clap::clap;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -44,9 +44,7 @@ async fn main() -> Result<()> {
     let home_dir = dirs::home_dir().expect("Unable to find the user's home directory");
     // if env::var("XDG_CONFIG_HOME") is not empty env_path will take designed path
     // else, env_path will be set to default path
-    let config_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from) 
-        .unwrap_or_else(|_| { 
+    let config_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| { 
             if cfg!(target_os = "macos") {
             // If XDG_CONFIG_HOME is not defined on macOS, use the default directory
             home_dir.join("Library").join("Preferences")
@@ -54,7 +52,7 @@ async fn main() -> Result<()> {
             // Otherwise, use ~/.config for other systems (like Linux)
             home_dir.join(".config")
         }
-        });
+        }, PathBuf::from);
     // Construct the dotenv 
     let env_path = config_path.join("absotui").join(".env");
     dotenv::from_filename(env_path.clone()).ok();
@@ -97,7 +95,7 @@ async fn main() -> Result<()> {
         // init is_vlc_launched_first_time 
         let _ = update_is_vlc_launched_first_time("1", username.as_str());
         let value = get_is_vlc_launched_first_time(username.as_str());
-        info!("[main][is_vlc_launched_first_time] {}", value);
+        info!("[main][is_vlc_launched_first_time] {value}");
 
         let mut app = App::new().await?;
         let mut terminal = ratatui::init();
@@ -136,19 +134,16 @@ async fn main() -> Result<()> {
             if crossterm::event::poll(Duration::from_millis(200))?
                 && let event::Event::Key(key) = crossterm::event::read()? {
                     app.handle_key(key);
-                    match key.code {
-                        // If the 'R' key is pressed, refresh the app
-                        KeyCode::Char('R') => {
-                            // pop up message
-                            let mut stdout = stdout();
-                            let _ = clear_message(&mut stdout, 3); // clear a message, if any, before print the message bellow
-                            let _ = pop_message(&mut stdout, 3, "Refreshing app...");
-                            // Reinitialize app to refresh
-                            app = App::new().await?; 
-                            // clear message above
-                            let _ = clear_message(&mut stdout, 3);
-                        }
-                        _ => {}
+                    // If the 'R' key is pressed, refresh the app
+                    if let KeyCode::Char('R') = key.code {
+                        // pop up message
+                        let mut stdout = stdout();
+                        let _ = clear_message(&mut stdout, 3); // clear a message, if any, before print the message bellow
+                        let _ = pop_message(&mut stdout, 3, "Refreshing app...");
+                        // Reinitialize app to refresh
+                        app = App::new().await?;
+                        // clear message above
+                        let _ = clear_message(&mut stdout, 3);
                     }
                 }
 

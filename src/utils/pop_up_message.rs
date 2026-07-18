@@ -4,7 +4,7 @@ use crossterm::{
     style::{Color, SetBackgroundColor},
     terminal, cursor,
 };
-use crate::config::*;
+use crate::config::load_config;
 
 // pop up message
 pub fn pop_message(stdout: &mut Stdout, lines_from_bottom: u16, message: &str) -> Result<()> {
@@ -25,7 +25,7 @@ pub fn pop_message(stdout: &mut Stdout, lines_from_bottom: u16, message: &str) -
 
     )?;
 
-    println!("{}", message);
+    println!("{message}");
 
     Ok(())
 }

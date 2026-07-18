@@ -7,7 +7,7 @@ use serde::Serialize;
 
 
 /// Get All Libraries (can be a podcast or book library (shelf))
-/// https://api.audiobookshelf.org/#get-all-libraries
+/// <https://api.audiobookshelf.org/#get-all-libraries>
 
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -65,12 +65,12 @@ pub struct Settings {
 // get all libraries (shelf). A library can be a Podcast or a Book type
 pub async fn get_all_libraries(token: &str, server_address: String) -> Result<Root> {
     let client = Client::new();
-    let url = format!("{}/api/libraries", server_address);
+    let url = format!("{server_address}/api/libraries");
 
     // Send GET request
     let response = client
         .get(url)
-        .header(AUTHORIZATION, format!("Bearer {}", token))
+        .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 

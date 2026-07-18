@@ -7,22 +7,19 @@ const LOCAL_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub async fn check_update() -> Option<String> {
     match get_latest_release_gh().await {
         Ok(latest_version_gh) => {
-            if latest_version_gh != LOCAL_VERSION {
+            if latest_version_gh == LOCAL_VERSION {
+                None
+            } else {
                 log::warn!(
-                    "You are not up-to-date. Current: {} / Available: {}",
-                    LOCAL_VERSION,
-                    latest_version_gh
+                    "You are not up-to-date. Current: {LOCAL_VERSION} / Available: {latest_version_gh}"
                 );
                 Some(format!(
-                    "🔄 Update to v{} available (go to settings > update)",
-                    latest_version_gh
+                    "🔄 Update to v{latest_version_gh} available (go to settings > update)"
                 ))
-            } else {
-                None
             }
         }
         Err(e) => {
-            log::error!("{}", e);
+            log::error!("{e}");
             None
         }
     }

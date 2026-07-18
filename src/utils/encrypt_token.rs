@@ -8,25 +8,22 @@ pub fn encrypt_token(token_to_encrypt: &str) -> Result<String, String> {
     // Load .env variables (`env::var` will read ~.config/absotui/.env)
     // check `main.rs` to see the init process for dotenv
     // Retrieve secret key from .env
-    match env::var("ABSOTUI_SECRET_KEY") {
-        Ok(key) => {
+    if let Ok(key) = env::var("ABSOTUI_SECRET_KEY") {
 
-            // Create magic crypt object
-            let mc = new_magic_crypt!(key, 256);
+        // Create magic crypt object
+        let mc = new_magic_crypt!(key, 256);
 
-            // Token encryption
-            let encrypted_token = mc.encrypt_str_to_base64(token_to_encrypt);
+        // Token encryption
+        let encrypted_token = mc.encrypt_str_to_base64(token_to_encrypt);
 
-            Ok(encrypted_token)
-        }
-        Err(_) => {
-            error!("No secret found in .env. Do this:\n
-                mkdir -p ~/.config/absotui\n
-                echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env");
-            Err("No secret found in .env. Do this:\n
-                mkdir -p ~/.config/absotui\n
-                echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env".to_string())
-        },
+        Ok(encrypted_token)
+    } else {
+        error!("No secret found in .env. Do this:\n
+            mkdir -p ~/.config/absotui\n
+            echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env");
+        Err("No secret found in .env. Do this:\n
+            mkdir -p ~/.config/absotui\n
+            echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env".to_string())
     }
 }
 
@@ -37,28 +34,22 @@ pub fn decrypt_token(encrypted_token: &str) -> Result<String, String> {
     // Retrieve secret key from .env
     
 
-    match env::var("ABSOTUI_SECRET_KEY") {
-        Ok(key) => {
-            // Create magic crypt object
-            let mc = new_magic_crypt!(key, 256);
+    if let Ok(key) = env::var("ABSOTUI_SECRET_KEY") {
+        // Create magic crypt object
+        let mc = new_magic_crypt!(key, 256);
 
-            // Token decryption
-            match mc.decrypt_base64_to_string(encrypted_token) {
-                Ok(decrypted_token) => Ok(decrypted_token), 
-                Err(_) => {
-                    error!("Failed to decrypt the token.");
-                    Err("Failed to decrypt the token.".to_string())
-                }
-            }
+        // Token decryption
+        if let Ok(decrypted_token) = mc.decrypt_base64_to_string(encrypted_token) { Ok(decrypted_token) } else {
+            error!("Failed to decrypt the token.");
+            Err("Failed to decrypt the token.".to_string())
         }
-        Err(_) => {
-            error!("No secret found in .env. Do this:\n
-                mkdir -p ~/.config/absotui\n
-                echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env");
-            Err("No secret found in .env. Do this:\n
-                mkdir -p ~/.config/absotui\n
-                echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env".to_string()) 
-        },
+    } else {
+        error!("No secret found in .env. Do this:\n
+            mkdir -p ~/.config/absotui\n
+            echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env");
+        Err("No secret found in .env. Do this:\n
+            mkdir -p ~/.config/absotui\n
+            echo 'ABSOTUI_SECRET_KEY=secret' >> ~/.config/absotui/.env".to_string()) 
     }
 }
 

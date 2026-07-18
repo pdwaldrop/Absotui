@@ -35,9 +35,7 @@ pub struct Player {
 
 /// load config from `config.toml` file
 pub fn load_config() -> Result<ConfigFile> {
-    let config_home_path = env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from) 
-        .unwrap_or_else(|_| { 
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| { 
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
 
             if cfg!(target_os = "macos") {
@@ -47,7 +45,7 @@ pub fn load_config() -> Result<ConfigFile> {
             }
 
             path
-        });
+        }, PathBuf::from);
 
     let config_path = config_home_path.join("absotui/config.toml");
     let config_path_str = config_path.to_str().unwrap().to_string();

@@ -1,5 +1,5 @@
 use crate::api::library_items::get_pod_ep::Root;
-use crate::utils::convert_seconds::*;
+use crate::utils::convert_seconds::convert_seconds;
 
 /// collect title podact episode
 pub async fn collect_titles_pod_ep(item: &Root) -> Vec<String> {

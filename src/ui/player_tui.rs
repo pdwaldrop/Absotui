@@ -3,7 +3,7 @@ use ratatui::{
     style::{Color, Style},  
     widgets::{Block, Paragraph, Widget},
 };
-use crate::db::crud::*;
+use crate::db::crud::get_is_show_key_bindings;
 
 
 pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, bg_color: Vec<u8>, username: &str) {
@@ -23,7 +23,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     let text_area = Rect::new(text_area_x, new_y, text_area_width, block_height);
 
 
-    let mut key_bindings = "".to_string();
+    let mut key_bindings = String::new();
     let is_show_key_bindings = get_is_show_key_bindings(username);
     if is_show_key_bindings == "1" {
         key_bindings = "Spc: pause/play | p/u: +/−10s | P/U: nxt/prev ch. | O/I: spd +/− | o/i: vol +/− | Y: quit".to_string();
@@ -38,7 +38,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
             match player_info[3].as_str() {
                 "false" => "⏸".to_string(),
                 "true" => "▶".to_string(),
-                _ => "".to_string(),
+                _ => String::new(),
 
             },
             player_info[4], // Current time

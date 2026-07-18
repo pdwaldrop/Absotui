@@ -8,7 +8,7 @@ use serde::Serialize;
 
 /// Get a Library Item, used for collect podact info (allow in particular to retrieve all podcast episode id)
 /// This endpoint retrieves a library item, allow in particular to retrieve all podcast episode id.
-/// https://api.audiobookshelf.org/#get-a-library-item
+/// <https://api.audiobookshelf.org/#get-a-library-item>
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -119,13 +119,13 @@ pub struct LibraryFile {
 
 pub async fn get_pod_ep(token: &str, server_address: String, id: &str) -> Result<Root> {
     let client = Client::new();
-    let url = format!("{}/api/items/{}", server_address, id);
+    let url = format!("{server_address}/api/items/{id}");
 
 
     // Send GET request
     let response = client
         .get(url)
-        .header(AUTHORIZATION, format!("Bearer {}", token))
+        .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 

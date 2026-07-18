@@ -5,8 +5,8 @@ use color_eyre::eyre::{Result, Report};
 use serde::Deserialize;
 use serde::Serialize;
 
-/// Get a PersonalizedView's Personalized View  for podcast(allow to have continue linstening)
-/// https://api.audiobookshelf.org/#get-a-library-39-s-personalized-view
+/// Get a `PersonalizedView`'s Personalized View  for podcast(allow to have continue linstening)
+/// <https://api.audiobookshelf.org/#get-a-library-39-s-personalized-view>
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -152,12 +152,12 @@ pub struct AudioFile {
 // filter only podcast continue to listening from personalized view
 pub async fn get_continue_listening_pod(token: &str, server_address: String, id_selected_lib: &String) -> Result<Vec<Root>> {
     let client = Client::new();
-    let url = format!("{}/api/libraries/{}/personalized", server_address, id_selected_lib);
+    let url = format!("{server_address}/api/libraries/{id_selected_lib}/personalized");
 
     // Send GET request
     let response = client
         .get(url)
-        .header(AUTHORIZATION, format!("Bearer {}", token))
+        .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 

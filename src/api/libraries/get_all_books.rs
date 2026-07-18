@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// Get all books or podcasts from a library
-/// https://api.audiobookshelf.org/#get-a-library-39-s-items
+/// <https://api.audiobookshelf.org/#get-a-library-39-s-items>
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -95,13 +95,13 @@ pub struct CollapsedSeries {
 // get all books or podcasts
 pub async fn get_all_books(token: &str, id_selected_lib: &String, server_address: String) -> Result<Root> {
     let client = Client::new();
-    let url = format!("{}/api/libraries/{}/items?limit=0", server_address, id_selected_lib);
+    let url = format!("{server_address}/api/libraries/{id_selected_lib}/items?limit=0");
 
 
     // Send GET request
     let response = client
         .get(url)
-        .header(AUTHORIZATION, format!("Bearer {}", token))
+        .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 
