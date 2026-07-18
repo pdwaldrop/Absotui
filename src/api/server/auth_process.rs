@@ -90,7 +90,8 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
                 is_vlc_launched_first_time,
                 speed_rate: 1.0,
                 is_vlc_running,
-                is_show_key_bindings: "1".to_string()
+                is_show_key_bindings: "1".to_string(),
+                is_speed_adjusted_time: "1".to_string(),
             }
         ];
 

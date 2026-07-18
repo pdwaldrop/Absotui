@@ -23,6 +23,14 @@ pub struct Colors {
     pub search_bar_foreground_color: Vec<u8>,
     pub login_foreground_color: Vec<u8>,
     pub player_background_color: Vec<u8>,
+    #[serde(default = "default_progress_bar_color")]
+    pub progress_bar_color: Vec<u8>,
+}
+
+// Steel blue - used as a safe default for users whose existing config.toml
+// predates this option, so config loading doesn't break for them.
+fn default_progress_bar_color() -> Vec<u8> {
+    vec![70, 130, 180]
 }
 
 #[derive(Debug, Deserialize)]

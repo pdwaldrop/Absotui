@@ -22,6 +22,7 @@ pub struct User {
     pub  speed_rate: f32,
     pub  is_vlc_running: String,
     pub  is_show_key_bindings: String,
+    pub  is_speed_adjusted_time: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

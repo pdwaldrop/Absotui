@@ -4,13 +4,15 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
-    text::Line,
+    text::{Line, Span},
     widgets::{
         Block, Borders, HighlightSpacing, List, ListItem , ListState,  Paragraph, StatefulWidget,
         Widget, Wrap
     },
 };
 use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg};
+use crate::db::crud::get_listening_session;
+use crate::player::integrated::player_info::format_time;
 use crate::config::load_config;
 
 
@@ -56,7 +58,69 @@ impl App {
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, text_render_footer);
-        self.render_list(list_area, buf, &render_list_title, &self._titles_cnt_list.clone(), &mut self.list_state_cnt_list.clone());
+
+        // Pin the actively-playing item to the top of Continue Listening. This runs on
+        // every render (not just on load/refresh) so it reacts as soon as playback starts,
+        // rather than only picking it up the next time the whole view is reloaded.
+        // Book-only for now: book_progress_cnt_list/duration_cnt_list/etc. are never
+        // populated for podcasts, so reordering them here would panic on an empty Vec.
+        if !self.is_podcast
+            && let Ok(Some(active_session)) = get_listening_session()
+            && let Some(pos) = self._ids_cnt_list.iter().position(|id| id == &active_session.id_item)
+            && pos != 0 {
+                // preserve which logical item the cursor was on through the reorder
+                let selected_id = self.list_state_cnt_list.selected()
+                    .and_then(|i| self._ids_cnt_list.get(i))
+                    .cloned();
+
+                let mut order: Vec<usize> = (0..self._ids_cnt_list.len()).collect();
+                order.remove(pos);
+                order.insert(0, pos);
+
+                self._titles_cnt_list = order.iter().map(|&i| self._titles_cnt_list[i].clone()).collect();
+                self.auth_names_cnt_list = order.iter().map(|&i| self.auth_names_cnt_list[i].clone()).collect();
+                self.pub_year_cnt_list = order.iter().map(|&i| self.pub_year_cnt_list[i].clone()).collect();
+                self.duration_cnt_list = order.iter().map(|&i| self.duration_cnt_list[i]).collect();
+                self.desc_cnt_list = order.iter().map(|&i| self.desc_cnt_list[i].clone()).collect();
+                self._ids_cnt_list = order.iter().map(|&i| self._ids_cnt_list[i].clone()).collect();
+                self.book_progress_cnt_list = order.iter().map(|&i| self.book_progress_cnt_list[i].clone()).collect();
+                self.book_progress_cnt_list_cur_time = order.iter().map(|&i| self.book_progress_cnt_list_cur_time[i].clone()).collect();
+
+                if let Some(id) = selected_id
+                    && let Some(new_pos) = self._ids_cnt_list.iter().position(|i| *i == id) {
+                        self.list_state_cnt_list.select(Some(new_pos));
+                }
+        }
+
+        // Which item (if any) matches the actual active listening session - distinct from
+        // wherever the cursor/highlight currently happens to be sitting in the list.
+        let now_playing_id: Option<String> = get_listening_session().ok().flatten().map(|s| s.id_item);
+
+        // Book progress (current/duration/percent) is only fetched for the book
+        // continue-listening path, not podcasts - so the progress bar only applies there.
+        let progress_info: Option<Vec<(String, f32, bool)>> = if self.is_podcast {
+            None
+        } else {
+            Some(self._titles_cnt_list.iter().enumerate().map(|(i, _)| {
+                let percent = self.book_progress_cnt_list.get(i)
+                    .and_then(|v| v.first())
+                    .and_then(|s| s.trim().parse::<f32>().ok())
+                    .unwrap_or(0.0);
+                let is_now_playing = self._ids_cnt_list.get(i).is_some_and(|id| Some(id) == now_playing_id.as_ref());
+                let current_time = self.book_progress_cnt_list_cur_time.get(i).and_then(|v| v.first()).copied().unwrap_or(0.0);
+                let duration = self.duration_cnt_list.get(i).copied().unwrap_or(0.0);
+                // Gate on the raw current_time, not the rounded percent string - a book
+                // with small-but-real progress (e.g. 0.3% into an 11-hour audiobook) would
+                // round to "0" and get misreported as never started.
+                let text = if current_time > 0.0 {
+                    format!("{} / {} ({}%)", format_time(current_time as u32), format_time(duration as u32), percent.round() as u32)
+                } else {
+                    "Not started".to_string()
+                };
+                (text, percent, is_now_playing)
+            }).collect())
+        };
+        self.render_list(list_area, buf, &render_list_title, &self._titles_cnt_list.clone(), &mut self.list_state_cnt_list.clone(), progress_info.as_deref());
         if !&self._titles_cnt_list.is_empty() {
             self.render_info_home(item_area1, buf, &self.list_state_cnt_list.clone());
             self.render_desc_home(item_area2, buf, &self.list_state_cnt_list.clone());
@@ -87,7 +151,7 @@ impl App {
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, _text_render_footer);
-        self.render_list(list_area, buf, &render_list_title, &self.titles_library.clone(), &mut self.list_state_library.clone());
+        self.render_list(list_area, buf, &render_list_title, &self.titles_library.clone(), &mut self.list_state_library.clone(), None);
         if !&self.titles_library.is_empty() {
             self.render_info_library(item_area1, buf, &self.list_state_library.clone());
             self.render_desc_library(item_area2, buf, &self.list_state_library.clone());
@@ -122,7 +186,7 @@ impl App {
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, _text_render_footer);
-        self.render_list(list_area, buf, render_list_title, &self.settings.clone(), &mut self.list_state_settings.clone());
+        self.render_list(list_area, buf, render_list_title, &self.settings.clone(), &mut self.list_state_settings.clone(), None);
         self.render_info_settings(item_area1, buf, &self.list_state_settings.clone());
         self.render_desc_settings(item_area2, buf, &self.list_state_settings.clone());
     }
@@ -144,7 +208,7 @@ impl App {
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, text_render_footer);
-        self.render_list(list_area, buf, render_list_title, &self.all_usernames.clone(), &mut self.list_state_settings_account.clone() );
+        self.render_list(list_area, buf, render_list_title, &self.all_usernames.clone(), &mut self.list_state_settings_account.clone(), None);
         //self.render_selected_item(item_area, buf, &self.titles_library.clone(), self.auth_names_library.clone());
     }
 
@@ -167,7 +231,7 @@ impl App {
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, text_render_footer);
-        self.render_list(list_area, buf, &render_list_title, &self.libraries_names.clone(), &mut self.list_state_settings_library.clone());
+        self.render_list(list_area, buf, &render_list_title, &self.libraries_names.clone(), &mut self.list_state_settings_library.clone(), None);
         self.render_info_settings_library(item_area, buf, &self.list_state_settings_library.clone());
     }
 
@@ -336,7 +400,7 @@ impl App {
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, _text_render_footer);
-        self.render_list(list_area, buf, render_list_title, titles_search_book_or_pod, &mut self.list_state_search_results.clone());
+        self.render_list(list_area, buf, render_list_title, titles_search_book_or_pod, &mut self.list_state_search_results.clone(), None);
         if !titles_search_book_or_pod.is_empty() {
             self.render_info_search_book(item_area1, buf, &self.list_state_search_results.clone() );
             self.render_desc_search_book(item_area2, buf, &self.list_state_search_results.clone() );
@@ -373,7 +437,7 @@ impl App {
                 let items_number = self.titles_pod_ep_search.len();
                 let render_list_title = format!("Episodes [{items_number} items]");
                 // Only render list/info/desc if episodes exist
-                self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep_search.clone(), &mut self.list_state_pod_ep.clone());
+                self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep_search.clone(), &mut self.list_state_pod_ep.clone(), None);
                 self.render_info_pod_ep_search(item_area1, buf, &self.list_state_pod_ep.clone() );
                 self.render_desc_pod_ep_search(item_area2, buf, &self.list_state_pod_ep.clone() );
             }
@@ -388,7 +452,7 @@ impl App {
                 let items_number = self.titles_pod_ep.len();
                 let render_list_title = format!("Episodes [{items_number} items]");
                 // Only render list/info/desc if episodes exist
-                self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep.clone(), &mut self.list_state_pod_ep.clone());
+                self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep.clone(), &mut self.list_state_pod_ep.clone(), None);
                 self.render_info_pod_ep(item_area1, buf, &self.list_state_pod_ep.clone() );
                 self.render_desc_pod_ep(item_area2, buf, &self.list_state_pod_ep.clone() );
             }
@@ -417,20 +481,21 @@ impl App {
             .render(area, buf);
     }
 
-    fn render_list(&mut self, area: Rect, buf: &mut Buffer, render_list_title: &str, render_list_items: &[String], list_state: &mut ListState) {
+    fn render_list(&mut self, area: Rect, buf: &mut Buffer, render_list_title: &str, render_list_items: &[String], list_state: &mut ListState, progress_info: Option<&[(String, f32, bool)]>) {
         let bg_color_header = self.config.colors.header_background_color.clone();
         let fg_color_header = self.config.colors.line_header_color.clone();
         let bg_color_block = self.config.colors.list_background_color.clone();
-        let bg_selected = self.config.colors.list_selected_background_color.clone();
-        let fg_selected = self.config.colors.list_selected_foreground_color.clone();
-        let selected_style: Style = Style::new()
-            .bg(Color::Rgb(bg_selected[0], bg_selected[1], bg_selected[2]))  
-            .fg(Color::Rgb(fg_selected[0], fg_selected[1], fg_selected[2])) 
-            .add_modifier(Modifier::BOLD);
+        let progress_bar_color = self.config.colors.progress_bar_color.clone();
+        let progress_color = Color::Rgb(progress_bar_color[0], progress_bar_color[1], progress_bar_color[2]);
+        // Deliberately no fg/bg/modifiers here at all - any of those get patched across
+        // every cell in the row, overriding the row's own colors (the now-playing
+        // marker's background, the progress underline). Selection is shown purely via
+        // the highlight_symbol (a vertical bar) below, leaving the row itself untouched.
+        let selected_style: Style = Style::default();
 
         let header_style: Style = Style::new()
             .fg(Color::Rgb(fg_color_header[0], fg_color_header[1], fg_color_header[2]))
-            .bg(Color::Rgb(bg_color_header[0], bg_color_header[1], bg_color_header[2])); 
+            .bg(Color::Rgb(bg_color_header[0], bg_color_header[1], bg_color_header[2]));
 
         let block = Block::new()
             .title(Line::raw(render_list_title.to_string()).centered())
@@ -438,12 +503,47 @@ impl App {
             .border_style(header_style)
             .bg(Color::Rgb(bg_color_block[0], bg_color_block[1], bg_color_block[2]));
 
+        // Approximate content width available inside each row, after the "➤ " highlight
+        // symbol column that HighlightSpacing::Always reserves on every row.
+        let content_width = area.width.saturating_sub(2) as usize;
+
         let items: Vec<ListItem> = render_list_items
             .iter()
             .enumerate()
             .map(|(i, title)| {
                 let color = Self::alternate_colors(i);
-                ListItem::new(title.clone()).bg(color)
+                match progress_info.and_then(|p| p.get(i)) {
+                    Some((progress_text, percent, is_now_playing)) => {
+                        // Line 1: now-playing marker (cobalt/progress-colored background) +
+                        // title on the left, time/duration right-justified.
+                        let marker_span = if *is_now_playing {
+                            Span::styled(" ▶ ", Style::default().bg(progress_color))
+                        } else {
+                            Span::raw("   ")
+                        };
+                        let title_len = title.chars().count();
+                        let time_len = progress_text.chars().count();
+                        let padding = content_width.saturating_sub(3 + title_len + time_len);
+
+                        // Progress shown as an underline beneath the time text itself -
+                        // not a full-height background fill - filled up to percent complete.
+                        let time_chars: Vec<char> = progress_text.chars().collect();
+                        let fill_count = (((percent / 100.0) * time_chars.len() as f32).round() as usize).min(time_chars.len());
+                        let time_filled: String = time_chars[..fill_count].iter().collect();
+                        let time_unfilled: String = time_chars[fill_count..].iter().collect();
+
+                        let line1 = Line::from(vec![
+                            marker_span,
+                            Span::raw(title.clone()),
+                            Span::raw(" ".repeat(padding)),
+                            Span::styled(time_filled, Style::default().underline_color(progress_color).add_modifier(Modifier::UNDERLINED)),
+                            Span::raw(time_unfilled),
+                        ]);
+
+                        ListItem::new(line1).bg(color)
+                    }
+                    None => ListItem::new(title.clone()).bg(color),
+                }
             })
         .collect();
 
@@ -451,7 +551,7 @@ impl App {
         let list = List::new(items)
             .block(block)
             .highlight_style(selected_style)
-            .highlight_symbol("➤ ")
+            .highlight_symbol("▎ ")
             .highlight_spacing(HighlightSpacing::Always);
 
         StatefulWidget::render(list, area, buf, list_state);

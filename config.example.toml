@@ -41,3 +41,5 @@ search_bar_foreground_color = [180, 180, 180]
 login_foreground_color = [180, 180, 180]
 # Background color of the player:
 player_background_color = [80, 80, 80]
+# Background color showing progress behind the title/chapter text in the player (optional, defaults to steel blue if omitted):
+progress_bar_color = [70, 130, 180]

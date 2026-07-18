@@ -14,9 +14,10 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, update_is_vlc_running, delete_user, update_id_selected_lib};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_vlc_running, delete_user, update_id_selected_lib};
 use crate::db::database_struct::Database;
 use color_eyre::Result;
+use log::warn;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
     widgets::ListState,
@@ -277,25 +278,29 @@ impl App {
         desc_cnt_list = collect_desc_cnt_list(&continue_listening).await;
         _ids_cnt_list = collect_ids_cnt_list(&continue_listening).await;
         for id in _ids_cnt_list.clone() {
-            if let Ok(val) = get_book_progress(&token, &id, server_address.clone()).await {
-                let mut values: Vec<String> = Vec::new();
-                let mut values_f64: Vec<f64> = Vec::new();
-                values.push(collect_progress_percentage_book(&val).await);
-                values.push(collect_is_finished_book(&val).await);
-                values_f64.push(collect_current_time_prg(&val).await);
-                book_progress_cnt_list.push(values);
-                book_progress_cnt_list_cur_time.push(values_f64);
-            } else {
-                // if the book is not starded, `get book progress` is not fetched
-                // so the empty values are handled here : 
-                // avoid an out of bound panick
-                let mut values: Vec<String> = Vec::new();
-                let mut values_f64: Vec<f64> = Vec::new();
-                values.push(" N/A".to_string());
-                values.push(" N/A".to_string());
-                values_f64.push(0.0);
-                book_progress_cnt_list.push(values);
-                book_progress_cnt_list_cur_time.push(values_f64);
+            match get_book_progress(&token, &id, server_address.clone()).await {
+                Ok(val) => {
+                    let mut values: Vec<String> = Vec::new();
+                    let mut values_f64: Vec<f64> = Vec::new();
+                    values.push(collect_progress_percentage_book(&val).await);
+                    values.push(collect_is_finished_book(&val).await);
+                    values_f64.push(collect_current_time_prg(&val).await);
+                    book_progress_cnt_list.push(values);
+                    book_progress_cnt_list_cur_time.push(values_f64);
+                }
+                Err(e) => {
+                    // This can genuinely mean "never started" (server 404s with no
+                    // progress record), but it could also be a real request failure -
+                    // logged so the two cases can be told apart.
+                    warn!("[get_book_progress] item {id} - treating as not started: {e}");
+                    let mut values: Vec<String> = Vec::new();
+                    let mut values_f64: Vec<f64> = Vec::new();
+                    values.push(" N/A".to_string());
+                    values.push(" N/A".to_string());
+                    values_f64.push(0.0);
+                    book_progress_cnt_list.push(values);
+                    book_progress_cnt_list_cur_time.push(values_f64);
+                }
             }}}
 
     //init for `Library ` (all books  or podcasts of a Library (shelf))
@@ -670,6 +675,16 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             let _ = update_is_show_key_bindings("1", self.username.as_str());
             } else if value == "1" {
             let _ = update_is_show_key_bindings("0", self.username.as_str());
+            }
+        }
+
+        // toggle speed-adjusted (real) vs raw content time for Elapsed/Left
+        KeyCode::Char('T') => {
+            let value = get_is_speed_adjusted_time(self.username.as_str());
+            if value == "0" {
+            let _ = update_is_speed_adjusted_time("1", self.username.as_str());
+            } else if value == "1" {
+            let _ = update_is_speed_adjusted_time("0", self.username.as_str());
             }
         }
 

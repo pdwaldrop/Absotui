@@ -109,6 +109,7 @@ async fn main() -> Result<()> {
             terminal.draw(|frame| {
                 let bg_color = app.config.colors.background_color.clone();
                 let bg_color_player = app.config.colors.player_background_color.clone();
+                let progress_bar_color = app.config.colors.progress_bar_color.clone();
                 // global background
                 let background = Block::default()
                     .style(Style::default()
@@ -119,7 +120,7 @@ async fn main() -> Result<()> {
                 if is_playing == "1" {
                     let area = frame.area();
                     // render for the player (automatically refreshed) 
-                    render_player(area, frame.buffer_mut(), player_info, bg_color_player, app.username.as_str()); 
+                    render_player(area, frame.buffer_mut(), player_info, bg_color_player, progress_bar_color, app.username.as_str());
                 }
 
                 // render widget for general app : 
