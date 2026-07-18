@@ -33,10 +33,10 @@ pub fn player_info(username: &str) -> Vec<String> {
             player_info.push(format!("{}", percent_progress.round() as u32));
         }
         Ok(None) => {
-            player_info.push(format!("N/A"));
+            player_info.push("N/A".to_string());
         }
         Err(e) => {
-            player_info.push(format!("Error"));
+            player_info.push("Error".to_string());
             info!("[player_info] Error retrieving data: {}", e);
         }
     }

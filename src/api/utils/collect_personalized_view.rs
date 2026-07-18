@@ -7,15 +7,14 @@ pub async fn collect_titles_cnt_list(continue_listening: &[Root]) -> Vec<String>
     for library in continue_listening {
         if let Some(entities) = &library.entities {
             for entity in entities {
-                if let Some(media) = &entity.media {  
-                    if let Some(metadata) = &media.metadata { 
+                if let Some(media) = &entity.media  
+                    && let Some(metadata) = &media.metadata { 
                         if let Some(title) = &metadata.title { 
                             titles_cnt_list.push(title.clone()); 
                         } else {
                             titles_cnt_list.push("N/A".to_string());
                         }
                     }
-                }
             }
         }
     }
@@ -30,8 +29,8 @@ pub async fn collect_auth_names_cnt_list(continue_listening: &[Root]) -> Vec<Str
     for library in continue_listening {
         if let Some(entities) = &library.entities {
             for entity in entities {
-                if let Some(media) = &entity.media {  
-                    if let Some(metadata) = &media.metadata { 
+                if let Some(media) = &entity.media  
+                    && let Some(metadata) = &media.metadata { 
                         if let Some(author_name) = &metadata.author_name { 
                             auth_names_cnt_list.push(author_name.clone()); 
                         } else {
@@ -39,7 +38,6 @@ pub async fn collect_auth_names_cnt_list(continue_listening: &[Root]) -> Vec<Str
                         }
 
                     }
-                }
             }
         }
     }
@@ -54,8 +52,8 @@ pub async fn collect_pub_year_cnt_list(continue_listening: &[Root]) -> Vec<Strin
     for library in continue_listening {
         if let Some(entities) = &library.entities {
             for entity in entities {
-                if let Some(media) = &entity.media {  
-                    if let Some(metadata) = &media.metadata { 
+                if let Some(media) = &entity.media  
+                    && let Some(metadata) = &media.metadata { 
                         if let Some(published_year) = &metadata.published_year { 
                             pub_year_cnt_list.push(published_year.clone()); 
                         } else {
@@ -63,7 +61,6 @@ pub async fn collect_pub_year_cnt_list(continue_listening: &[Root]) -> Vec<Strin
                         }
 
                     }
-                }
             }
         }
     }
@@ -81,7 +78,7 @@ pub async fn collect_duration_cnt_list(continue_listening: &[Root]) -> Vec<f64> 
             for entity in entities {
                 if let Some(media) = &entity.media {  
                     if let Some(duration) = &media.duration { 
-                        duration_cnt_list.push(duration.clone()); 
+                        duration_cnt_list.push(*duration); 
                     } else {
                             duration_cnt_list.push(0.0);
                         }
@@ -102,8 +99,8 @@ pub async fn collect_desc_cnt_list(continue_listening: &[Root]) -> Vec<String> {
     for library in continue_listening {
         if let Some(entities) = &library.entities {
             for entity in entities {
-                if let Some(media) = &entity.media {  
-                    if let Some(metadata) = &media.metadata { 
+                if let Some(media) = &entity.media  
+                    && let Some(metadata) = &media.metadata { 
                         if let Some(description) = &metadata.description { 
                             desc_cnt_list.push(description.clone()); 
                         } else {
@@ -111,7 +108,6 @@ pub async fn collect_desc_cnt_list(continue_listening: &[Root]) -> Vec<String> {
                         }
 
                     }
-                }
             }
         }
     }

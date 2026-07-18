@@ -76,8 +76,7 @@ pub async fn get_all_libraries(token: &str, server_address: String) -> Result<Ro
 
     // Check response status
     if !response.status().is_success() {
-        return Err(Report::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+        return Err(Report::new(std::io::Error::other(
                     "Failed to fetch data from the API",
         )));
     }

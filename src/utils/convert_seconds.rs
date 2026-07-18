@@ -24,7 +24,7 @@ pub fn convert_seconds_for_prg(duration: f64, current_time: f64) -> String {
             let minutes = total_minutes % 60;
 
             if current_time == 0.0 {
-                format!("")
+                String::new()
             }
             else if hours == 0 {
                 format!("{}m left,", minutes)

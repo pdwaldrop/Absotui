@@ -197,7 +197,7 @@ impl App {
 
         // init current username
         let mut username: String = String::new();
-        if let Some(var_username) = database.default_usr.get(0) {
+        if let Some(var_username) = database.default_usr.first() {
             username = var_username.clone();
         }
 
@@ -233,11 +233,7 @@ impl App {
     let lib_name_type = format!("📖 {} ({})", library_name, media_type);
 
     // init is_podcast
-    let is_podcast = if media_type == "podcast" {
-        true
-    } else {
-        false
-    };
+    let is_podcast = media_type == "podcast";
 
     // init for `Home` (continue listening)
     let mut _titles_cnt_list: Vec<String> = Vec::new();
@@ -281,7 +277,7 @@ impl App {
         desc_cnt_list = collect_desc_cnt_list(&continue_listening).await;
         _ids_cnt_list = collect_ids_cnt_list(&continue_listening).await;
         for id in _ids_cnt_list.clone() {
-            if let Ok(val) = get_book_progress(&token, &id, server_address.clone()).await {
+            match get_book_progress(&token, &id, server_address.clone()).await { Ok(val) => {
                 let mut values: Vec<String> = Vec::new();
                 let mut values_f64: Vec<f64> = Vec::new();
                 values.push(collect_progress_percentage_book(&val).await);
@@ -289,18 +285,18 @@ impl App {
                 values_f64.push(collect_current_time_prg(&val).await);
                 book_progress_cnt_list.push(values);
                 book_progress_cnt_list_cur_time.push(values_f64);
-            } else {
+            } _ => {
                 // if the book is not starded, `get book progress` is not fetched
                 // so the empty values are handled here : 
                 // avoid an out of bound panick
                 let mut values: Vec<String> = Vec::new();
                 let mut values_f64: Vec<f64> = Vec::new();
-                values.push(format!(" N/A"));
-                values.push(format!(" N/A"));
+                values.push(" N/A".to_string());
+                values.push(" N/A".to_string());
                 values_f64.push(0.0);
                 book_progress_cnt_list.push(values);
                 book_progress_cnt_list_cur_time.push(values_f64);
-            }}}
+            }}}}
 
     //init for `Library ` (all books  or podcasts of a Library (shelf))
     let all_books = get_all_books(&token, &id_selected_lib, server_address.clone()).await?;
@@ -427,7 +423,7 @@ impl App {
     // init for `SettingsAccount`
     let mut all_usernames: Vec<String> = Vec::new();
     let mut all_server_addresses: Vec<String> = Vec::new();
-    if let Some(var_username) = database.default_usr.get(0) {
+    if let Some(var_username) = database.default_usr.first() {
         all_usernames.push(var_username.clone());
     }
     if let Some(var_server_address) = database.default_usr.get(1) {
@@ -787,10 +783,10 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
             // Init for `PodcastEpisode`
             if self.is_podcast {
-                if let Some(index) = selected_library {
-                    if let Some(_id_pod) = ids_library.get(index) {
+                if let Some(index) = selected_library
+                    && let Some(_id_pod) = ids_library.get(index) {
                         self.ids_pod_ep = self.all_ids_pod_ep[index].clone();
-                    }}
+                    }
                 if let Some(index) = selected_search_book {
                     // ids_library_pod_search because we need the pod id and he is given by
                     // this variable
@@ -830,7 +826,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                             // before open a new session, wait to close and sync previous
                             // session
-                            let _ = wait_prev_session_finished(username.clone()); 
+                            wait_prev_session_finished(username.clone()); 
 
                             // pop message
                             let mut stdout = stdout();
@@ -873,7 +869,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                             // before open a new session, wait to close and sync previous
                             // session
-                            let _ = wait_prev_session_finished(username.clone()); 
+                            wait_prev_session_finished(username.clone()); 
 
                             // pop message
                             let mut stdout = stdout();
@@ -921,7 +917,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 AppView::SettingsLibrary => {
                     if let Some(index) = selected_settings_library {
                         let new_selected_lib = &self.libraries_ids[index];
-                        let _ = update_id_selected_lib(&new_selected_lib, &self.username);
+                        let _ = update_id_selected_lib(new_selected_lib, &self.username);
                     }
                 }
                 AppView::SettingsAbout => {
@@ -952,7 +948,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                 // before open a new session, wait to close and sync previous
                                 // session
-                                let _ = wait_prev_session_finished(username.clone()); 
+                                wait_prev_session_finished(username.clone()); 
 
                                 // pop message
                                 let mut stdout = stdout();
@@ -1009,7 +1005,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                 // before open a new session, wait to close and sync previous
                                 // session
-                                let _ = wait_prev_session_finished(username.clone()); 
+                                wait_prev_session_finished(username.clone()); 
 
                                 // pop message
                                 let mut stdout = stdout();
@@ -1065,7 +1061,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                     // before open a new session, wait to close and sync previous
                                     // session
-                                    let _ = wait_prev_session_finished(username.clone()); 
+                                    wait_prev_session_finished(username.clone()); 
 
                                     // pop message
                                     let mut stdout = stdout();
@@ -1103,8 +1099,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         // these variables
                         // we also need the index of selected library to feet after with
                         // ids_library
-                        if let Some(index) = selected_library {
-                            if let Some(id_pod) = ids_library.get(index) {
+                        if let Some(index) = selected_library
+                            && let Some(id_pod) = ids_library.get(index) {
                                 let all_ids_pod_ep_clone = self.all_ids_pod_ep.clone();
                                 self.ids_pod_ep = all_ids_pod_ep_clone[index].clone();
                                 let id_pod_clone = id_pod.clone();
@@ -1118,7 +1114,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                     // before open a new session, wait to close and sync previous
                                     // session
-                                    let _ = wait_prev_session_finished(username.clone()); 
+                                    wait_prev_session_finished(username.clone()); 
 
                                     // pop message
                                     let mut stdout = stdout();
@@ -1150,7 +1146,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     ).await;
                                 });
                             }
-                        }
 
                     }
                 }

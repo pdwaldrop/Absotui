@@ -4,7 +4,7 @@ use ratatui::widgets::{Block, Borders};
 use ratatui::text::Line;
 use ratatui::Terminal;
 use std::io;
-use tui_textarea::TextArea;
+use ratatui_textarea::TextArea;
 use ratatui::{
     layout::Rect,
     style::{Color, Style},
@@ -75,7 +75,7 @@ impl AppLogin {
         };
 
         // init variables
-        let mut textareas = vec![textarea1, textarea2, textarea3];
+        let mut textareas = [textarea1, textarea2, textarea3];
         let mut current_index = 0;
         let mut collected_data : Vec<String> = Vec::new();
         let log_bg_color = self.config.colors.log_background_color.clone();
@@ -163,7 +163,7 @@ impl AppLogin {
                     Err(e) => {
                         error!("[auth_process] Login failed: {}", e);
                         eprintln!("ERROR: {}", e);
-                        let err = format!("ERROR: {}", e.to_string());
+                        let err = format!("ERROR: {}", e);
                         let _ = update_login_err(err.as_str());
                     }
                 }});
@@ -175,7 +175,7 @@ impl AppLogin {
 
             Ok(())
         } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Invalid textarea"))
+            Err(io::Error::other("Invalid textarea"))
         }
     }
 }

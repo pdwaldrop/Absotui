@@ -4,7 +4,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::widgets::{Block, Borders};
 use ratatui::Terminal;
 use std::io;
-use tui_textarea::{Input, Key, TextArea};
+use ratatui_textarea::{Input, Key, TextArea};
 use ratatui::{
     layout::Rect,
     style::{Color, Style},

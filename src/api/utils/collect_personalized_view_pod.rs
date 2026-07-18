@@ -94,9 +94,9 @@ pub async fn collect_authors_pod_cnt_list(roots: &[Root]) -> Vec<String> {
     for root in roots {
         if let Some(entities) = &root.entities {
             for entity in entities {
-                if let Some(_recent_episode) = &entity.recent_episode {
-                    if let Some(media) = &entity.media {
-                        if let Some(metadata) = &media.metadata {
+                if let Some(_recent_episode) = &entity.recent_episode
+                    && let Some(media) = &entity.media
+                        && let Some(metadata) = &media.metadata {
                             if let Some(author) = &metadata.author {
                                 authors_pod_cnt_list.push(author.clone());
                             } else {
@@ -104,8 +104,6 @@ pub async fn collect_authors_pod_cnt_list(roots: &[Root]) -> Vec<String> {
                             }
 
                         }
-                    }
-                }
             }
         }
     }
@@ -120,9 +118,9 @@ pub async fn collect_descs_pod_cnt_list(roots: &[Root]) -> Vec<String> {
     for root in roots {
         if let Some(entities) = &root.entities {
             for entity in entities {
-                if let Some(_recent_episode) = &entity.recent_episode {
-                    if let Some(media) = &entity.media {
-                        if let Some(metadata) = &media.metadata {
+                if let Some(_recent_episode) = &entity.recent_episode
+                    && let Some(media) = &entity.media
+                        && let Some(metadata) = &media.metadata {
                             if let Some(desc) = &metadata.description {
                                 descs_pod_cnt_list.push(desc.clone());
                             } else {
@@ -130,8 +128,6 @@ pub async fn collect_descs_pod_cnt_list(roots: &[Root]) -> Vec<String> {
                             }
 
                         }
-                    }
-                }
             }
         }
     }
@@ -146,9 +142,9 @@ pub async fn collect_titles_pod_cnt_list(roots: &[Root]) -> Vec<String> {
     for root in roots {
         if let Some(entities) = &root.entities {
             for entity in entities {
-                if let Some(_recent_episode) = &entity.recent_episode {
-                    if let Some(media) = &entity.media {
-                        if let Some(metadata) = &media.metadata {
+                if let Some(_recent_episode) = &entity.recent_episode
+                    && let Some(media) = &entity.media
+                        && let Some(metadata) = &media.metadata {
                             if let Some(title) = &metadata.title {
                                 titles_pod_cnt_list.push(title.clone());
                             } else {
@@ -156,8 +152,6 @@ pub async fn collect_titles_pod_cnt_list(roots: &[Root]) -> Vec<String> {
                             }
 
                         }
-                    }
-                }
             }
         }
     }
@@ -171,8 +165,8 @@ pub async fn collect_durations_pod_cnt_list(roots: &[Root]) -> Vec<String> {
     for root in roots {
         if let Some(entities) = &root.entities {
             for entity in entities {
-                if let Some(recent_episode) = &entity.recent_episode {
-                    if let Some(audio_file) = &recent_episode.audio_file {
+                if let Some(recent_episode) = &entity.recent_episode
+                    && let Some(audio_file) = &recent_episode.audio_file {
                         if let Some(duration) = audio_file.duration {
                             durations.push(duration);
                         } else {
@@ -180,13 +174,12 @@ pub async fn collect_durations_pod_cnt_list(roots: &[Root]) -> Vec<String> {
                         }
 
                     }
-                }
             }
         }
     }
 
-    let durations_pod_cnt_list = convert_seconds(durations);
-    durations_pod_cnt_list
+    
+    convert_seconds(durations)
 }
 
 /// collect ids ep 

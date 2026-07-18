@@ -26,7 +26,7 @@ pub fn setup_logs() -> Result<(), fern::InitError> {
     // Create or append into the file
     let log_file = OpenOptions::new()
         .create(true)
-        .write(true)
+        
         .append(true)
         .open(log_path) // path and name
         .unwrap();

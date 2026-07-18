@@ -114,7 +114,6 @@ load_dependencies() {
         *macOS:kitty \
         macOS:netcat \
         macOS:gsed \
-        #%macOS:openssl \
         #macOS:pkg-config \
         #macOS:sqlite3 \
         macOS:vlc \

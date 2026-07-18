@@ -59,8 +59,8 @@ impl App {
         App::render_footer(footer_area, buf, text_render_footer);
         self.render_list(list_area, buf, &render_list_title, &self._titles_cnt_list.clone(), &mut self.list_state_cnt_list.clone());
         if !&self._titles_cnt_list.is_empty() {
-            self.render_info_home(item_area1, buf, &mut self.list_state_cnt_list.clone());
-            self.render_desc_home(item_area2, buf, &mut self.list_state_cnt_list.clone());
+            self.render_info_home(item_area1, buf, &self.list_state_cnt_list.clone());
+            self.render_desc_home(item_area2, buf, &self.list_state_cnt_list.clone());
         }
     }
 
@@ -90,8 +90,8 @@ impl App {
         App::render_footer(footer_area, buf, _text_render_footer);
         self.render_list(list_area, buf, &render_list_title, &self.titles_library.clone(), &mut self.list_state_library.clone());
         if !&self.titles_library.is_empty() {
-            self.render_info_library(item_area1, buf, &mut self.list_state_library.clone());
-            self.render_desc_library(item_area2, buf, &mut self.list_state_library.clone());
+            self.render_info_library(item_area1, buf, &self.list_state_library.clone());
+            self.render_desc_library(item_area2, buf, &self.list_state_library.clone());
         }
     }
 
@@ -124,8 +124,8 @@ impl App {
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, _text_render_footer);
         self.render_list(list_area, buf, render_list_title, &self.settings.clone(), &mut self.list_state_settings.clone());
-        self.render_info_settings(item_area1, buf, &mut self.list_state_settings.clone());
-        self.render_desc_settings(item_area2, buf, &mut self.list_state_settings.clone());
+        self.render_info_settings(item_area1, buf, &self.list_state_settings.clone());
+        self.render_desc_settings(item_area2, buf, &self.list_state_settings.clone());
     }
 
     /// AppView::SettingsAccount rendering
@@ -145,7 +145,7 @@ impl App {
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, text_render_footer);
-        self.render_list(list_area, buf, render_list_title, &self.all_usernames.clone(), &mut &mut self.list_state_settings_account.clone());
+        self.render_list(list_area, buf, render_list_title, &self.all_usernames.clone(), &mut self.list_state_settings_account.clone() );
         //self.render_selected_item(item_area, buf, &self.titles_library.clone(), self.auth_names_library.clone());
     }
 
@@ -169,7 +169,7 @@ impl App {
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, text_render_footer);
         self.render_list(list_area, buf, &render_list_title, &self.libraries_names.clone(), &mut self.list_state_settings_library.clone());
-        self.render_info_settings_library(item_area, buf, &mut self.list_state_settings_library.clone());
+        self.render_info_settings_library(item_area, buf, &self.list_state_settings_library.clone());
     }
 
 
@@ -194,12 +194,11 @@ impl App {
         } 
 
 
-        if self.search_mode {
-            if let Ok(query) = self.search_active() {
+        if self.search_mode
+            && let Ok(query) = self.search_active() {
                 self.search_query = query.to_string();
                 self.search_mode = false; 
             }
-        }
 
         // init variables for search result (search by a book by title)
         let idx_and_titles: Vec<(usize, String)> = self.titles_library
@@ -222,38 +221,38 @@ impl App {
         self.ids_search_book = self.ids_library
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.auth_names_pod_search_book = self.auth_names_library_pod
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.auth_names_search_book = self.auth_names_library
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.published_year_library_search_book = self.published_year_library
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.desc_library_search_book = self.desc_library
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.duration_library_search_book = self.duration_library
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
-            .map(|(_, value)| value.clone())
+            .filter(|(index, _)| index_to_keep.contains(index))
+            .map(|(_, value)| *value)
             .collect();
 //        self.book_progress_search_book = self.book_progress_library
 //            .iter()
@@ -278,61 +277,61 @@ impl App {
         self.all_titles_pod_ep_search = self.all_titles_pod_ep
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.all_ids_pod_ep_search = self.all_ids_pod_ep
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.all_subtitles_pod_ep_search = self.all_subtitles_pod_ep
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.all_seasons_pod_ep_search = self.all_seasons_pod_ep
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.all_episodes_pod_ep_search = self.all_episodes_pod_ep
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.all_authors_pod_ep_search = self.all_authors_pod_ep
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.all_descs_pod_ep_search = self.all_descs_pod_ep
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.all_titles_pod_search = self.all_titles_pod
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.all_durations_pod_ep_search = self.all_durations_pod_ep
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
         self.ids_library_pod_search = self.ids_library
             .iter()
             .enumerate()
-            .filter(|(index, _)| index_to_keep.contains(&index))
+            .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| value.clone())
             .collect();
 
@@ -340,8 +339,8 @@ impl App {
         App::render_footer(footer_area, buf, _text_render_footer);
         self.render_list(list_area, buf, render_list_title, titles_search_book_or_pod, &mut self.list_state_search_results.clone());
         if !titles_search_book_or_pod.is_empty() {
-            self.render_info_search_book(item_area1, buf, &mut &self.list_state_search_results.clone());
-            self.render_desc_search_book(item_area2, buf, &mut &self.list_state_search_results.clone());
+            self.render_info_search_book(item_area1, buf, &self.list_state_search_results.clone() );
+            self.render_desc_search_book(item_area2, buf, &self.list_state_search_results.clone() );
         }
     }
 
@@ -376,8 +375,8 @@ impl App {
                 let render_list_title = format!("Episodes [{} items]", items_number);
                 // Only render list/info/desc if episodes exist
                 self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep_search.clone(), &mut self.list_state_pod_ep.clone());
-                self.render_info_pod_ep_search(item_area1, buf, &mut &self.list_state_pod_ep.clone());
-                self.render_desc_pod_ep_search(item_area2, buf, &mut &self.list_state_pod_ep.clone());
+                self.render_info_pod_ep_search(item_area1, buf, &self.list_state_pod_ep.clone() );
+                self.render_desc_pod_ep_search(item_area2, buf, &self.list_state_pod_ep.clone() );
             }
         } else {
             if self.titles_pod_ep.is_empty() {
@@ -391,8 +390,8 @@ impl App {
                 let render_list_title = format!("Episodes [{} items]", items_number);
                 // Only render list/info/desc if episodes exist
                 self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep.clone(), &mut self.list_state_pod_ep.clone());
-                self.render_info_pod_ep(item_area1, buf, &mut &self.list_state_pod_ep.clone());
-                self.render_desc_pod_ep(item_area2, buf, &mut &self.list_state_pod_ep.clone());
+                self.render_info_pod_ep(item_area1, buf, &self.list_state_pod_ep.clone() );
+                self.render_desc_pod_ep(item_area2, buf, &self.list_state_pod_ep.clone() );
             }
         }
     }
@@ -404,7 +403,7 @@ impl App {
             .bold()
             .centered()
             .render(area, buf);
-        Paragraph::new(format!("👋 Connected as {}\n🔗 {}", &username, &server_address_pretty))
+        Paragraph::new(format!("👋 Connected as {}\n🔗 {}", username, server_address_pretty))
             .not_bold()
             .left_aligned()
             .render(area, buf);
@@ -435,7 +434,7 @@ impl App {
             .bg(Color::Rgb(bg_color_header[0], bg_color_header[1], bg_color_header[2])); 
 
         let block = Block::new()
-            .title(Line::raw(format!("{}", render_list_title)).centered())
+            .title(Line::raw(render_list_title.to_string()).centered())
             .borders(Borders::TOP)
             .border_style(header_style)
             .bg(Color::Rgb(bg_color_block[0], bg_color_block[1], bg_color_block[2]));
@@ -479,7 +478,7 @@ impl App {
                     Paragraph::new(format!("Author: {} - Year: {} - Duration: {}\nProgress: {}%, {} {}", 
                             self.auth_names_cnt_list[selected], 
                             self.pub_year_cnt_list[selected], 
-                            duration_cnt_list_conv[selected].to_string(),
+                            duration_cnt_list_conv[selected],
                             self.book_progress_cnt_list[selected][0], // percentage progression
                             format!("{}",convert_seconds_for_prg(self.duration_cnt_list[selected], self.book_progress_cnt_list_cur_time[selected][0])), // time left
                             self.book_progress_cnt_list[selected][1], // is finished
@@ -502,7 +501,7 @@ impl App {
             }
 
             Paragraph::new(_content.clone())
-                .scroll((self.scroll_offset as u16, 0))
+                .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .render(area, buf);
             }
@@ -542,7 +541,7 @@ impl App {
         if let Some(selected) = list_state.selected() {
 
             Paragraph::new(self.desc_library[selected].clone())
-                .scroll((self.scroll_offset as u16, 0))
+                .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .render(area, buf);
         }
@@ -632,7 +631,7 @@ impl App {
             // Check if index is valid for subtitles vector
             if selected < self.subtitles_pod_ep.len() {
                 Paragraph::new(self.subtitles_pod_ep[selected].clone())
-                    .scroll((self.scroll_offset as u16, 0))
+                    .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })
                     .render(area, buf);
             } else {
@@ -650,7 +649,7 @@ impl App {
         if let Some(selected) = list_state.selected() {
 
             Paragraph::new(self.subtitles_pod_ep_search[selected].clone())
-                .scroll((self.scroll_offset as u16, 0))
+                .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .render(area, buf);
         }
@@ -689,7 +688,7 @@ impl App {
         if let Some(selected) = list_state.selected() {
 
             Paragraph::new(self.desc_library_search_book[selected].clone())
-                .scroll((self.scroll_offset as u16, 0))
+                .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .render(area, buf);
         }
@@ -738,13 +737,13 @@ Uninstall:
             Some(1) => {}
             Some(2) => {
                 Paragraph::new(self.changelog.clone())
-                    .scroll((self.scroll_offset as u16, 0))
+                    .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })
                     .render(area, buf);
                 }
             Some(3) => {
                 Paragraph::new(instructions)
-                    .scroll((self.scroll_offset as u16, 0))
+                    .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })
                     .render(area, buf);
                 }
@@ -772,7 +771,7 @@ Uninstall:
             color_bg_list = cfg.colors.list_background_color;
             color_alt_bg_list = cfg.colors.list_background_color_alt_row;
         }
-        if i % 2 == 0 {
+        if i.is_multiple_of(2) {
             Color::Rgb(color_bg_list[0], color_bg_list[1], color_bg_list[2])
         } else {
             Color::Rgb(color_alt_bg_list[0], color_alt_bg_list[1], color_alt_bg_list[2])

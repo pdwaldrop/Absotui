@@ -21,7 +21,7 @@ pub fn clap() {
         std::process::Command::new("sh")
             .arg("-c")
             .arg(
-                r#"bash -c 'expected_sha256="b3a36a51b97652040c5a95aac4690df2f5bfc1197e9fc32694087301a942f8bc" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'"#,
+                r#"bash -c 'expected_sha256="616c538920c51fe21fab3f33009ecf70c462923613128790e1affea7322ca94f" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'"#,
             )
             .status()
             .expect("failed to run uninstall script");
@@ -31,7 +31,7 @@ pub fn clap() {
         std::process::Command::new("sh")
             .arg("-c")
             .arg(
-                r#"bash -c 'expected_sha256="b3a36a51b97652040c5a95aac4690df2f5bfc1197e9fc32694087301a942f8bc" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'"#,
+                r#"bash -c 'expected_sha256="616c538920c51fe21fab3f33009ecf70c462923613128790e1affea7322ca94f" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'"#,
             )
             .status()
             .expect("failed to run update script");

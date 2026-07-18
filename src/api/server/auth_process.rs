@@ -87,10 +87,10 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
                 is_default_usr: true,
                 name_selected_lib: library_names[0].clone(), // by default we take the first library
                 id_selected_lib: library_ids[0].clone(),
-                is_loop_break: is_loop_break,
-                is_vlc_launched_first_time: is_vlc_launched_first_time,
+                is_loop_break,
+                is_vlc_launched_first_time,
                 speed_rate: 1.0,
-                is_vlc_running: is_vlc_running,
+                is_vlc_running,
                 is_show_key_bindings: "1".to_string()
             }
         ];
@@ -100,6 +100,6 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
 
         Ok(()) 
     } else {
-        Err(Report::new(std::io::Error::new(std::io::ErrorKind::Other, "Login failed"))) 
+        Err(Report::new(std::io::Error::other("Login failed"))) 
     }
 }

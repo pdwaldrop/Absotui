@@ -34,10 +34,10 @@ pub async fn handle_l_pod_home(
 
     if let Some(index) = selected {
         // id is id of the podcast  and id_pod_ep is the id id of the episode podcast
-        if let Some(id) = ids_library_items.get(index) {
-            if let Some(id_pod_ep) = id_pod.get(index) {
-                if let Some(token) = token {
-                    if let Ok(info_item) = post_start_playback_session_pod(Some(&token), &id, id_pod_ep, server_address.clone()).await {
+        if let Some(id) = ids_library_items.get(index)
+            && let Some(id_pod_ep) = id_pod.get(index)
+                && let Some(token) = token {
+                    match post_start_playback_session_pod(Some(token), id, id_pod_ep, server_address.clone()).await { Ok(info_item) => {
 
                         // converting current time
                         let mut current_time: u32 = info_item[0].parse::<f64>().unwrap().round() as u32;
@@ -134,8 +134,8 @@ pub async fn handle_l_pod_home(
                                     } else {
                                         let speed_rate_str = get_speed_rate(username.as_str());
                                         let speed_rate = speed_rate_str.parse::<f64>().unwrap_or(1.0);
-                                        let current_time_adjusted = current_time as f64 / speed_rate as f64; 
-                                        let data_fetched_from_vlc_adjusted = data_fetched_from_vlc as f64 / speed_rate as f64; 
+                                        let current_time_adjusted = current_time as f64 / speed_rate; 
+                                        let data_fetched_from_vlc_adjusted = data_fetched_from_vlc as f64 / speed_rate; 
                                         let diff = data_fetched_from_vlc_adjusted as u32 - current_time_adjusted as u32;
                                         // if > 20 means that new current_time is not take into account
                                         // so we need to temporarly, put 1 sec if it happens (not the
@@ -166,8 +166,8 @@ pub async fn handle_l_pod_home(
                                         Ok(true) => {
                                             // to sync progress in the server each 10 seconds
                                             if trigger == 10 {
-                                                let _ = update_media_progress_pod(id, Some(&token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
-                                                let _ = sync_session(Some(&token), &info_item[3],Some(data_fetched_from_vlc), progress_sync, server_address.clone()).await;
+                                                let _ = update_media_progress_pod(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], id_pod_ep, server_address.clone()).await;
+                                                let _ = sync_session(Some(token), &info_item[3],Some(data_fetched_from_vlc), progress_sync, server_address.clone()).await;
                                                 // update elapsed_time in database (`listening_session` table)
                                                 let _ = update_elapsed_time(progress_sync, info_item[3].as_str());
 
@@ -193,9 +193,9 @@ pub async fn handle_l_pod_home(
                                             // update is_finished in database (`listening_session` table)
                                             let _ = update_is_finished("1", info_item[3].as_str());
 
-                                            let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
+                                            let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
                                             info!("[handle_l_pod_home][Finished] Session successfully closed");
-                                            let _ = update_media_progress2_pod(id, Some(&token), Some(data_fetched_from_vlc), &info_item[2], is_finised, &id_pod_ep, server_address).await;
+                                            let _ = update_media_progress2_pod(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], is_finised, id_pod_ep, server_address).await;
                                             info!("[handle_l_pod_home][Finished] VLC stopped");
                                             info!("[handle_l_pod_home][Finished] Item {} closed at {}s", id_pod_ep, data_fetched_from_vlc);
                                             let _ = update_is_loop_break("1", username.as_str());
@@ -211,11 +211,11 @@ pub async fn handle_l_pod_home(
                                             let _ = update_is_vlc_running("0", username.as_str());
                                             info!("[handle_l_pod_home][Quit]");
                                             // close session when VLC is quitted
-                                            let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
+                                            let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
                                             info!("[handle_l_pod_home][Quit] Session successfully closed");
                                             // send one last time media progress (bug to retrieve media
                                             // progress otherwise)
-                                            let _ = update_media_progress_pod(id, Some(&token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address).await;
+                                            let _ = update_media_progress_pod(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], id_pod_ep, server_address).await;
                                             info!("[handle_l_pod_home][Quit] VLC closed");
                                             info!("[handle_l_pod_home][Quit] Item {} closed at {}s", id_pod_ep, data_fetched_from_vlc);
 
@@ -232,9 +232,9 @@ pub async fn handle_l_pod_home(
                                 Ok(None) => {
                                     let _ = update_is_vlc_running("0", username.as_str());
                                     info!("[handle_l_pod_home][None]");
-                                    let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
+                                    let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
                                     info!("[handle_l_pod_home][None] Session successfully closed");
-                                    let _ = update_media_progress_pod(id, Some(&token), Some(current_time), &info_item[2], &id_pod_ep, server_address).await;
+                                    let _ = update_media_progress_pod(id, Some(token), Some(current_time), &info_item[2], id_pod_ep, server_address).await;
                                     info!("[handle_l_pod_home][None] VLC closed");
                                     info!("[handle_l_pod_home][None] Item {} closed at {}s", id, current_time);
 
@@ -247,12 +247,10 @@ pub async fn handle_l_pod_home(
                                 }
                             }
                         }
-                    } else {
+                    } _ => {
                         error!("[handle_l_pod_home] Failed to start playback session");
                         eprintln!("Failed to start playback session");
-                    }
+                    }}
                 }
-            }
-        }
     }}
 

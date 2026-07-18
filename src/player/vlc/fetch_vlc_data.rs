@@ -19,7 +19,7 @@ pub async fn fetch_vlc_data(port: String, address: String) -> Result<Option<u32>
         }
 
         // Connect to VLC and fetch data
-        let mut player = match Client::connect(format!("{}:{}", address, &port)) {
+        let mut player = match Client::connect(format!("{}:{}", address, port)) {
             Ok(player) => player,
             Err(e) => {
                 error!("[fetch_vlc_data] {}", e);
@@ -59,7 +59,7 @@ pub async fn fetch_vlc_data(port: String, address: String) -> Result<Option<u32>
 // fetch if vlc is playing or stopped (return true if vlc is paused)
 pub async fn fetch_vlc_is_playing(port: String, address: String) -> Result<bool, String> {
     // Tentative de connexion à VLC
-    let mut player = match Client::connect(format!("{}:{}", address, &port)) {
+    let mut player = match Client::connect(format!("{}:{}", address, port)) {
         Ok(player) => player,
         Err(e) => {
             warn!("[fetch_vlc_is_playing] Failed to connect to VLC at port {}: {}", port, e);
@@ -128,11 +128,10 @@ pub async fn get_vlc_version() -> Result<String, io::Error> {
 
     let re = Regex::new(r"VLC (?:media player |version )?([\d.]+)").unwrap();
 
-    if let Some(captures) = re.captures(version_output) {
-        if let Some(version) = captures.get(1) {
+    if let Some(captures) = re.captures(version_output)
+        && let Some(version) = captures.get(1) {
             return Ok(version.as_str().to_string());
         }
-    }
 
     Err(io::Error::new(
             io::ErrorKind::InvalidData,

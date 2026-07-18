@@ -163,8 +163,7 @@ pub async fn get_continue_listening_pod(token: &str, server_address: String, id_
 
     // Check response status
     if !response.status().is_success() {
-        return Err(Report::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+        return Err(Report::new(std::io::Error::other(
                     "Failed to fetch data from the API",
         )));
     }

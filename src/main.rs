@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
         });
     // Construct the dotenv 
     let env_path = config_path.join("absotui").join(".env");
-    dotenv::from_filename(&env_path.clone()).ok();
+    dotenv::from_filename(env_path.clone()).ok();
 
     // Init database
     let mut _database = Database::new().await?;
@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
 
         // init current username
         let mut username: String = String::new();
-        if let Some(var_username) = _database.default_usr.get(0) {
+        if let Some(var_username) = _database.default_usr.first() {
             username = var_username.clone();
         }
         // init is_vlc_launched_first_time 
@@ -133,8 +133,8 @@ async fn main() -> Result<()> {
 
 
             // Checking if any key is pressed (waiting for events with a 200ms delay here)
-            if crossterm::event::poll(Duration::from_millis(200))? {
-                if let event::Event::Key(key) = crossterm::event::read()? {
+            if crossterm::event::poll(Duration::from_millis(200))?
+                && let event::Event::Key(key) = crossterm::event::read()? {
                     app.handle_key(key);
                     match key.code {
                         // If the 'R' key is pressed, refresh the app
@@ -151,7 +151,6 @@ async fn main() -> Result<()> {
                         _ => {}
                     }
                 }
-            }
 
             // Short pause between event checks
             tokio::time::sleep(Duration::from_millis(50)).await;

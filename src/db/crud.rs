@@ -31,17 +31,17 @@ pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE users SET is_show_key_bindings = ?1 WHERE username = ?2",
             params![value, username],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_is_show_key_bindings] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -102,17 +102,17 @@ pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE users SET is_vlc_running = ?1 WHERE username = ?2",
             params![value, username],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_is_vlc_running] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -173,7 +173,7 @@ pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         if is_speed_rate_up {
         conn.execute(
@@ -186,11 +186,11 @@ pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
             params![username],
         )?;
         }
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_speed_rate] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -251,7 +251,7 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
         let mut stmt = conn.prepare(
             "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter
              FROM listening_session
@@ -276,11 +276,11 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
             };
             return Ok(Some(session));
         }
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[get_listening_session] {}", err_message);
-    }
+    }}
 
     Ok(None)
 }
@@ -318,18 +318,18 @@ pub fn insert_listening_session(
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
         conn.execute("DELETE FROM listening_session", params![])?;
         conn.execute(
             "INSERT INTO listening_session (id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter) 
              VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![id_session, id_item, current_time, duration, id_pod, elapsed_time, title, author, is_playback, chapter],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[insert_listening_session] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -355,17 +355,17 @@ pub fn update_chapter(value: &str, id_session: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE listening_session SET chapter = ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_chapter] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -390,17 +390,17 @@ pub fn update_is_playback(value: &str, id_session: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE listening_session SET is_playback = ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_is_playback] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -425,17 +425,17 @@ pub fn update_current_time(value: u32, id_session: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE listening_session SET current_time_playback = ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_current_time] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -461,17 +461,17 @@ pub fn update_elapsed_time(value: u32, id_session: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE listening_session SET elapsed_time = elapsed_time + ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_elapsed_time] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -497,17 +497,17 @@ pub fn update_is_finished(value: &str, id_session: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE listening_session SET is_finished = ?1 WHERE id_session = ?2",
             params![value, id_session],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_is_finished] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -531,9 +531,9 @@ pub fn delete_user(username: &str) -> Result<()> {
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
-    let message = format!("User '{}' deleted. Please restart the app to apply the changes.", &username);
+    let message = format!("User '{}' deleted. Please restart the app to apply the changes.", username);
     let err_message = "Error connecting to the database.";
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         let rows_deleted = conn.execute(
             "DELETE FROM users WHERE username = ?1",
@@ -547,11 +547,11 @@ pub fn delete_user(username: &str) -> Result<()> {
         } else {
             //println!("No user found with this username '{}'.", username);
         }
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[delete user] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -577,17 +577,17 @@ pub fn update_is_loop_break(value: &str, username: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE users SET is_loop_break = ?1 WHERE username = ?2",
             params![value, username],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_is_loop_break] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -648,17 +648,17 @@ pub fn update_is_vlc_launched_first_time(value: &str, username: &str) -> Result<
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE users SET is_vlc_launched_first_time = ?1 WHERE username = ?2",
             params![value, username],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[is_vlc_launched_first_time] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -716,7 +716,7 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
 
     let message = "The library has been updated. Please refresh the app to apply the changes.";
     let err_message = "Error connecting to the database.";
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
 
         conn.execute(
             "UPDATE users SET id_selected_lib = ?1 WHERE username = ?2",
@@ -726,11 +726,11 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
         let _ = pop_message(&mut stdout, 3, message);
         info!("[update_id_selected_lib] The library has been updated");
 
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_id_selected_lib] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
@@ -814,7 +814,7 @@ pub fn get_others() -> Result<Option<Others>> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
         let mut stmt = conn.prepare(
             "SELECT login_err
              FROM others
@@ -829,11 +829,11 @@ pub fn get_others() -> Result<Option<Others>> {
             };
             return Ok(Some(others));
         }
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[get_others] {}", err_message);
-    }
+    }}
 
     Ok(None)
 }
@@ -858,7 +858,7 @@ pub fn update_login_err(value: &str) -> Result<()> {
 
     let err_message = "Error connecting to the database.";
 
-    if let Ok(conn) = Connection::open(db_path) {
+    match Connection::open(db_path) { Ok(conn) => {
         conn.execute(
             "INSERT INTO others (login_err) SELECT '' WHERE NOT EXISTS (SELECT 1 FROM others LIMIT 1)",
             [],
@@ -867,11 +867,11 @@ pub fn update_login_err(value: &str) -> Result<()> {
             "UPDATE others SET login_err = ?1 WHERE rowid = 1",
             params![value],
         )?;
-    } else {
+    } _ => {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_login_err] {}", err_message);
-    }
+    }}
 
     Ok(())
 }
