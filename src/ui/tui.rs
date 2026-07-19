@@ -1,5 +1,6 @@
 use crate::App;
-use crate::app::AppView;
+use crate::app::{AppView, HomeRow};
+use crate::api::libraries::get_library_perso_view_pod::Chapter;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
@@ -12,7 +13,7 @@ use ratatui::{
 };
 use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
 use crate::db::crud::{get_listening_session, get_is_podcast_autoplay};
-use crate::player::integrated::player_info::format_time;
+use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::config::load_config;
 
 
@@ -62,7 +63,7 @@ impl App {
         let text_render_footer = if self.is_podcast {
             "j/↓, k/↑: move, l/→: play, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, D: sort by age, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot"
         } else {
-            "j/↓, k/↑: move, l/→: play, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot"
+            "j/↓, k/↑: move, l/→: play, c: chapters, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot"
         };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
@@ -125,6 +126,20 @@ impl App {
         let active_session = get_listening_session().ok().flatten();
         let now_playing_id: Option<String> = active_session.as_ref().map(|s| if self.is_podcast { s.id_pod.clone() } else { s.id_item.clone() });
 
+        // Flattened book/chapter rows - plain Book rows 1:1 with _ids_cnt_list unless the
+        // chapter list is expanded, in which case it also carries the chapter sub-rows to
+        // render beneath the currently-playing book. Kept in sync with input handling
+        // (app.rs) since both go through this same method.
+        let home_rows = self.build_home_rows();
+        let current_chapter_id: Option<i64> = if self.is_chapter_list_expanded {
+            active_session.as_ref().and_then(|s| {
+                let chapters: Vec<Chapter> = serde_json::from_str(&s.chapters).unwrap_or_default();
+                find_current_chapter(&chapters, s.current_time as f64).and_then(|c| c.id)
+            })
+        } else {
+            None
+        };
+
         let progress_info: Option<Vec<(String, f32, bool)>> = if self.is_podcast {
             // Progress percent isn't shown here - it isn't as meaningful for a list
             // already filtered to "new or unfinished" episodes. Instead the time slot
@@ -149,36 +164,43 @@ impl App {
                 (format!("{age:<AGE_LABEL_WIDTH$}"), 0.0, is_now_playing)
             }).collect())
         } else {
-            Some(self._titles_cnt_list.iter().enumerate().map(|(i, _)| {
-                let is_now_playing = self._ids_cnt_list.get(i).is_some_and(|id| Some(id) == now_playing_id.as_ref());
-                let duration = self.duration_cnt_list.get(i).copied().unwrap_or(0.0) as f32;
+            Some(home_rows.iter().map(|row| match row {
+                HomeRow::Book(i) => {
+                    let i = *i;
+                    let is_now_playing = self._ids_cnt_list.get(i).is_some_and(|id| Some(id) == now_playing_id.as_ref());
+                    let duration = self.duration_cnt_list.get(i).copied().unwrap_or(0.0) as f32;
 
-                // For the actively-playing book, use the live position from the local
-                // listening_session (updated every second while VLC plays) instead of the
-                // snapshot fetched from the server when the list last loaded - keeps this
-                // one row's progress current without any extra network calls.
-                let current_time = if is_now_playing {
-                    active_session.as_ref().map(|s| s.current_time as f32).unwrap_or(0.0)
-                } else {
-                    self.book_progress_cnt_list_cur_time.get(i).and_then(|v| v.first()).copied().unwrap_or(0.0) as f32
-                };
-                let percent = if is_now_playing && duration > 0.0 {
-                    (current_time / duration) * 100.0
-                } else {
-                    self.book_progress_cnt_list.get(i)
-                        .and_then(|v| v.first())
-                        .and_then(|s| s.trim().parse::<f32>().ok())
-                        .unwrap_or(0.0)
-                };
-                // Gate on the raw current_time, not the rounded percent string - a book
-                // with small-but-real progress (e.g. 0.3% into an 11-hour audiobook) would
-                // round to "0" and get misreported as never started.
-                let text = if current_time > 0.0 {
-                    format!("{} / {} ({}%)", format_time(current_time as u32), format_time(duration as u32), percent.round() as u32)
-                } else {
-                    "Not started".to_string()
-                };
-                (text, percent, is_now_playing)
+                    // For the actively-playing book, use the live position from the local
+                    // listening_session (updated every second while VLC plays) instead of the
+                    // snapshot fetched from the server when the list last loaded - keeps this
+                    // one row's progress current without any extra network calls.
+                    let current_time = if is_now_playing {
+                        active_session.as_ref().map(|s| s.current_time as f32).unwrap_or(0.0)
+                    } else {
+                        self.book_progress_cnt_list_cur_time.get(i).and_then(|v| v.first()).copied().unwrap_or(0.0) as f32
+                    };
+                    let percent = if is_now_playing && duration > 0.0 {
+                        (current_time / duration) * 100.0
+                    } else {
+                        self.book_progress_cnt_list.get(i)
+                            .and_then(|v| v.first())
+                            .and_then(|s| s.trim().parse::<f32>().ok())
+                            .unwrap_or(0.0)
+                    };
+                    // Gate on the raw current_time, not the rounded percent string - a book
+                    // with small-but-real progress (e.g. 0.3% into an 11-hour audiobook) would
+                    // round to "0" and get misreported as never started.
+                    let text = if current_time > 0.0 {
+                        format!("{} / {} ({}%)", format_time(current_time as u32), format_time(duration as u32), percent.round() as u32)
+                    } else {
+                        "Not started".to_string()
+                    };
+                    (text, percent, is_now_playing)
+                }
+                // Chapter rows render as plain indented rows (no time text/underline, no
+                // now-playing marker box) - which chapter is current is shown inline in
+                // the title itself instead, see display_titles below.
+                HomeRow::Chapter { .. } => (String::new(), 0.0, false),
             }).collect())
         };
         // Podcasts: show "Episode Title | Podcast Title" in the list row, not just the
@@ -192,7 +214,16 @@ impl App {
                 }
             }).collect()
         } else {
-            self._titles_cnt_list.clone()
+            home_rows.iter().map(|row| match row {
+                HomeRow::Book(i) => self._titles_cnt_list.get(*i).cloned().unwrap_or_default(),
+                HomeRow::Chapter { chapter, .. } => {
+                    let num = chapter.id.unwrap_or(0) + 1;
+                    let title = chapter.title.clone().unwrap_or_default();
+                    let is_current_chapter = chapter.id.is_some() && chapter.id == current_chapter_id;
+                    let marker = if is_current_chapter { "●" } else { " " };
+                    format!("    {marker} Chapter {num}. {title}")
+                }
+            }).collect()
         };
         self.render_list(list_area, buf, &render_list_title, &display_titles, &mut self.list_state_cnt_list.clone(), progress_info.as_deref());
         if !&self._titles_cnt_list.is_empty() {
@@ -725,7 +756,20 @@ impl App {
     fn render_info_home(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
         let duration_cnt_list_conv = convert_seconds(self.duration_cnt_list.clone());
 
-        if let Some(selected) = list_state.selected() {
+        // Chapter rows don't have their own info to show - resolve back to the book they
+        // belong to. Cursor position no longer maps 1:1 to a book index once chapter rows
+        // are spliced in, so this has to go through the same row-building the list itself
+        // used, or it reads (or panics on) the wrong entry.
+        let selected = if self.is_podcast {
+            list_state.selected()
+        } else {
+            list_state.selected().and_then(|i| self.build_home_rows().get(i).map(|row| match row {
+                HomeRow::Book(book_i) => *book_i,
+                HomeRow::Chapter { book_index, .. } => *book_index,
+            }))
+        };
+
+        if let Some(selected) = selected {
 
             if self.is_podcast {
                 Paragraph::new(format!("[{}] - Author: {} - Episode: {} - Duration: {}", 
@@ -753,8 +797,17 @@ impl App {
 
     // description of the book or podcast `Home`
     fn render_desc_home(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
+        // See render_info_home - chapter rows resolve back to their parent book's index.
+        let selected = if self.is_podcast {
+            list_state.selected()
+        } else {
+            list_state.selected().and_then(|i| self.build_home_rows().get(i).map(|row| match row {
+                HomeRow::Book(book_i) => *book_i,
+                HomeRow::Chapter { book_index, .. } => *book_index,
+            }))
+        };
 
-        if let Some(selected) = list_state.selected() {
+        if let Some(selected) = selected {
             let mut _content: String = String::new();
             if self.is_podcast {
                 _content = self.subtitles_pod_cnt_list[selected].clone();

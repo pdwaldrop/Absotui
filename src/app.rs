@@ -6,7 +6,7 @@ use crate::api::utils::collect_get_all_libraries::{collect_library_names, collec
 use crate::api::utils::collect_get_media_progress::{collect_progress_percentage_book, collect_is_finished_book, collect_current_time_prg};
 use crate::api::me::get_media_progress::get_book_progress;
 use crate::api::libraries::get_library_perso_view::get_continue_listening;
-use crate::api::libraries::get_library_perso_view_pod::get_new_and_unfinished_pod;
+use crate::api::libraries::get_library_perso_view_pod::{get_new_and_unfinished_pod, Chapter};
 use crate::api::libraries::get_all_books::get_all_books;
 use crate::api::libraries::get_all_libraries::get_all_libraries;
 use crate::api::library_items::get_pod_ep::get_pod_ep;
@@ -14,7 +14,7 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session};
 use crate::db::database_struct::Database;
 use color_eyre::Result;
 use log::warn;
@@ -29,8 +29,17 @@ use std::io::stdout;
 use crate::player::vlc::quit_vlc::{quit_vlc, pkill_vlc};
 use crate::logic::sync_session::sync_session_from_database::sync_session_from_database;
 use crate::logic::sync_session::wait_prev_session_finished::wait_prev_session_finished;
-use crate::player::integrated::handle_key_player::handle_key_player;
+use crate::player::integrated::handle_key_player::{handle_key_player, seek_to_absolute_time};
 use crate::utils::check_update::check_update;
+
+// A single row of the (book-mode) Home list, once the currently-playing book's chapter
+// list has been spliced in as extra rows. Kept in sync between rendering (tui.rs) and
+// input handling (this file) by always going through `App::build_home_rows`.
+#[derive(Clone)]
+pub enum HomeRow {
+    Book(usize),
+    Chapter { book_index: usize, chapter: Chapter },
+}
 
 pub enum AppView {
     Home,
@@ -52,6 +61,10 @@ pub struct App {
     // are sync), so this just signals the main loop to do the same full reload/reinit
     // it already does for the `R` key, landing back on Home in the newly selected library.
     pub library_needs_reload: bool,
+    // Whether the currently-playing book's chapter list is expanded inline under its row
+    // in Continue Listening. Session-local only (not persisted) - matches the pattern used
+    // by other ephemeral view toggles like `podcast_sort_newest_first`.
+    pub is_chapter_list_expanded: bool,
     pub database: Database,
     pub id_selected_lib: String,
     pub token: Option<String>,
@@ -603,6 +616,7 @@ impl App {
         _ids_cnt_list,
         view_state,
         library_needs_reload: false,
+        is_chapter_list_expanded: false,
         titles_library,
         ids_library,
         auth_names_library,
@@ -824,6 +838,34 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             }
         }
 
+        // toggle the currently-playing book's inline chapter list in Continue Listening
+        KeyCode::Char('c') => {
+            if matches!(self.view_state, AppView::Home) && !self.is_podcast {
+                let is_now_playing_visible = get_listening_session().ok().flatten()
+                    .is_some_and(|s| self._ids_cnt_list.contains(&s.id_item));
+                if is_now_playing_visible {
+                    // Remember which book the cursor was on (or, if it was on a chapter
+                    // row, the now-playing book those chapters belong to) so it can be
+                    // re-found afterward - expanding/collapsing shifts every row below
+                    // the now-playing book by however many chapter rows appear/disappear.
+                    let selected_row = self.list_state_cnt_list.selected()
+                        .and_then(|i| self.build_home_rows().get(i).cloned());
+
+                    self.is_chapter_list_expanded = !self.is_chapter_list_expanded;
+
+                    let reposition_id = match selected_row {
+                        Some(HomeRow::Book(i)) => self._ids_cnt_list.get(i).cloned(),
+                        Some(HomeRow::Chapter { .. }) => get_listening_session().ok().flatten().map(|s| s.id_item),
+                        None => None,
+                    };
+                    if let Some(id) = reposition_id
+                        && let Some(new_pos) = self.build_home_rows().iter().position(|row| matches!(row, HomeRow::Book(i) if self._ids_cnt_list.get(*i) == Some(&id))) {
+                            self.list_state_cnt_list.select(Some(new_pos));
+                    }
+                }
+            }
+        }
+
         // toggle speed-adjusted (real) vs raw content time for Elapsed/Left
         KeyCode::Char('T') => {
             let value = get_is_speed_adjusted_time(self.username.as_str());
@@ -944,6 +986,26 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             }
         }        
         KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
+            // If the chapter list is expanded under the currently-playing book, the
+            // cursor may be sitting on a chapter row rather than a book row - seek the
+            // already-running VLC session directly to that chapter's start instead of
+            // restarting playback entirely.
+            if matches!(self.view_state, AppView::Home) && !self.is_podcast
+                && let Some(selected) = self.list_state_cnt_list.selected()
+                && let Some(HomeRow::Chapter { chapter, .. }) = self.build_home_rows().get(selected) {
+                    // Round up, not down: chapter boundaries are fractional (e.g.
+                    // 9836.105873), and seeking to the truncated whole second would land
+                    // just before the real boundary - long enough for one polling tick to
+                    // still classify it as the previous chapter and flash the wrong marker.
+                    let start = chapter.start.unwrap_or(0.0).ceil() as u32;
+                    let port = self.config.player.port.clone();
+                    let address_player = self.config.player.address.clone();
+                    tokio::spawn(async move {
+                        let _ = seek_to_absolute_time(&address_player, &port, start);
+                    });
+                    return;
+            }
+
             // Clone needed because variables will be used in a spawn
             let token = self.token.clone();
             let port = self.config.player.port.clone();
@@ -953,7 +1015,20 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
             // Init for `Continue Listening` (AppView::Home)
             let ids_cnt_list = self._ids_cnt_list.clone();
-            let selected_cnt_list = self.list_state_cnt_list.selected();
+            let selected_cnt_list = if matches!(self.view_state, AppView::Home) && !self.is_podcast && self.is_chapter_list_expanded {
+                // Any selection reaching here is a book row (chapter rows already handled
+                // and returned above) - resolve its real index in `_ids_cnt_list`, since
+                // the flat ListState index is offset by however many chapter rows are
+                // spliced in above it.
+                self.list_state_cnt_list.selected().and_then(|selected| {
+                    match self.build_home_rows().get(selected) {
+                        Some(HomeRow::Book(i)) => Some(*i),
+                        _ => None,
+                    }
+                })
+            } else {
+                self.list_state_cnt_list.selected()
+            };
 
             // Init for `Library`
             let ids_library = self.ids_library.clone();
@@ -1363,12 +1438,42 @@ fn toggle_view(&mut self) {
     };
 }
 
+/// Flattens the Continue Listening list into individual rows, splicing indented chapter
+/// rows in directly beneath the currently-playing book's row when `is_chapter_list_expanded`
+/// is set. Returns plain `Book` rows 1:1 with `_ids_cnt_list` for podcasts, or whenever
+/// nothing is expanded - so callers never need to special-case those situations themselves.
+pub fn build_home_rows(&self) -> Vec<HomeRow> {
+    if self.is_podcast || !self.is_chapter_list_expanded {
+        return (0..self._ids_cnt_list.len()).map(HomeRow::Book).collect();
+    }
+
+    let active_session = get_listening_session().ok().flatten();
+    let chapters: Vec<Chapter> = active_session.as_ref()
+        .map(|s| serde_json::from_str(&s.chapters).unwrap_or_default())
+        .unwrap_or_default();
+
+    let mut rows = Vec::new();
+    for i in 0..self._ids_cnt_list.len() {
+        rows.push(HomeRow::Book(i));
+
+        let is_now_playing = active_session.as_ref()
+            .is_some_and(|s| self._ids_cnt_list.get(i) == Some(&s.id_item));
+        if is_now_playing {
+            for chapter in &chapters {
+                rows.push(HomeRow::Chapter { book_index: i, chapter: chapter.clone() });
+            }
+        }
+    }
+
+    rows
+}
+
 /// Select functions that apply to both views
 /// all select functions are from `ListState` widget
 pub fn select_next(&mut self) {
     match self.view_state {
         AppView::Home => { if let Some(selected) = self.list_state_cnt_list.selected() {
-            if selected + 1  < self._ids_cnt_list.len() {
+            if selected + 1  < self.build_home_rows().len() {
                 self.list_state_cnt_list.select_next();
             } else {
                 self.list_state_cnt_list.select_first();
@@ -1455,9 +1560,9 @@ pub fn select_first(&mut self) {
 pub fn select_last(&mut self) {
     match self.view_state {
         AppView::Home => {
-            let last_index = self._ids_cnt_list.len() - 1;
+            let last_index = self.build_home_rows().len() - 1;
             self.list_state_cnt_list.select(Some(last_index));
-        }            
+        }
         AppView::Library => {
             let last_index = self.ids_library.len() - 1;
             self.list_state_library.select(Some(last_index));

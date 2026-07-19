@@ -108,3 +108,17 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
     Ok(())
 }
 
+// Seeks the currently-playing VLC session directly to an absolute position (in seconds) -
+// used to jump to a specific chapter's start time. Bracketed by pause/play like the
+// relative seeks above, to avoid the same VLC buffering issue.
+pub fn seek_to_absolute_time(address: &str, port: &str, seconds: u32) -> io::Result<()> {
+    let mut stream = TcpStream::connect(format!("{address}:{port}"))?;
+    writeln!(stream, "pause")?;
+    writeln!(stream, "seek {seconds}")?;
+    if cfg!(target_os = "macos") {
+        thread::sleep(Duration::from_millis(500));
+    }
+    writeln!(stream, "play")?;
+    Ok(())
+}
+
