@@ -77,20 +77,20 @@ check_shasum() {
 
 }
 
-# Checksums of Absotui's own release artifacts. Regenerate with `shasum -a 256
-# <file>` (or download the release assets and hash those directly) whenever a
-# new release is cut on the stable branch.
-# [0] config.example.toml
-# [1] absotui-aarch64-unknown-linux-gnu.tar.gz
-# [2] absotui-universal-apple-darwin.tar.gz
-# [3] absotui-x86_64-unknown-linux-gnu.tar.gz
-# [4] absotui.desktop
-sha256sums=( '4e8ee03c555f439e09a6a9cbb3e299ec97fe2a0ea18f2b682a859b1940426d1b'
-             '259ca6fcae17094e89a015a9a754f625bcae0869234cc4df9df225f029ff1268'
-             '36c27beb328e70ec27ab4e355369fc2aad83a3df040660c441dc96907681ae3c'
-             '476d36025e796541df71ba5dfae916a962b65bd95654630fa0e8b037553bf4e9'
-             'f894b8709783839c98621957240f72525bef117820efa653e07cb06ae8b6f610'
-            )
+# Looks up the expected checksum for a release file from SHA256SUMS.txt, a manifest
+# CI generates from the release's actual uploaded assets (see release.yml). Fetched
+# once per run and cached in $checksums_file - this avoids hardcoding checksums
+# directly in this script, which would immediately go stale on every release since
+# CI only builds the real binaries after a release is cut.
+fetch_expected_checksum() {
+    local file_name=$1
+    full_version=${full_version:-$(curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"([^\"]*)\",|\1|")}
+    if [[ -z "$checksums_file" || ! -f "$checksums_file" ]]; then
+        checksums_file=$(mktemp)
+        curl -LsSf "$url_latest_binary/$full_version/SHA256SUMS.txt" -o "$checksums_file" 2>/dev/null
+    fi
+    grep " $file_name\$" "$checksums_file" 2>/dev/null | awk '{print $1}'
+}
 
 
 load_dependencies() {
@@ -425,7 +425,7 @@ install_config() {
     # dl config.example.toml in temp directory
     curl -LsSf "$url_config_file" -o "$tmpdir/config.example.toml"
 
-    check_shasum "$tmpdir/config.example.toml" "config.example.toml" "${sha256sums[0]}" "dir"
+    check_shasum "$tmpdir/config.example.toml" "config.example.toml" "$(fetch_expected_checksum config.example.toml)" "dir"
 
     local example_config="$tmpdir/config.example.toml"
     if ! [[ -f "$example_config" ]]; then
@@ -674,13 +674,7 @@ dl_handle_compressed_binary() {
     echo "[INFO] Downloading the compressed binary from $final_url"
     sudo curl -L "$final_url" -o "$tmpdir/$binary_name"
 
-    if [[ "$binary_name" == "absotui-aarch64-unknown-linux-gnu.tar.gz" ]]; then
-        check_shasum "$tmpdir/$binary_name" "absotui-aarch64-unknown-linux-gnu.tar.gz" "${sha256sums[1]}" "dir"
-    elif [[ "$binary_name" == "absotui-universal-apple-darwin.tar.gz" ]]; then
-        check_shasum "$tmpdir/$binary_name" "absotui-universal-apple-darwin.tar.gz" "${sha256sums[2]}" "dir"
-    elif [[ "$binary_name" == "absotui-x86_64-unknown-linux-gnu.tar.gz" ]]; then
-        check_shasum "$tmpdir/$binary_name" "absotui-x86_64-unknown-linux-gnu.tar.gz" "${sha256sums[3]}" "dir"
-    fi
+    check_shasum "$tmpdir/$binary_name" "$binary_name" "$(fetch_expected_checksum "$binary_name")" "dir"
 
     sudo tar -xvzf "$tmpdir/$binary_name" -C "$tmpdir"
     check_and_cleanup_binary_install "$tmpdir"
@@ -694,7 +688,7 @@ setup_launcher() {
         local tmpdir
         tmpdir=$(mktemp -d)
         curl -sSL "$url_absotui_desktop" -o "$tmpdir/absotui.desktop"
-        check_shasum "$tmpdir/absotui.desktop" "absotui.desktop" "${sha256sums[4]}" "dir"
+        check_shasum "$tmpdir/absotui.desktop" "absotui.desktop" "$(fetch_expected_checksum absotui.desktop)" "dir"
         mkdir -p "$HOME/.local/share/applications"
         sudo cp "$tmpdir/absotui.desktop" "$HOME/.local/share/applications/absotui.desktop"
         rm -rf $tmpdir
@@ -712,8 +706,9 @@ install_binary() {
     # get the architecture
     arch=$(uname -m)
 
-    # get full and latest version on github(e.g: v0.1.0-beta)
-    full_version=$(curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"([^\"]*)\",|\1|")
+    # get full and latest version on github(e.g: v0.1.0-beta) - reuse it if
+    # fetch_expected_checksum already resolved it earlier in this run
+    full_version=${full_version:-$(curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"([^\"]*)\",|\1|")}
 
 
     # determine binary to download

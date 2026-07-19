@@ -56,3 +56,31 @@ jobs:
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Generates a checksums manifest from the release's actual uploaded assets, once
+  # they all exist, so hello_absotui.sh can verify downloads against real values
+  # fetched at install time instead of hardcoding checksums into the script itself -
+  # those went stale on every release, since CI only builds the real binaries after
+  # a release is cut.
+  generate-checksums:
+    needs: upload-assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p assets
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --dir assets --clobber
+
+      - name: Generate SHA256SUMS.txt
+        run: |
+          cd assets
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload checksums manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" assets/SHA256SUMS.txt --repo "${{ github.repository }}" --clobber

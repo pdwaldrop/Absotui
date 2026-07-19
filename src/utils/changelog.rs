@@ -270,8 +270,7 @@ let changelog_15 = "Changelog Absotui v0.5.0-beta (18/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_16 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_16 = "Changelog Absotui v0.5.1-beta (19/07/2026) \n\
          \n\
          Fixed:\n\
          - Install script's OS/distro detection only matched a handful of hardcoded
@@ -286,10 +285,24 @@ let changelog_16 = format!(
            anyone who had already installed the binary.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_17 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install script's release checksums (for config.example.toml,
+           absotui.desktop, and the binaries) went stale again immediately after the
+           previous release, since CI only builds the real files after a release is
+           cut. Checksums are no longer hardcoded in the script at all - it now
+           fetches a SHA256SUMS.txt manifest that CI generates from the release's
+           actual uploaded assets, so this class of bug can't recur.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_17);
     changelog.push_str(&changelog_16);
     changelog.push_str(&changelog_15);
     changelog.push_str(&changelog_14);
