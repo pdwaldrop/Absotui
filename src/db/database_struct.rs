@@ -24,6 +24,7 @@ pub struct User {
     pub  is_show_key_bindings: String,
     pub  is_speed_adjusted_time: String,
     pub  is_podcast_autoplay: String,
+    pub  is_per_item_speed: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,6 +43,7 @@ pub struct ListeningSession {
     pub is_playback: bool,
     pub chapter: String,
     pub chapters: String,
+    pub volume: i32,
 }
 
 pub struct Others {
@@ -79,6 +81,7 @@ impl Database {
             is_playback: false,
             chapter: String::new(),
             chapters: String::new(),
+            volume: 100,
         };
 
         let others = Others {

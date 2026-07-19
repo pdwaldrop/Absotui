@@ -12,7 +12,7 @@ use ratatui::{
     },
 };
 use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
-use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc_running};
+use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc_running, get_is_per_item_speed};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::config::load_config;
 use crate::utils::html_to_text::html_to_lines;
@@ -36,6 +36,7 @@ impl Widget for &mut App {
             AppView::SettingsAbout => {},
             AppView::SettingsUpdateUninstall => {},
             AppView::SettingsAutoplay => self.render_settings_autoplay(area, buf),
+            AppView::SettingsPerItemSpeed => self.render_settings_per_item_speed(area, buf),
         }
     }
 }
@@ -295,11 +296,11 @@ impl App {
         let render_list_title = "Settings";
 
         let mut _text_render_footer = "";
-        if self.list_state_settings.selected() == Some(3) {
+        if self.list_state_settings.selected() == Some(4) {
             // for `About` section
             _text_render_footer = "j/↓, k/↑: move, Scroll what's new: J(down) K(up) H(top),\n Tab: home, R: refresh, Q/Esc: quit.";
         }
-        else if self.list_state_settings.selected() == Some(4) {
+        else if self.list_state_settings.selected() == Some(5) {
             _text_render_footer = "j/↓, k/↑: move, Scroll : J(down) K(up) H(top),\n Tab: home, R: refresh, Q/Esc: quit.";
 
         } else {
@@ -378,6 +379,32 @@ impl App {
         App::render_footer(footer_area, buf, text_render_footer);
         self.render_list(list_area, buf, render_list_title, &options, &mut self.list_state_settings_autoplay.clone(), None);
         Paragraph::new(format!("Currently: {current}\n\nWhen on, finishing a podcast episode automatically starts the next unfinished one in the list it was played from."))
+            .left_aligned()
+            .wrap(Wrap { trim: true })
+            .render(item_area, buf);
+    }
+
+    /// `AppView::SettingsPerItemSpeed` rendering
+    fn render_settings_per_item_speed(&mut self, area: Rect, buf: &mut Buffer) {
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(6),
+            Constraint::Length(1),
+            Constraint::Length(2),
+        ]).areas(area);
+
+        let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
+
+        let render_list_title = "Per-Item Speed";
+        let text_render_footer = "h: back, l/→: apply,\n Tab: home, R: refresh, Q/Esc: quit.";
+        let options = vec!["On".to_string(), "Off".to_string()];
+        let current = if get_is_per_item_speed(&self.username) == "1" { "On" } else { "Off" };
+
+        App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
+        App::render_footer(footer_area, buf, text_render_footer);
+        self.render_list(list_area, buf, render_list_title, &options, &mut self.list_state_settings_per_item_speed.clone(), None);
+        Paragraph::new(format!("Currently: {current}\n\nWhen on, each book or podcast show remembers its own playback speed (O/I in the player) instead of sharing one speed across everything. Turning this on resets every book/show back to 1.0x - each one then adjusts independently from there as you play it, starting fresh at 1.0x the first time. When off, O/I always adjust the single shared speed, same as before this setting existed."))
             .left_aligned()
             .wrap(Wrap { trim: true })
             .render(item_area, buf);
@@ -1132,21 +1159,14 @@ impl App {
     // info for settings
     fn render_info_settings(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
-        match list_state.selected() {
-            Some(0) => {}
-            Some(1) => {}
-            Some(2) => {}
-            Some(3) => {
-
-                Paragraph::new(format!("Absotui v{} - Licence: GPL-3.0 - Issues: {}/issues\nSource code: {}\nWhat's new:",
-                        VERSION,
-                        "https://github.com/pdwaldrop/Absotui",
-                        "https://github.com/pdwaldrop/Absotui",
-                ))
-                    .left_aligned()
-                    .render(area, buf);
-                }
-            _ => {}
+        if list_state.selected() == Some(4) {
+            Paragraph::new(format!("Absotui v{} - Licence: GPL-3.0 - Issues: {}/issues\nSource code: {}\nWhat's new:",
+                    VERSION,
+                    "https://github.com/pdwaldrop/Absotui",
+                    "https://github.com/pdwaldrop/Absotui",
+            ))
+                .left_aligned()
+                .render(area, buf);
         }
 
     }
@@ -1169,16 +1189,13 @@ Uninstall:
 
         match list_state.selected() {
 
-            Some(0) => {}
-            Some(1) => {}
-            Some(2) => {}
-            Some(3) => {
+            Some(4) => {
                 Paragraph::new(self.changelog.clone())
                     .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })
                     .render(area, buf);
                 }
-            Some(4) => {
+            Some(5) => {
                 Paragraph::new(instructions)
                     .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })

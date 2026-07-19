@@ -1,6 +1,19 @@
 use log::info;
-use crate::db::crud::{get_listening_session, get_speed_rate, get_is_speed_adjusted_time};
+use crate::db::crud::{get_listening_session, get_speed_rate, get_is_speed_adjusted_time, get_is_per_item_speed, get_item_speed_rate};
 use crate::api::libraries::get_library_perso_view_pod::Chapter;
+
+// The speed rate actually in effect for this item: per-item (keyed by id_item) if
+// Settings > Per-Item Speed is on and this item has been played/adjusted before,
+// otherwise the single shared speed_rate. Read-only - unlike adjust_speed_rate/
+// resolve_speed_rate, display has no reason to seed a per-item row that doesn't exist
+// yet, but if per-item mode is on and it's somehow missing anyway, 1.0x (the fixed
+// baseline new items start at) is the correct fallback here, not the shared speed.
+fn effective_speed_rate(username: &str, id_item: &str) -> f32 {
+    if get_is_per_item_speed(username) == "1" {
+        return get_item_speed_rate(username, id_item).unwrap_or(1.0);
+    }
+    get_speed_rate(username).parse().unwrap_or(1.0)
+}
 
 // Finds which chapter `current_time` (raw content-time seconds) falls within, using the
 // start/end timestamps Audiobookshelf sends per chapter. Returns None if there's no chapter
@@ -16,9 +29,15 @@ pub fn find_current_chapter(chapters: &[Chapter], current_time: f64) -> Option<&
 pub fn player_info(username: &str) -> Vec<String> {
     let mut player_info = Vec::new();
     let is_speed_adjusted_time = get_is_speed_adjusted_time(username) == "1";
+    // Default matches VLC's own unamplified normal level - only overwritten below when
+    // there's an actual session to read the tracked value from (see update_volume_up/down).
+    let mut volume = 100;
+    let mut speed_rate: f32 = 1.0;
 
     match get_listening_session() {
         Ok(Some(session)) => {
+            volume = session.volume;
+            speed_rate = effective_speed_rate(username, &session.id_item);
             let chapters: Vec<Chapter> = serde_json::from_str(&session.chapters).unwrap_or_default();
             let current_chapter = find_current_chapter(&chapters, session.current_time as f64);
 
@@ -66,7 +85,6 @@ pub fn player_info(username: &str) -> Vec<String> {
             player_info.push(format_time(chapter_current));
             player_info.push(format_time(chapter_duration));
 
-            let speed_rate: f32 = get_speed_rate(username).parse().unwrap_or(1.0);
             let remaining_time = chapter_duration.saturating_sub(chapter_current);
 
             // Session (time so far this playback session) and Remaining are the two fields
@@ -99,8 +117,9 @@ pub fn player_info(username: &str) -> Vec<String> {
         }
     }
 
-    player_info.push(get_speed_rate(username));
+    player_info.push(format!("{speed_rate:.1}"));
     player_info.push(if is_speed_adjusted_time { "Real".to_string() } else { "Content".to_string() });
+    player_info.push(volume.to_string());
 
     player_info
 }

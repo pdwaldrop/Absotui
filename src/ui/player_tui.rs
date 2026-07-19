@@ -1,6 +1,6 @@
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Paragraph, Widget},
 };
@@ -37,9 +37,23 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
         key_bindings = "Spc: pause/play | p/u: +/−10s | P/U: nxt/prev ch. | O/I: spd +/− | o/i: vol +/− | T: real/content time | Y: quit".to_string();
     }
 
-    // Create the paragraph for the details/key-bindings lines (title line is handled separately below)
-    let paragraph = Paragraph::new(format!(
-            " {} {} / {} | Session: {} | Left: {} ({}%) | Speed: {}x [{}]\n{}",
+    let progress_color = Color::Rgb(progress_bar_color[0], progress_bar_color[1], progress_bar_color[2]);
+
+    // Volume indicator: a subtle underline beneath "Vol NN%" itself, filled up to
+    // volume/200 - same underline-fill convention already used for the time/progress
+    // text elsewhere, just applied to this short label instead of a separate bar/row.
+    // 200 (not 100) because VLC's own volume can be amplified up to double its normal
+    // unamplified level (100%) - see update_volume_up/down.
+    let volume: i32 = player_info[11].parse().unwrap_or(100);
+    let vol_label = format!("Vol {volume}%");
+    let vol_chars: Vec<char> = vol_label.chars().collect();
+    let vol_fill = (((volume as f32 / 200.0) * vol_chars.len() as f32).round() as usize).min(vol_chars.len());
+    let vol_filled: String = vol_chars[..vol_fill].iter().collect();
+    let vol_unfilled: String = vol_chars[vol_fill..].iter().collect();
+
+    let details_line = Line::from(vec![
+        Span::raw(format!(
+            " {} {} / {} | Session: {} | Left: {} ({}%) | Speed: {}x [{}] | ",
             match player_info[3].as_str() {
                 "false" => "⏸".to_string(),
                 "true" => "▶".to_string(),
@@ -53,8 +67,13 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
             player_info[8], // Percent progress
             player_info[9], // Speed rate
             player_info[10], // "Real" or "Content" mode indicator
-            key_bindings
-    ))
+        )),
+        Span::styled(vol_filled, Style::default().underline_color(progress_color).add_modifier(Modifier::UNDERLINED)),
+        Span::raw(vol_unfilled),
+    ]);
+
+    // Create the paragraph for the details/key-bindings lines (title line is handled separately below)
+    let paragraph = Paragraph::new(vec![details_line, Line::from(key_bindings)])
         .centered()
         .block(Block::default());
 
@@ -74,7 +93,6 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
         format!("{} | {}", player_info[2], player_info[0])
     };
     let percent: f32 = player_info[8].parse().unwrap_or(0.0);
-    let progress_color = Color::Rgb(progress_bar_color[0], progress_bar_color[1], progress_bar_color[2]);
 
     let chars: Vec<char> = title_text.chars().collect();
     let padding_left = (title_area.width as usize).saturating_sub(chars.len()) / 2;

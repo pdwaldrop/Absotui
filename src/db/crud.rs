@@ -300,14 +300,18 @@ pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
 
     if let Ok(conn) = Connection::open(db_path) {
 
+        // Rounded to 1 decimal on every update - repeated float addition/subtraction of
+        // 0.10 drifts (1.3 becomes 1.3000001, etc.), which otherwise shows up raw in the
+        // player bar and grows with every press. Rounding here every time keeps the
+        // stored value clean instead of just masking the drift at display time.
         if is_speed_rate_up {
         conn.execute(
-            "UPDATE users SET speed_rate = speed_rate + 0.10 WHERE username = ?1",
+            "UPDATE users SET speed_rate = ROUND(speed_rate + 0.10, 1) WHERE username = ?1",
             params![username],
         )?;
         } else {
         conn.execute(
-            "UPDATE users SET speed_rate = speed_rate - 0.10 WHERE username = ?1",
+            "UPDATE users SET speed_rate = ROUND(speed_rate - 0.10, 1) WHERE username = ?1",
             params![username],
         )?;
         }
@@ -348,9 +352,193 @@ pub fn get_speed_rate(username: &str) -> String {
     };
 
     match stmt.query_row(params![username], |row| row.get::<_, f32>(0)) {
-        Ok(id) => id.to_string(),
+        // Formatted to 1 decimal rather than a bare to_string() - values from before the
+        // update_speed_rate rounding fix may still be sitting in the db as e.g.
+        // 1.3000001, and this way they display clean immediately rather than needing
+        // one more O/I press to get rounded back on write.
+        Ok(id) => format!("{id:.1}"),
         Err(_) => String::from("No db found"),
     }
+}
+
+// Update is_per_item_speed
+pub fn update_is_per_item_speed(value: &str, username: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "UPDATE users SET is_per_item_speed = ?1 WHERE username = ?2",
+            params![value, username],
+        )?;
+
+        // Turning this on resets every book/show to a clean 1.0x baseline rather than
+        // inheriting whatever the shared speed happened to be - see Settings >
+        // Per-Item Speed's description. Clearing existing rows (rather than just
+        // changing what a brand-new item seeds from) means re-enabling after a
+        // previous on/off cycle also starts fresh, not just items never touched before.
+        if value == "1" {
+            conn.execute(
+                "DELETE FROM item_speed_rate WHERE username = ?1",
+                params![username],
+            )?;
+        }
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_is_per_item_speed] {err_message}");
+    }
+
+    Ok(())
+}
+
+// get is_per_item_speed
+pub fn get_is_per_item_speed(username: &str) -> String {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let conn = match Connection::open(db_path) {
+        Ok(c) => c,
+        Err(_) => return String::from("0"),
+    };
+
+    let mut stmt = match conn.prepare("SELECT is_per_item_speed FROM users WHERE username = ?1") {
+        Ok(s) => s,
+        Err(_) => return String::from("0"),
+    };
+
+    stmt.query_row(params![username], |row| row.get::<_, String>(0)).unwrap_or_else(|_| "0".to_string())
+}
+
+// Per (user, item) speed rate - see item_speed_rate table, used when Settings >
+// Per-Item Speed is on. `id_item` is a book's id, or a podcast show's own id (shared
+// across its episodes).
+pub fn get_item_speed_rate(username: &str, id_item: &str) -> Option<f32> {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let conn = Connection::open(db_path).ok()?;
+
+    let mut stmt = conn.prepare("SELECT speed_rate FROM item_speed_rate WHERE username = ?1 AND id_item = ?2").ok()?;
+
+    stmt.query_row(params![username, id_item], |row| row.get::<_, f32>(0)).ok()
+}
+
+// Seeds (or overwrites) the per-item speed rate for (username, id_item) - used the
+// first time an item is played with Settings > Per-Item Speed on, starting it from
+// whatever the global speed_rate currently is rather than always resetting to 1.0x.
+pub fn set_item_speed_rate(username: &str, id_item: &str, value: f32) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "INSERT OR REPLACE INTO item_speed_rate (username, id_item, speed_rate) VALUES (?1, ?2, ?3)",
+            params![username, id_item, value],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[set_item_speed_rate] {err_message}");
+    }
+
+    Ok(())
+}
+
+// Adjusts the per-item speed rate up/down by the same step as the global speed_rate -
+// see update_speed_rate. Assumes a row already exists (seeded via set_item_speed_rate
+// when playback started); a no-op otherwise.
+pub fn update_item_speed_rate(username: &str, id_item: &str, is_speed_rate_up: bool) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+
+        // Rounded to 1 decimal on every update - see update_speed_rate's comment.
+        if is_speed_rate_up {
+            conn.execute(
+                "UPDATE item_speed_rate SET speed_rate = ROUND(speed_rate + 0.10, 1) WHERE username = ?1 AND id_item = ?2",
+                params![username, id_item],
+            )?;
+        } else {
+            conn.execute(
+                "UPDATE item_speed_rate SET speed_rate = ROUND(speed_rate - 0.10, 1) WHERE username = ?1 AND id_item = ?2",
+                params![username, id_item],
+            )?;
+        }
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_item_speed_rate] {err_message}");
+    }
+
+    Ok(())
 }
 
 // get listening_session
@@ -374,7 +562,7 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
 
     if let Ok(conn) = Connection::open(db_path) {
         let mut stmt = conn.prepare(
-            "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter, chapters
+            "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter, chapters, volume
              FROM listening_session
              LIMIT 1",
         )?;
@@ -395,6 +583,7 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
                 is_playback: row.get(9)?,
                 chapter: row.get(10)?,
                 chapters: row.get(11)?,
+                volume: row.get(12)?,
             };
             return Ok(Some(session));
         }
@@ -484,6 +673,76 @@ pub fn update_chapter(value: &str, id_session: &str) -> Result<()> {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_chapter] {err_message}");
+    }
+
+    Ok(())
+}
+
+// VLC's own volume is only ever adjusted relatively (volup/voldown - see
+// handle_key_player.rs), never queried, so this is absotui's own tracked value for the
+// volume indicator - clamped to 0-200 (VLC's typical amplification ceiling, with 100
+// being VLC's own unamplified normal level) rather than VLC's real internal number.
+pub fn update_volume_up(id_session: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "UPDATE listening_session SET volume = MIN(200, volume + 5) WHERE id_session = ?1",
+            params![id_session],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_volume_up] {err_message}");
+    }
+
+    Ok(())
+}
+
+pub fn update_volume_down(id_session: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "UPDATE listening_session SET volume = MAX(0, volume - 5) WHERE id_session = ?1",
+            params![id_session],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_volume_down] {err_message}");
     }
 
     Ok(())
@@ -867,8 +1126,8 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
     let conn = Connection::open(db_path)?;
     for user in users {
         conn.execute(
-            "INSERT OR REPLACE INTO users (username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            "INSERT OR REPLACE INTO users (username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
             user.username,
             user.server_address,
@@ -883,6 +1142,7 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
             user.is_show_key_bindings,
             user.is_speed_adjusted_time,
             user.is_podcast_autoplay,
+            user.is_per_item_speed,
             ],
         )?;
     }
@@ -987,7 +1247,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
     let conn = Connection::open(db_path)?;
 
     let mut stmt = conn.prepare(
-        "SELECT username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay
+        "SELECT username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed
          FROM users WHERE is_default_usr = 1 LIMIT 1"
     )?;
 
@@ -1007,6 +1267,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
             is_show_key_bindings: row.get(10)?,
             is_speed_adjusted_time: row.get(11)?,
             is_podcast_autoplay: row.get(12)?,
+            is_per_item_speed: row.get(13)?,
         })
     })?;
 
@@ -1028,6 +1289,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
                 result.push(user.is_show_key_bindings);
                 result.push(user.is_speed_adjusted_time);
                 result.push(user.is_podcast_autoplay);
+                result.push(user.is_per_item_speed);
             }
             Err(e) => {
                 println!("Error occurred: {e}");
@@ -1077,7 +1339,8 @@ pub fn init_db() -> Result<()> {
                 is_vlc_running TEXT NOT NULL,
                 is_show_key_bindings TEXT NOT NULL,
                 is_speed_adjusted_time TEXT NOT NULL DEFAULT '1',
-                is_podcast_autoplay TEXT NOT NULL DEFAULT '0'
+                is_podcast_autoplay TEXT NOT NULL DEFAULT '0',
+                is_per_item_speed TEXT NOT NULL DEFAULT '0'
             )",
         [],
     )?;
@@ -1097,6 +1360,29 @@ pub fn init_db() -> Result<()> {
         [],
     );
 
+    // Migration for databases created before `is_per_item_speed` existed. Defaults to
+    // off - existing users keep the single global speed_rate behavior unless they
+    // opt into per book/podcast speeds via Settings.
+    let _ = conn.execute(
+        "ALTER TABLE users ADD COLUMN is_per_item_speed TEXT NOT NULL DEFAULT '0'",
+        [],
+    );
+
+    // Create table `item_speed_rate` if there is none - one row per (user, book or
+    // podcast show) when Settings > Per-Item Speed is on. Keyed by id_item, which for
+    // podcasts is the show's own id (shared across all its episodes, see
+    // insert_listening_session's callers) - so this is "per book" for books and "per
+    // show" for podcasts, not per individual episode.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS item_speed_rate (
+            username TEXT NOT NULL,
+            id_item TEXT NOT NULL,
+            speed_rate REAL NOT NULL,
+            PRIMARY KEY (username, id_item)
+            )",
+        [],
+    )?;
+
     //Create table `listening_session` if there is none 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS listening_session (
@@ -1111,7 +1397,8 @@ pub fn init_db() -> Result<()> {
             author TEXT NOT NULL,
             is_playback INTEGER NOT NULL DEFAULT 1,
             chapter TEXT NOT NULL,
-            chapters TEXT NOT NULL DEFAULT ''
+            chapters TEXT NOT NULL DEFAULT '',
+            volume INTEGER NOT NULL DEFAULT 100
             )",
         [],
     )?;
@@ -1121,6 +1408,16 @@ pub fn init_db() -> Result<()> {
     // when the column is already there.
     let _ = conn.execute(
         "ALTER TABLE listening_session ADD COLUMN chapters TEXT NOT NULL DEFAULT ''",
+        [],
+    );
+
+    // Migration for databases created before `volume` existed. VLC's own volume is only
+    // ever adjusted relatively (volup/voldown - see handle_key_player.rs), so absotui
+    // tracks this itself for the volume indicator rather than querying VLC, resetting to
+    // the default (100%, i.e. VLC's own unamplified normal level) each time a new
+    // playback session starts.
+    let _ = conn.execute(
+        "ALTER TABLE listening_session ADD COLUMN volume INTEGER NOT NULL DEFAULT 100",
         [],
     );
 

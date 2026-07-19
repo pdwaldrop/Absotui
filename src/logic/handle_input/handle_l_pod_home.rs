@@ -84,6 +84,7 @@ pub async fn handle_l_pod_home(
             let address_player_clone = address_player.clone() ;
             let username_clone = username.clone();
             let program_clone = program.clone();
+            let id_clone = id.clone();
 
             // Start VLC is launched in a spawn to allow fetch_vlc_data to start at the same time
             tokio::spawn(async move {
@@ -100,7 +101,8 @@ pub async fn handle_l_pod_home(
                     info_item_clone[6].clone(), //title
                     server_address_clone.clone(), // server address
                     program_clone,
-                    username_clone
+                    username_clone,
+                    id_clone,
                 ).await;
             });
 

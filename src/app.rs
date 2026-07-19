@@ -14,7 +14,7 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed};
 use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
 use color_eyre::Result;
@@ -52,7 +52,8 @@ pub enum AppView {
     SettingsLibrary,
     SettingsAbout,
     SettingsUpdateUninstall,
-    SettingsAutoplay
+    SettingsAutoplay,
+    SettingsPerItemSpeed
 }
 
 pub struct App {
@@ -80,6 +81,7 @@ pub struct App {
     pub list_state_settings_about: ListState,
     pub list_state_settings_update_uninstall: ListState,
     pub list_state_settings_autoplay: ListState,
+    pub list_state_settings_per_item_speed: ListState,
     pub _titles_cnt_list: Vec<String>,
     pub auth_names_cnt_list: Vec<String>,
     pub pub_year_cnt_list: Vec<String>,
@@ -603,7 +605,7 @@ impl App {
     }
 }
     // init for `Settings`
-    let settings = vec!["Library".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update and uninstall".to_string()];
+    let settings = vec!["Library".to_string(), "Per-Item Speed".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update and uninstall".to_string()];
 
     // init for `SettingsAccount`
     let mut all_usernames: Vec<String> = Vec::new();
@@ -679,6 +681,10 @@ impl App {
     let mut list_state_settings_autoplay = ListState::default();
     list_state_settings_autoplay.select(Some(0));
 
+    // Init ListState for `SettingsPerItemSpeed` list
+    let mut list_state_settings_per_item_speed = ListState::default();
+    list_state_settings_per_item_speed.select(Some(0));
+
     Ok(Self {
         database,
         id_selected_lib,
@@ -694,6 +700,7 @@ impl App {
         list_state_settings_about,
         list_state_settings_update_uninstall,
         list_state_settings_autoplay,
+        list_state_settings_per_item_speed,
         _titles_cnt_list,
         auth_names_cnt_list,
         pub_year_cnt_list,
@@ -1090,6 +1097,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 AppView::SettingsAbout => {self.view_state = AppView::Settings}
                 AppView::SettingsUpdateUninstall => {self.view_state = AppView::Settings}
                 AppView::SettingsAutoplay => {self.view_state = AppView::Settings}
+                AppView::SettingsPerItemSpeed => {self.view_state = AppView::Settings}
                 AppView::Settings => {self.view_state = AppView::Home}
                 AppView::PodcastEpisode => {
                     if self.is_from_search_pod {
@@ -1287,8 +1295,9 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 AppView::Settings => {
                     match self.list_state_settings.selected() {
                         Some(0) => self.view_state = AppView::SettingsLibrary,
-                        Some(1) => self.view_state = AppView::SettingsAutoplay,
-                        Some(2) => self.view_state = AppView::SettingsAccount,
+                        Some(1) => self.view_state = AppView::SettingsPerItemSpeed,
+                        Some(2) => self.view_state = AppView::SettingsAutoplay,
+                        Some(3) => self.view_state = AppView::SettingsAccount,
                         _ => {}
                     }
                 }
@@ -1302,6 +1311,12 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                     if let Some(index) = self.list_state_settings_autoplay.selected() {
                         let value = if index == 0 { "1" } else { "0" };
                         let _ = update_is_podcast_autoplay(value, &self.username);
+                    }
+                }
+                AppView::SettingsPerItemSpeed => {
+                    if let Some(index) = self.list_state_settings_per_item_speed.selected() {
+                        let value = if index == 0 { "1" } else { "0" };
+                        let _ = update_is_per_item_speed(value, &self.username);
                     }
                 }
                 AppView::SettingsLibrary => {
@@ -1560,6 +1575,7 @@ fn toggle_view(&mut self) {
         AppView::SettingsAbout => AppView::Home,
         AppView::SettingsUpdateUninstall => AppView::Home,
         AppView::SettingsAutoplay => AppView::Home,
+        AppView::SettingsPerItemSpeed => AppView::Home,
 
     };
 }
@@ -1650,6 +1666,12 @@ pub fn select_next(&mut self) {
             } else {
                 self.list_state_settings_autoplay.select_first();
             }}}
+        AppView::SettingsPerItemSpeed => { if let Some(selected) = self.list_state_settings_per_item_speed.selected() {
+            if selected + 1 < 2 {
+                self.list_state_settings_per_item_speed.select_next();
+            } else {
+                self.list_state_settings_per_item_speed.select_first();
+            }}}
     }
 }
 
@@ -1665,6 +1687,7 @@ pub fn select_previous(&mut self) {
         AppView::SettingsAbout => self.list_state_settings_about.select_previous(),
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_previous(),
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select_previous(),
+        AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select_previous(),
     }
 }
 
@@ -1680,6 +1703,7 @@ pub fn select_first(&mut self) {
         AppView::SettingsAbout => self.list_state_settings_about.select_first(),
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_first(),
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select_first(),
+        AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select_first(),
     }
 }
 
@@ -1717,6 +1741,7 @@ pub fn select_last(&mut self) {
         AppView::SettingsAbout => self.list_state_settings_about.select_last(),
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_last(),
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select(Some(1)),
+        AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select(Some(1)),
     }
 }
 

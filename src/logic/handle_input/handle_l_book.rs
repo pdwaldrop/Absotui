@@ -63,7 +63,8 @@ pub async fn handle_l_book(
                     let server_address_clone = server_address.clone() ;
                     let address_player_clone = address_player.clone() ;
                     let username_clone = username.clone();
-                    
+                    let id_clone = id.clone();
+
                     // start_vlc is launched in a spawn to allow fetch_vlc_data to start at the same time
                     tokio::spawn(async move {
                         // this info! is not the most reliable to know is VLC is really launched
@@ -72,14 +73,15 @@ pub async fn handle_l_book(
                             &info_item_clone[0], // current_time
                             &port_clone, // player port
                             address_player_clone, // player address
-                            &info_item_clone[1], // content url 
+                            &info_item_clone[1], // content url
                             Some(&token_clone), //token
                             info_item_clone[4].clone(), //title
                             info_item_clone[5].clone(), // subtitle
                             info_item_clone[6].clone(), //title
                             server_address_clone.clone(), // server address
                             program.clone(),
-                            username_clone
+                            username_clone,
+                            id_clone,
                             ).await;
                     });
 

@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use std::net::TcpStream;
-use crate::db::crud::{get_listening_session, update_is_playback, update_speed_rate, get_speed_rate};
+use crate::db::crud::{get_listening_session, update_is_playback, update_speed_rate, get_speed_rate, update_volume_up, update_volume_down, get_is_per_item_speed, get_item_speed_rate, set_item_speed_rate, update_item_speed_rate};
 use std::thread;
 use std::time::Duration;
 
@@ -80,22 +80,26 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
         }
         // volume up
         "o" => {
+            if let Ok(Some(session)) = get_listening_session() {
+                let _ = update_volume_up(session.id_session.as_str());
+            }
             writeln!(stream, "volup")?;
         }
         // volume down
         "i" => {
+            if let Ok(Some(session)) = get_listening_session() {
+                let _ = update_volume_down(session.id_session.as_str());
+            }
             writeln!(stream, "voldown")?;
         }
         // speed rate up
         "O" => {
-            let _ = update_speed_rate(username, true);
-            let speed_rate = get_speed_rate(username);
+            let speed_rate = adjust_speed_rate(username, true);
             writeln!(stream, "rate {speed_rate}")?;
         }
         // speed rate down
         "I" => {
-            let _ = update_speed_rate(username, false);
-            let speed_rate = get_speed_rate(username);
+            let speed_rate = adjust_speed_rate(username, false);
             writeln!(stream, "rate {speed_rate}")?;
         }
         // shutdown
@@ -106,6 +110,28 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
     }
 
     Ok(())
+}
+
+// Adjusts and returns the effective speed rate: per-item (keyed by the active
+// session's id_item) if Settings > Per-Item Speed is on, otherwise the single shared
+// speed_rate - same resolution start_vlc uses when launching a new session. Seeds the
+// item's row at a fixed 1.0x baseline on first touch (not the current global rate -
+// see update_is_per_item_speed/resolve_speed_rate), whether that's because this is the
+// item's first playback under per-item mode, or because per-item mode was just turned
+// on mid-session for an item that hasn't been touched yet.
+fn adjust_speed_rate(username: &str, is_up: bool) -> String {
+    if get_is_per_item_speed(username) == "1"
+        && let Ok(Some(session)) = get_listening_session() {
+            if get_item_speed_rate(username, &session.id_item).is_none() {
+                let _ = set_item_speed_rate(username, &session.id_item, 1.0);
+            }
+            let _ = update_item_speed_rate(username, &session.id_item, is_up);
+            if let Some(rate) = get_item_speed_rate(username, &session.id_item) {
+                return format!("{rate:.1}");
+            }
+    }
+    let _ = update_speed_rate(username, is_up);
+    get_speed_rate(username)
 }
 
 // Seeks the currently-playing VLC session directly to an absolute position (in seconds) -

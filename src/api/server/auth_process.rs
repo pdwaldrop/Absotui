@@ -93,6 +93,7 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
                 is_show_key_bindings: "1".to_string(),
                 is_speed_adjusted_time: "1".to_string(),
                 is_podcast_autoplay: "0".to_string(),
+                is_per_item_speed: "0".to_string(),
             }
         ];
 
