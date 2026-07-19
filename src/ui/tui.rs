@@ -16,7 +16,7 @@ use crate::db::crud::{get_listening_session, get_is_podcast_autoplay};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::config::load_config;
 use crate::utils::html_to_text::html_to_lines;
-use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover};
+use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_and_cache_episode_cover};
 
 
 // const version
@@ -818,8 +818,7 @@ impl App {
             _content = self.desc_cnt_list[selected].clone();
         }
 
-        // Covers are only wired up for books for now - podcasts keep the text-only panel.
-        let selected_id = if self.is_podcast { None } else { self._ids_cnt_list.get(selected).cloned() };
+        let selected_id = self.cover_id_for_home_selection(selected);
         self.load_cover_for_selection(selected_id.as_deref());
 
         let show_cover = selected_id.is_some() && self.cover_loaded_for_id == selected_id;
@@ -851,6 +850,41 @@ impl App {
                 .wrap(Wrap { trim: true })
                 .render(area, buf);
         }
+    }
+
+    // Picks which cover cache entry to show for the current Home selection: books just
+    // use their own item id. Podcast episodes prefer their own embedded cover art when
+    // the episode's audio file was flagged at scan time as having one, kicking off a
+    // background fetch the first time such an episode is selected; until that lands (or
+    // if the episode has no embedded art at all) this falls back to the parent podcast's
+    // cover, same id used before episode covers existed.
+    fn cover_id_for_home_selection(&mut self, selected: usize) -> Option<String> {
+        let podcast_id = self._ids_cnt_list.get(selected).cloned();
+        if !self.is_podcast {
+            return podcast_id;
+        }
+
+        let episode_id = self.ids_ep_cnt_list.get(selected).cloned();
+        let episode_ino = self.episode_embedded_cover_ino_cnt_list.get(selected).cloned().flatten();
+
+        if let (Some(episode_id), Some(ino)) = (episode_id, episode_ino) {
+            if cover_cache_path(&episode_id).exists() {
+                return Some(episode_id);
+            }
+
+            if self.image_picker.is_some() && !self.cover_fetch_requested.contains(&episode_id)
+                && let (Some(token), Some(library_item_id)) = (self.token.clone(), podcast_id.clone()) {
+                    self.cover_fetch_requested.insert(episode_id.clone());
+                    let server_address = self.server_address.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = fetch_and_cache_episode_cover(token, episode_id.clone(), library_item_id, ino, server_address).await {
+                            log::warn!("[fetch_and_cache_episode_cover] episode {episode_id}: {e}");
+                        }
+                    });
+            }
+        }
+
+        podcast_id
     }
 
     // Loads the selected book's cover from the local disk cache if it's changed since

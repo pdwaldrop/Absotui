@@ -252,6 +252,32 @@ pub async fn collect_progress_pod_cnt_list(roots: &[Root]) -> Vec<(f64, f64, f32
     progress_cnt_list
 }
 
+/// collect the audio file `ino` of each episode that's worth checking for embedded cover
+/// art - i.e. the file is MP3 (the only container we parse ID3 tags from) and ffprobe
+/// found a picture stream in it at scan time (`embeddedCoverArt`). `None` for episodes
+/// with neither, so callers can skip the network round trip entirely.
+pub async fn collect_embedded_cover_ino_pod_cnt_list(roots: &[Root]) -> Vec<Option<String>> {
+    let mut inos = Vec::new();
+
+    for root in roots {
+        if let Some(entities) = &root.entities {
+            for entity in entities {
+                if let Some(recent_episode) = &entity.recent_episode {
+                    let ino = recent_episode.audio_file.as_ref().and_then(|audio_file| {
+                        let has_embedded_art = audio_file.embedded_cover_art.as_ref()
+                            .is_some_and(|v| !v.is_null());
+                        let is_mp3 = audio_file.codec.as_deref() == Some("mp3");
+                        (has_embedded_art && is_mp3).then(|| audio_file.ino.clone()).flatten()
+                    });
+                    inos.push(ino);
+                }
+            }
+        }
+    }
+
+    inos
+}
+
 /// collect published_at (ms since epoch) per episode, for the age display and sort order
 pub async fn collect_published_at_pod_cnt_list(roots: &[Root]) -> Vec<i64> {
     let mut published_at_cnt_list = Vec::new();

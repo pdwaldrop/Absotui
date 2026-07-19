@@ -1,5 +1,5 @@
 use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, collect_auth_names_cnt_list, collect_pub_year_cnt_list, collect_duration_cnt_list, collect_desc_cnt_list, collect_ids_cnt_list};
-use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list, collect_progress_pod_cnt_list, collect_published_at_pod_cnt_list};
+use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list, collect_progress_pod_cnt_list, collect_published_at_pod_cnt_list, collect_embedded_cover_ino_pod_cnt_list};
 use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library};
 use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_pod_ep, collect_subtitles_pod_ep, collect_seasons_pod_ep, collect_episodes_pod_ep, collect_authors_pod_ep, collect_descs_pod_ep, collect_titles_pod, collect_durations_pod_ep};
 use crate::api::utils::collect_get_all_libraries::{collect_library_names, collect_media_types, collect_library_ids};
@@ -139,6 +139,10 @@ pub struct App {
     pub durations_pod_cnt_list: Vec<String>,
     pub podcast_progress_cnt_list: Vec<(f64, f64, f32)>,
     pub podcast_published_at_cnt_list: Vec<i64>,
+    // `ino` of the episode's audio file when it's worth checking for embedded cover art
+    // (MP3 + ffprobe detected a picture stream in it) - None otherwise, same index as
+    // `ids_ep_cnt_list`. See collect_embedded_cover_ino_pod_cnt_list.
+    pub episode_embedded_cover_ino_cnt_list: Vec<Option<String>>,
     pub podcast_sort_newest_first: bool,
     // Marquee-scroll state for a truncated title on the currently selected list row.
     // Ticks forward on a timer (not every render) so scroll speed stays constant
@@ -212,6 +216,9 @@ struct PodcastHomeData {
     // display in render_home like the book progress text.
     progress: Vec<(f64, f64, f32)>,
     published_at: Vec<i64>,
+    // `ino` of the episode's audio file, only when it's worth checking for embedded
+    // cover art - see collect_embedded_cover_ino_pod_cnt_list.
+    embedded_cover_ino: Vec<Option<String>>,
 }
 
 async fn fetch_podcast_home_data(token: &str, server_address: String, id_selected_lib: &String, newest_first: bool) -> Result<PodcastHomeData> {
@@ -229,6 +236,7 @@ async fn fetch_podcast_home_data(token: &str, server_address: String, id_selecte
         durations: collect_durations_pod_cnt_list(&continue_listening_pod).await,
         progress: collect_progress_pod_cnt_list(&continue_listening_pod).await,
         published_at: collect_published_at_pod_cnt_list(&continue_listening_pod).await,
+        embedded_cover_ino: collect_embedded_cover_ino_pod_cnt_list(&continue_listening_pod).await,
     };
 
     let mut order: Vec<usize> = (0..data.published_at.len()).collect();
@@ -249,6 +257,7 @@ async fn fetch_podcast_home_data(token: &str, server_address: String, id_selecte
     data.durations = order.iter().map(|&i| data.durations[i].clone()).collect();
     data.progress = order.iter().map(|&i| data.progress[i]).collect();
     data.published_at = order.iter().map(|&i| data.published_at[i]).collect();
+    data.embedded_cover_ino = order.iter().map(|&i| data.embedded_cover_ino[i].clone()).collect();
 
     Ok(data)
 }
@@ -352,6 +361,7 @@ impl App {
     let mut durations_pod_cnt_list: Vec<String> = Vec::new();
     let mut podcast_progress_cnt_list: Vec<(f64, f64, f32)> = Vec::new();
     let mut podcast_published_at_cnt_list: Vec<i64> = Vec::new();
+    let mut episode_embedded_cover_ino_cnt_list: Vec<Option<String>> = Vec::new();
     let podcast_sort_newest_first = true;
     let mut book_progress_cnt_list: Vec<Vec<String>> = Vec::new();
     let mut book_progress_cnt_list_cur_time: Vec<Vec<f64>> = Vec::new();
@@ -371,6 +381,7 @@ impl App {
         durations_pod_cnt_list = data.durations;
         podcast_progress_cnt_list = data.progress;
         podcast_published_at_cnt_list = data.published_at;
+        episode_embedded_cover_ino_cnt_list = data.embedded_cover_ino;
     }
     else {
         // init for  `Home` (continue listening) for books
@@ -671,6 +682,7 @@ impl App {
         durations_pod_cnt_list,
         podcast_progress_cnt_list,
         podcast_published_at_cnt_list,
+        episode_embedded_cover_ino_cnt_list,
         podcast_sort_newest_first,
         title_scroll_offset: 0,
         title_scroll_last_tick: std::time::Instant::now(),
@@ -771,6 +783,7 @@ impl App {
         self.durations_pod_cnt_list = data.durations;
         self.podcast_progress_cnt_list = data.progress;
         self.podcast_published_at_cnt_list = data.published_at;
+        self.episode_embedded_cover_ino_cnt_list = data.embedded_cover_ino;
         self.podcast_home_last_refresh = std::time::Instant::now();
 
         if let Some(id) = selected_ep_id
@@ -797,6 +810,7 @@ impl App {
         self.durations_pod_cnt_list = order.iter().map(|&i| self.durations_pod_cnt_list[i].clone()).collect();
         self.podcast_progress_cnt_list = order.iter().map(|&i| self.podcast_progress_cnt_list[i]).collect();
         self.podcast_published_at_cnt_list = order.iter().map(|&i| self.podcast_published_at_cnt_list[i]).collect();
+        self.episode_embedded_cover_ino_cnt_list = order.iter().map(|&i| self.episode_embedded_cover_ino_cnt_list[i].clone()).collect();
     }
 
 
