@@ -78,7 +78,7 @@ To ensure the best experience, it's recommended to use **Kitty** or **Alacritty*
 **Run the following in your terminal, then follow the on-screen instructions:**    
 
 ```bash
-bash -c 'expected_sha256="2f7714bf8e1e10e9f58698547e0849b46c22458af2af412443ccef4dce9cb0c8" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
+bash -c 'expected_sha256="30f2991d1b37eb2472b08950dd66764c0ac6e16a215f5384ef7410a38b4c8653" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
 ```
 
 #### **Update**
@@ -86,13 +86,13 @@ bash -c 'expected_sha256="2f7714bf8e1e10e9f58698547e0849b46c22458af2af412443ccef
 > [!IMPORTANT]  
 > `absotui --update` is not working. You can do this instead: 
 > ``` 
-> bash -c 'expected_sha256="2f7714bf8e1e10e9f58698547e0849b46c22458af2af412443ccef4dce9cb0c8" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
+> bash -c 'expected_sha256="30f2991d1b37eb2472b08950dd66764c0ac6e16a215f5384ef7410a38b4c8653" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
 > ```
 
 Quit the app and run the following in your terminal
 
 ```bash
-bash -c 'expected_sha256="2f7714bf8e1e10e9f58698547e0849b46c22458af2af412443ccef4dce9cb0c8" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
+bash -c 'expected_sha256="30f2991d1b37eb2472b08950dd66764c0ac6e16a215f5384ef7410a38b4c8653" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
 ```
 
 #### **Uninstall**
@@ -100,14 +100,14 @@ bash -c 'expected_sha256="2f7714bf8e1e10e9f58698547e0849b46c22458af2af412443ccef
 > [!IMPORTANT]  
 > `absotui --uninstall` is not working. You can do this instead: 
 > ``` 
-> bash -c 'expected_sha256="2f7714bf8e1e10e9f58698547e0849b46c22458af2af412443ccef4dce9cb0c8" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
+> bash -c 'expected_sha256="30f2991d1b37eb2472b08950dd66764c0ac6e16a215f5384ef7410a38b4c8653" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
 > ```
 
 Quit the app and run the following in your terminal
 
 
 ```bash
-bash -c 'expected_sha256="2f7714bf8e1e10e9f58698547e0849b46c22458af2af412443ccef4dce9cb0c8" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
+bash -c 'expected_sha256="30f2991d1b37eb2472b08950dd66764c0ac6e16a215f5384ef7410a38b4c8653" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
 ```
 
 #### **Notes**  
