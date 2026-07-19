@@ -48,6 +48,7 @@ jobs:
           mkdir -p dist
           cp ./config.example.toml dist/
           cp ./linux/absotui.desktop dist/
+          cp ./linux/absotui.svg dist/
           cp ./hello_absotui.sh dist/
           
       - name: Create GitHub release and upload files

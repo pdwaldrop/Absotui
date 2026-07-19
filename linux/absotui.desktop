@@ -2,7 +2,7 @@
 Name=Absotui
 GenericName=Audiobookshelf client
 Exec=absotui
-Icon=utilities-terminal
+Icon=absotui
 Type=Application
 Categories=Utility;
 Terminal=true

@@ -17,6 +17,7 @@ main() {
     url_latest_binary="https://github.com/pdwaldrop/Absotui/releases/download"
     url_cargo_install="https://github.com/pdwaldrop/Absotui"
     url_absotui_desktop="https://raw.githubusercontent.com/pdwaldrop/Absotui/stable/linux/absotui.desktop"
+    url_absotui_icon="https://raw.githubusercontent.com/pdwaldrop/Absotui/stable/linux/absotui.svg"
 
     # Grab essential variables
     OS=$(identify_os)
@@ -589,6 +590,7 @@ install_message() {
     echo "Add the directory "absotui" in $HOME/.config (or any other path specified in XDG_CONFIG_HOME) with inside the following files: "
     echo ".env, db.sqlite3, config.toml, absotui.log"
     echo "absotui.desktop will be added in $HOME/.local/share/applications"
+    echo "absotui.svg (app icon) will be added in $HOME/.local/share/icons/hicolor/scalable/apps"
     echo "For macOS:"
     echo "Add the directory "absotui" in $HOME/Library/Preferences (or any other path specified in XDG_CONFIG_HOME) with inside the following files: "
     echo ".env, db.sqlite3, config.toml, absotui.log"
@@ -691,6 +693,15 @@ setup_launcher() {
         check_shasum "$tmpdir/absotui.desktop" "absotui.desktop" "$(fetch_expected_checksum absotui.desktop)" "dir"
         mkdir -p "$HOME/.local/share/applications"
         sudo cp "$tmpdir/absotui.desktop" "$HOME/.local/share/applications/absotui.desktop"
+
+        curl -sSL "$url_absotui_icon" -o "$tmpdir/absotui.svg"
+        check_shasum "$tmpdir/absotui.svg" "absotui.svg" "$(fetch_expected_checksum absotui.svg)" "dir"
+        mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps"
+        sudo cp "$tmpdir/absotui.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg"
+        if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+            gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+        fi
+
         rm -rf $tmpdir
     fi
    # elif [[ "$OS" == "macOS" ]]; then
@@ -977,6 +988,7 @@ uninstall_message() {
     echo "[IMPORTANT] save your config.toml if you need it later"
     echo "[IMPORTANT] XDG_CONFIG_HOME must be the same as it was at the time Absotui was installed. (in case you change it)"
     echo "absotui.desktop will be deleted from $HOME/.local/share/applications"
+    echo "absotui.svg (app icon) will be deleted from $HOME/.local/share/icons/hicolor/scalable/apps"
     echo "For macOS:"
     echo "The directory "absotui" in $HOME/Library/Preferences (or any other path specified in XDG_CONFIG_HOME) will be deleted: "
     echo "[IMPORTANT] save your config.toml if you need it later"
@@ -1004,6 +1016,15 @@ uninstall_process() {
         if [[ -e "$HOME/.local/share/applications/absotui.desktop" ]] ; then
             sudo rm "$HOME/.local/share/applications/absotui.desktop"
             echo "$HOME/.local/share/applications/absotui.desktop deleted."
+        fi
+
+        # delete absotui.svg
+        if [[ -e "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg" ]] ; then
+            sudo rm "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg"
+            echo "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg deleted."
+            if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+                gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+            fi
         fi
 
     fi

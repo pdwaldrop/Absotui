@@ -298,8 +298,7 @@ let changelog_17 = "Changelog Absotui v0.5.2-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_18 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_18 = "Changelog Absotui v0.5.3-beta (19/07/2026) \n\
          \n\
          Added:\n\
          - Podcast episodes now show cover art next to their description in Continue
@@ -314,10 +313,37 @@ let changelog_18 = format!(
            the list without preserving which episode was selected.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_19 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Added:\n\
+         - A volume indicator in the player bar (VLC's own volume is only ever
+           adjusted relatively, so absotui now tracks and displays it).
+         - Settings > Per-Item Speed: books and podcast shows can each remember their
+           own playback speed instead of sharing a single global speed.
+         - A custom app icon, replacing the generic system one in your application
+           launcher.
+         \n\
+         Fixed:\n\
+         - Descriptions with HTML markup could lose text after a stray \"<\", double-decode
+           entities, or fail to recognize self-closing <br/> tags.
+         - Mouse wheel/trackpad scroll no longer hijacks the list selection.
+         - Podcast Autoplay: the previous episode's VLC process wasn't being closed
+           before starting the next one, breaking pause and progress sync for it; a
+           race could start two playback sessions at once after a manual replay; the
+           next episode is now picked from the live list instead of a stale snapshot;
+           a blocking network call could freeze the whole UI right after a transition;
+           and a finished session could keep getting shown as \"now playing\".
+         - Playback speed no longer displays as an ugly float like 1.3000001 after
+           repeated adjustments.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_19);
     changelog.push_str(&changelog_18);
     changelog.push_str(&changelog_17);
     changelog.push_str(&changelog_16);
