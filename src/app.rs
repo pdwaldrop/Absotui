@@ -14,7 +14,7 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_vlc_running, delete_user, update_id_selected_lib};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib};
 use crate::db::database_struct::Database;
 use color_eyre::Result;
 use log::warn;
@@ -41,11 +41,17 @@ pub enum AppView {
     SettingsAccount,
     SettingsLibrary,
     SettingsAbout,
-    SettingsUpdateUninstall
+    SettingsUpdateUninstall,
+    SettingsAutoplay
 }
 
 pub struct App {
     pub view_state: AppView,
+    // Set when the user picks a different library in Settings > Library. `App` can't
+    // reinitialize itself (that's an async operation, and this struct's own methods
+    // are sync), so this just signals the main loop to do the same full reload/reinit
+    // it already does for the `R` key, landing back on Home in the newly selected library.
+    pub library_needs_reload: bool,
     pub database: Database,
     pub id_selected_lib: String,
     pub token: Option<String>,
@@ -59,6 +65,7 @@ pub struct App {
     pub list_state_settings_library: ListState,
     pub list_state_settings_about: ListState,
     pub list_state_settings_update_uninstall: ListState,
+    pub list_state_settings_autoplay: ListState,
     pub _titles_cnt_list: Vec<String>,
     pub auth_names_cnt_list: Vec<String>,
     pub pub_year_cnt_list: Vec<String>,
@@ -497,7 +504,7 @@ impl App {
     }
 }
     // init for `Settings`
-    let settings = vec!["Account".to_string(), "Library".to_string(), "About".to_string(), "Update and uninstall".to_string()];
+    let settings = vec!["Library".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update and uninstall".to_string()];
 
     // init for `SettingsAccount`
     let mut all_usernames: Vec<String> = Vec::new();
@@ -569,6 +576,10 @@ impl App {
     let mut list_state_settings_update_uninstall = ListState::default();
     list_state_settings_update_uninstall.select(Some(0));
 
+    // Init ListState for `SettingsAutoplay` list
+    let mut list_state_settings_autoplay = ListState::default();
+    list_state_settings_autoplay.select(Some(0));
+
     Ok(Self {
         database,
         id_selected_lib,
@@ -583,6 +594,7 @@ impl App {
         list_state_settings_library,
         list_state_settings_about,
         list_state_settings_update_uninstall,
+        list_state_settings_autoplay,
         _titles_cnt_list,
         auth_names_cnt_list,
         pub_year_cnt_list,
@@ -590,6 +602,7 @@ impl App {
         desc_cnt_list,
         _ids_cnt_list,
         view_state,
+        library_needs_reload: false,
         titles_library,
         ids_library,
         auth_names_library,
@@ -692,7 +705,11 @@ impl App {
     // finished (or a newly-published one) shows up without needing a manual refresh,
     // and without disrupting whatever the user is doing in the list.
     pub async fn refresh_podcast_home_if_stale(&mut self) -> Result<()> {
-        const STALE_AFTER: std::time::Duration = std::time::Duration::from_secs(20);
+        // Finishing an episode doesn't push a signal to the main render loop (the
+        // playback handler runs in a separate spawned task) - it just relies on this
+        // periodic refresh to eventually notice the server-side "finished" flag and
+        // drop it from the list. Kept short so that removal feels prompt.
+        const STALE_AFTER: std::time::Duration = std::time::Duration::from_secs(8);
 
         if !self.is_podcast || self.podcast_home_last_refresh.elapsed() < STALE_AFTER {
             return Ok(());
@@ -912,9 +929,10 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             match self.view_state {
                 AppView::SettingsAccount => {self.view_state = AppView::Settings} 
                 AppView::SettingsLibrary => {self.view_state = AppView::Settings} 
-                AppView::SettingsAbout => {self.view_state = AppView::Settings} 
-                AppView::SettingsUpdateUninstall => {self.view_state = AppView::Settings} 
-                AppView::Settings => {self.view_state = AppView::Home} 
+                AppView::SettingsAbout => {self.view_state = AppView::Settings}
+                AppView::SettingsUpdateUninstall => {self.view_state = AppView::Settings}
+                AppView::SettingsAutoplay => {self.view_state = AppView::Settings}
+                AppView::Settings => {self.view_state = AppView::Home}
                 AppView::PodcastEpisode => {
                     if self.is_from_search_pod {
                         self.view_state = AppView::SearchBook;
@@ -1067,8 +1085,9 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                     }}
                 AppView::Settings => {
                     match self.list_state_settings.selected() {
-                        Some(0) => self.view_state = AppView::SettingsAccount,
-                        Some(1) => self.view_state = AppView::SettingsLibrary,
+                        Some(0) => self.view_state = AppView::SettingsLibrary,
+                        Some(1) => self.view_state = AppView::SettingsAutoplay,
+                        Some(2) => self.view_state = AppView::SettingsAccount,
                         _ => {}
                     }
                 }
@@ -1078,10 +1097,17 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         let _ = delete_user(usr_to_delete.as_str());
                     }
                 }
+                AppView::SettingsAutoplay => {
+                    if let Some(index) = self.list_state_settings_autoplay.selected() {
+                        let value = if index == 0 { "1" } else { "0" };
+                        let _ = update_is_podcast_autoplay(value, &self.username);
+                    }
+                }
                 AppView::SettingsLibrary => {
                     if let Some(index) = selected_settings_library {
                         let new_selected_lib = &self.libraries_ids[index];
                         let _ = update_id_selected_lib(new_selected_lib, &self.username);
+                        self.library_needs_reload = true;
                     }
                 }
                 AppView::SettingsAbout => {
@@ -1332,6 +1358,7 @@ fn toggle_view(&mut self) {
         AppView::SettingsLibrary => AppView::Home,
         AppView::SettingsAbout => AppView::Home,
         AppView::SettingsUpdateUninstall => AppView::Home,
+        AppView::SettingsAutoplay => AppView::Home,
 
     };
 }
@@ -1386,6 +1413,12 @@ pub fn select_next(&mut self) {
             }}}
         AppView::SettingsAbout => self.list_state_settings_about.select_next(),
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_next(),
+        AppView::SettingsAutoplay => { if let Some(selected) = self.list_state_settings_autoplay.selected() {
+            if selected + 1 < 2 {
+                self.list_state_settings_autoplay.select_next();
+            } else {
+                self.list_state_settings_autoplay.select_first();
+            }}}
     }
 }
 
@@ -1400,6 +1433,7 @@ pub fn select_previous(&mut self) {
         AppView::SettingsLibrary => self.list_state_settings_library.select_previous(),
         AppView::SettingsAbout => self.list_state_settings_about.select_previous(),
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_previous(),
+        AppView::SettingsAutoplay => self.list_state_settings_autoplay.select_previous(),
     }
 }
 
@@ -1414,6 +1448,7 @@ pub fn select_first(&mut self) {
         AppView::SettingsLibrary => self.list_state_settings_library.select_first(),
         AppView::SettingsAbout => self.list_state_settings_about.select_first(),
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_first(),
+        AppView::SettingsAutoplay => self.list_state_settings_autoplay.select_first(),
     }
 }
 
@@ -1450,6 +1485,7 @@ pub fn select_last(&mut self) {
         }            
         AppView::SettingsAbout => self.list_state_settings_about.select_last(),
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_last(),
+        AppView::SettingsAutoplay => self.list_state_settings_autoplay.select(Some(1)),
     }
 }
 

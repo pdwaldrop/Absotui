@@ -1,6 +1,7 @@
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::json;
 use std::error::Error;
+use log::{info, error};
 
 /// Create/Update Media Progress
 /// This endpoint creates/updates your media progress for a library item or podcast episode.
@@ -146,7 +147,7 @@ pub async fn update_media_progress2_pod(id_library_item: &str, token: Option<&St
     });
 
     // Patch request
-    let _response = client
+    let response = client
         .patch(format!(
                 "{server_adress}/api/me/progress/{id_library_item}/{ep_id}"
         ))
@@ -155,12 +156,13 @@ pub async fn update_media_progress2_pod(id_library_item: &str, token: Option<&St
         .send()
         .await?;
 
-    //
-    //let status = response.status();
-    //let response_text = response.text().await?;
-
-    // println!("Statut: {}", status);
-    // println!("Réponse: {}", response_text);
+    let status = response.status();
+    if status.is_success() {
+        info!("[update_media_progress2_pod] marked {ep_id} isFinished={is_finished} - status {status}");
+    } else {
+        let response_text = response.text().await.unwrap_or_default();
+        error!("[update_media_progress2_pod] failed to mark {ep_id} isFinished={is_finished} - status {status}, body: {response_text}");
+    }
 
     Ok(())
 }

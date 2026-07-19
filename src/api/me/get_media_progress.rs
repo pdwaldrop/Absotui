@@ -67,6 +67,36 @@ pub async fn get_book_progress(token: &str, book_id: &String, server_address: St
     }
 }
 
+/// Same endpoint family, but for a podcast episode specifically. Unlike a book (whose
+/// library item ID doubles as the media's own ID), a podcast episode's progress record
+/// isn't found by the bare episode ID alone - it needs the parent podcast's library item
+/// ID too, the same two-ID shape `update_media_progress2_pod` already uses to write it.
+pub async fn get_episode_progress(token: &str, library_item_id: &str, episode_id: &str, server_address: String) -> Result<Root> {
+    let client = Client::new();
+    let url = format!("{server_address}/api/me/progress/{library_item_id}/{episode_id}");
+
+    let response = client
+        .get(url)
+        .header(AUTHORIZATION, format!("Bearer {token}"))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(Report::new(std::io::Error::other(
+                    "Failed to fetch data from the API",
+        )));
+    }
+
+    let body_text = response.text().await?;
+    match serde_json::from_str::<Root>(&body_text) {
+        Ok(episode_progress) => Ok(episode_progress),
+        Err(e) => {
+            error!("[get_episode_progress] failed to parse response for {library_item_id}/{episode_id}: {e}\nraw body: {body_text}");
+            Err(Report::new(e))
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

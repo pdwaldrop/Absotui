@@ -145,6 +145,73 @@ pub fn get_is_speed_adjusted_time(username: &str) -> String {
     }
 }
 
+// Update is_podcast_autoplay
+pub fn update_is_podcast_autoplay(value: &str, username: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "UPDATE users SET is_podcast_autoplay = ?1 WHERE username = ?2",
+            params![value, username],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_is_podcast_autoplay] {err_message}");
+    }
+
+    Ok(())
+}
+
+
+// get is_podcast_autoplay
+pub fn get_is_podcast_autoplay(username: &str) -> String {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let conn = match Connection::open(db_path) {
+        Ok(c) => c,
+        Err(_) => return String::from("Error: unable open database"),
+    };
+
+    let mut stmt = match conn.prepare("SELECT is_podcast_autoplay FROM users WHERE username = ?1") {
+        Ok(s) => s,
+        Err(_) => return String::from("Error to prepare reqwest"),
+    };
+
+    match stmt.query_row(params![username], |row| row.get::<_, String>(0)) {
+        Ok(id) => id.clone(),
+        Err(_) => String::from("No db found"),
+    }
+}
+
 // Update is_vlc_running
 pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
 
@@ -744,7 +811,6 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
-    let message = "The library has been updated. Please refresh the app to apply the changes.";
     let err_message = "Error connecting to the database.";
     if let Ok(conn) = Connection::open(db_path) {
 
@@ -752,8 +818,6 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
             "UPDATE users SET id_selected_lib = ?1 WHERE username = ?2",
             params![id_selected_lib, username],
         )?;
-        let mut stdout = stdout();
-        let _ = pop_message(&mut stdout, 3, message);
         info!("[update_id_selected_lib] The library has been updated");
 
     } else {
@@ -801,8 +865,8 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
     let conn = Connection::open(db_path)?;
     for user in users {
         conn.execute(
-            "INSERT OR REPLACE INTO users (username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT OR REPLACE INTO users (username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
             user.username,
             user.server_address,
@@ -816,6 +880,7 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
             user.is_vlc_running,
             user.is_show_key_bindings,
             user.is_speed_adjusted_time,
+            user.is_podcast_autoplay,
             ],
         )?;
     }
@@ -920,7 +985,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
     let conn = Connection::open(db_path)?;
 
     let mut stmt = conn.prepare(
-        "SELECT username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time
+        "SELECT username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay
          FROM users WHERE is_default_usr = 1 LIMIT 1"
     )?;
 
@@ -939,6 +1004,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
             is_vlc_running: row.get(9)?,
             is_show_key_bindings: row.get(10)?,
             is_speed_adjusted_time: row.get(11)?,
+            is_podcast_autoplay: row.get(12)?,
         })
     })?;
 
@@ -959,6 +1025,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
                 result.push(user.is_vlc_running);
                 result.push(user.is_show_key_bindings);
                 result.push(user.is_speed_adjusted_time);
+                result.push(user.is_podcast_autoplay);
             }
             Err(e) => {
                 println!("Error occurred: {e}");
@@ -1007,7 +1074,8 @@ pub fn init_db() -> Result<()> {
                 speed_rate FLOAT NOT NULL,
                 is_vlc_running TEXT NOT NULL,
                 is_show_key_bindings TEXT NOT NULL,
-                is_speed_adjusted_time TEXT NOT NULL DEFAULT '1'
+                is_speed_adjusted_time TEXT NOT NULL DEFAULT '1',
+                is_podcast_autoplay TEXT NOT NULL DEFAULT '0'
             )",
         [],
     )?;
@@ -1017,6 +1085,13 @@ pub fn init_db() -> Result<()> {
     // when the column is already there.
     let _ = conn.execute(
         "ALTER TABLE users ADD COLUMN is_speed_adjusted_time TEXT NOT NULL DEFAULT '1'",
+        [],
+    );
+
+    // Migration for databases created before `is_podcast_autoplay` existed. Defaults
+    // to off, since existing users didn't opt into podcasts auto-advancing.
+    let _ = conn.execute(
+        "ALTER TABLE users ADD COLUMN is_podcast_autoplay TEXT NOT NULL DEFAULT '0'",
         [],
     );
 

@@ -23,6 +23,7 @@ pub struct User {
     pub  is_vlc_running: String,
     pub  is_show_key_bindings: String,
     pub  is_speed_adjusted_time: String,
+    pub  is_podcast_autoplay: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -11,7 +11,7 @@ use ratatui::{
     },
 };
 use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
-use crate::db::crud::get_listening_session;
+use crate::db::crud::{get_listening_session, get_is_podcast_autoplay};
 use crate::player::integrated::player_info::format_time;
 use crate::config::load_config;
 
@@ -32,6 +32,7 @@ impl Widget for &mut App {
             AppView::SettingsLibrary => self.render_settings_library(area, buf),
             AppView::SettingsAbout => {},
             AppView::SettingsUpdateUninstall => {},
+            AppView::SettingsAutoplay => self.render_settings_autoplay(area, buf),
         }
     }
 }
@@ -293,6 +294,32 @@ impl App {
         App::render_footer(footer_area, buf, text_render_footer);
         self.render_list(list_area, buf, &render_list_title, &self.libraries_names.clone(), &mut self.list_state_settings_library.clone(), None);
         self.render_info_settings_library(item_area, buf, &self.list_state_settings_library.clone());
+    }
+
+    /// `AppView::SettingsAutoplay` rendering
+    fn render_settings_autoplay(&mut self, area: Rect, buf: &mut Buffer) {
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(6),
+            Constraint::Length(1),
+            Constraint::Length(2),
+        ]).areas(area);
+
+        let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
+
+        let render_list_title = "Podcast Autoplay";
+        let text_render_footer = "h: back, l/→: apply,\n Tab: home, R: refresh, Q/Esc: quit.";
+        let options = vec!["On".to_string(), "Off".to_string()];
+        let current = if get_is_podcast_autoplay(&self.username) == "1" { "On" } else { "Off" };
+
+        App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
+        App::render_footer(footer_area, buf, text_render_footer);
+        self.render_list(list_area, buf, render_list_title, &options, &mut self.list_state_settings_autoplay.clone(), None);
+        Paragraph::new(format!("Currently: {current}\n\nWhen on, finishing a podcast episode automatically starts the next unfinished one in the list it was played from."))
+            .left_aligned()
+            .wrap(Wrap { trim: true })
+            .render(item_area, buf);
     }
 
 

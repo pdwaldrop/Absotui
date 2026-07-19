@@ -4,7 +4,8 @@ use reqwest::header::AUTHORIZATION;
 use color_eyre::eyre::{Result, Report};
 use serde::Deserialize;
 use serde::Serialize;
-use crate::api::me::get_media_progress::get_book_progress;
+use log::{info, warn};
+use crate::api::me::get_media_progress::get_episode_progress;
 
 /// Get a `PersonalizedView`'s Personalized View  for podcast(allow to have continue linstening)
 /// <https://api.audiobookshelf.org/#get-a-library-39-s-personalized-view>
@@ -201,19 +202,30 @@ pub async fn get_new_and_unfinished_pod(token: &str, server_address: String, id_
         }
     });
 
-    // Exclude already-finished episodes. `get_book_progress` also accepts an episode ID
-    // (per the ABS API), so this reuses the same call already used for books. A 404/Err
-    // means the episode was never started, which counts as "unfinished", not excluded.
-    // The percent/current_time from this same call is stashed on the entity for display,
-    // so we don't need a second round of API calls just to show progress.
+    // Exclude already-finished episodes. Unlike a book, a podcast episode's progress
+    // record can't be found by the bare episode ID alone - it needs the parent podcast's
+    // library item ID too (see `get_episode_progress`), the same two-ID shape playback
+    // and progress-sync already use. A 404/Err means the episode was never started,
+    // which counts as "unfinished", not excluded. The percent/current_time from this
+    // same call is stashed on the entity for display, so we don't need a second round
+    // of API calls just to show progress.
     let mut unfinished_entities = Vec::new();
     for mut entity in entities {
         let episode_id = entity.recent_episode.as_ref().and_then(|ep| ep.id.clone());
-        let progress = match &episode_id {
-            Some(id) => get_book_progress(token, id, server_address.clone()).await.ok(),
-            None => None,
+        let library_item_id = entity.recent_episode.as_ref().and_then(|ep| ep.library_item_id.clone());
+        let episode_title = entity.recent_episode.as_ref().and_then(|ep| ep.title.clone()).unwrap_or_default();
+        let progress = match (&library_item_id, &episode_id) {
+            (Some(lib_id), Some(ep_id)) => match get_episode_progress(token, lib_id, ep_id, server_address.clone()).await {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    warn!("[get_new_and_unfinished_pod] progress lookup failed for '{episode_title}' ({lib_id}/{ep_id}), treating as unfinished: {e}");
+                    None
+                }
+            },
+            _ => None,
         };
         let is_finished = progress.as_ref().is_some_and(|p| p.is_finished);
+        info!("[get_new_and_unfinished_pod] '{episode_title}' ({episode_id:?}) isFinished={is_finished}");
         if !is_finished {
             if let Some(p) = &progress {
                 entity.progress_percent = Some((p.progress * 100.0) as f32);

@@ -139,7 +139,10 @@ async fn main() -> Result<()> {
             if crossterm::event::poll(Duration::from_millis(200))?
                 && let event::Event::Key(key) = crossterm::event::read()? {
                     app.handle_key(key);
-                    // If the 'R' key is pressed, refresh the app
+                    // If the 'R' key is pressed, or a different library was just selected
+                    // in Settings > Library, refresh the app - both need the same full
+                    // reinit to pick up fresh data (and, for a library switch, land back
+                    // on Home in the newly selected library).
                     if let KeyCode::Char('R') = key.code {
                         // pop up message
                         let mut stdout = stdout();
@@ -148,6 +151,12 @@ async fn main() -> Result<()> {
                         // Reinitialize app to refresh
                         app = App::new().await?;
                         // clear message above
+                        let _ = clear_message(&mut stdout, 3);
+                    } else if app.library_needs_reload {
+                        let mut stdout = stdout();
+                        let _ = clear_message(&mut stdout, 3);
+                        let _ = pop_message(&mut stdout, 3, "Switching library...");
+                        app = App::new().await?;
                         let _ = clear_message(&mut stdout, 3);
                     }
                 }
