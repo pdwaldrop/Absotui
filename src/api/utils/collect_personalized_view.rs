@@ -101,8 +101,8 @@ pub async fn collect_desc_cnt_list(continue_listening: &[Root]) -> Vec<String> {
             for entity in entities {
                 if let Some(media) = &entity.media  
                     && let Some(metadata) = &media.metadata { 
-                        if let Some(description) = &metadata.description { 
-                            desc_cnt_list.push(description.clone()); 
+                        if let Some(description) = &metadata.description {
+                            desc_cnt_list.push(description.clone());
                         } else {
                             desc_cnt_list.push("N/A".to_string());
                         }

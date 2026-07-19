@@ -15,6 +15,7 @@ use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, fo
 use crate::db::crud::{get_listening_session, get_is_podcast_autoplay};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::config::load_config;
+use crate::utils::html_to_text::html_to_lines;
 
 
 // const version
@@ -815,7 +816,7 @@ impl App {
                 _content = self.desc_cnt_list[selected].clone();
             }
 
-            Paragraph::new(_content.clone())
+            Paragraph::new(html_to_lines(&_content))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .render(area, buf);
@@ -855,7 +856,7 @@ impl App {
 
         if let Some(selected) = list_state.selected() {
 
-            Paragraph::new(self.desc_library[selected].clone())
+            Paragraph::new(html_to_lines(&self.desc_library[selected]))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .render(area, buf);
@@ -945,7 +946,7 @@ impl App {
 
             // Check if index is valid for subtitles vector
             if selected < self.subtitles_pod_ep.len() {
-                Paragraph::new(self.subtitles_pod_ep[selected].clone())
+                Paragraph::new(html_to_lines(&self.subtitles_pod_ep[selected]))
                     .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })
                     .render(area, buf);
@@ -963,7 +964,7 @@ impl App {
 
         if let Some(selected) = list_state.selected() {
 
-            Paragraph::new(self.subtitles_pod_ep_search[selected].clone())
+            Paragraph::new(html_to_lines(&self.subtitles_pod_ep_search[selected]))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .render(area, buf);
@@ -1002,7 +1003,7 @@ impl App {
 
         if let Some(selected) = list_state.selected() {
 
-            Paragraph::new(self.desc_library_search_book[selected].clone())
+            Paragraph::new(html_to_lines(&self.desc_library_search_book[selected]))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .render(area, buf);

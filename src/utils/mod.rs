@@ -7,3 +7,4 @@ pub mod exit_app;
 pub mod vlc_tcp_stream;
 pub mod clap;
 pub mod check_update;
+pub mod html_to_text;
