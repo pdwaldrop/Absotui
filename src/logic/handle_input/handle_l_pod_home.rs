@@ -10,8 +10,10 @@ use std::io::stdout;
 use log::{info, error};
 use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_is_podcast_autoplay};
 use crate::utils::vlc_tcp_stream::vlc_tcp_stream;
-use crate::player::vlc::quit_vlc::pkill_vlc;
+use crate::player::vlc::quit_vlc::{pkill_vlc, quit_vlc};
 use crate::utils::convert_seconds::progress_time_diff;
+use crate::api::libraries::get_library_perso_view_pod::get_new_and_unfinished_pod;
+use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_ids_ep_pod_cnt_list, collect_published_at_pod_cnt_list};
 
 
 // handle l when is_podact is true for continue listening `AppView::Home`
@@ -27,6 +29,9 @@ pub async fn handle_l_pod_home(
     program: String,
     is_cvlc_term: String,
     username: String,
+    id_selected_lib: String,
+    newest_first: bool,
+    initial_published_at: Option<i64>,
 
 ) {
 
@@ -34,18 +39,20 @@ pub async fn handle_l_pod_home(
     pkill_vlc();
 
     let Some(token) = token else { return; };
-    let Some(mut current_index) = selected else { return; };
+    let Some(current_index) = selected else { return; };
+    let Some(mut id) = ids_library_items.get(current_index).cloned() else { return; };
+    let Some(mut id_pod_ep) = id_pod.get(current_index).cloned() else { return; };
+    // Tracks the currently-playing episode's own published_at, so autoplay can find
+    // whatever's genuinely adjacent to it in the live queue's sort order - see
+    // next_autoplay_episode.
+    let mut current_published_at = initial_published_at;
 
-    // Outer loop lets a finished episode advance to the next one in this same list
-    // (Podcast Autoplay, toggled in Settings) without leaving this spawned task -
-    // the main render loop already moved on as soon as this task was spawned, so
-    // there's no synchronous caller left to hand control back to for a next episode.
+    // Outer loop lets a finished episode advance to the next one (Podcast Autoplay,
+    // toggled in Settings) without leaving this spawned task - the main render loop
+    // already moved on as soon as this task was spawned, so there's no synchronous
+    // caller left to hand control back to for a next episode.
     'episodes: loop {
-        // id is id of the podcast  and id_pod_ep is the id id of the episode podcast
-        let Some(id) = ids_library_items.get(current_index) else { break 'episodes; };
-        let Some(id_pod_ep) = id_pod.get(current_index) else { break 'episodes; };
-
-        if let Ok(info_item) = post_start_playback_session_pod(Some(token), id, id_pod_ep, server_address.clone()).await {
+        if let Ok(info_item) = post_start_playback_session_pod(Some(token), &id, &id_pod_ep, server_address.clone()).await {
 
             // converting current time
             let mut current_time: u32 = info_item[0].parse::<f64>().unwrap().round() as u32;
@@ -173,7 +180,7 @@ pub async fn handle_l_pod_home(
                             Ok(true) => {
                                 // to sync progress in the server each 10 seconds
                                 if trigger == 10 {
-                                    let _ = update_media_progress_pod(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], id_pod_ep, server_address.clone()).await;
+                                    let _ = update_media_progress_pod(&id, Some(token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
                                     let _ = sync_session(Some(token), &info_item[3],Some(data_fetched_from_vlc), progress_sync, server_address.clone()).await;
                                     // update elapsed_time in database (`listening_session` table)
                                     let _ = update_elapsed_time(progress_sync, info_item[3].as_str());
@@ -202,23 +209,60 @@ pub async fn handle_l_pod_home(
 
                                 let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
                                 info!("[handle_l_pod_home][Finished] Session successfully closed");
-                                let _ = update_media_progress2_pod(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], is_finised, id_pod_ep, server_address.clone()).await;
+                                let _ = update_media_progress2_pod(&id, Some(token), Some(data_fetched_from_vlc), &info_item[2], is_finised, &id_pod_ep, server_address.clone()).await;
                                 info!("[handle_l_pod_home][Finished] VLC stopped");
                                 info!("[handle_l_pod_home][Finished] Item {id_pod_ep} closed at {data_fetched_from_vlc}s");
-                                let _ = update_is_loop_break("1", username.as_str());
 
                                 let _ = update_is_vlc_running("0", username.as_str());
 
-                                // Podcast Autoplay: if on, and there's a next episode in
-                                // this same list, start it - otherwise stop here just like
-                                // before this feature existed.
-                                if get_is_podcast_autoplay(username.as_str()) == "1"
-                                    && current_index + 1 < ids_library_items.len()
-                                    && current_index + 1 < id_pod.len() {
-                                        info!("[handle_l_pod_home][Finished] Autoplay is on, advancing to next episode");
-                                        current_index += 1;
-                                        continue 'episodes;
+                                // Podcast Autoplay: if on, and the live "New & Unfinished"
+                                // queue has something adjacent to this episode to play next,
+                                // start it - otherwise stop here just like before this
+                                // feature existed.
+                                //
+                                // Deliberately re-fetching the queue here rather than just
+                                // advancing to the next index of the list this task started
+                                // with: that list is a one-time snapshot taken back when the
+                                // user first pressed play, and can be badly stale by the time
+                                // a later episode in an autoplay chain finishes - new episodes
+                                // arrive, others get marked finished and drop out, entirely
+                                // independent of this chain. Indexing into the stale snapshot
+                                // could "autoplay" into whatever used to be next in that old
+                                // ordering - including an episode already listened to earlier -
+                                // rather than what's actually next in the live queue.
+                                let next_episode = if get_is_podcast_autoplay(username.as_str()) == "1" {
+                                    next_autoplay_episode(token, &server_address, &id_selected_lib, newest_first, current_published_at, &id_pod_ep).await
+                                } else {
+                                    None
+                                };
+
+                                if let Some((next_id, next_id_pod, next_published_at)) = next_episode {
+                                    info!("[handle_l_pod_home][Finished] Autoplay is on, advancing to next episode");
+                                    // Deliberately NOT setting is_loop_break here - this task
+                                    // is about to keep running for the next episode, not
+                                    // actually exit. `wait_prev_session_finished` (run before
+                                    // any fresh manual play) polls this exact flag to know
+                                    // this background task is done - setting it here on every
+                                    // mid-chain transition let it go stale, so a manual replay
+                                    // of the still-autoplaying episode would see a false "done"
+                                    // and spawn a second task racing this same one over VLC
+                                    // and the shared listening_session row.
+                                    //
+                                    // VLC doesn't exit on its own at end-of-track, it just
+                                    // goes idle - without explicitly quitting it here (same
+                                    // as every other place that starts new playback does),
+                                    // it keeps holding the RC port, the next episode's VLC
+                                    // can't bind it, and all control/sync ends up silently
+                                    // talking to this now-finished instance instead.
+                                    let _ = quit_vlc(&address_player, &port);
+                                    pkill_vlc();
+                                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                    id = next_id;
+                                    id_pod_ep = next_id_pod;
+                                    current_published_at = Some(next_published_at);
+                                    continue 'episodes;
                                 }
+                                let _ = update_is_loop_break("1", username.as_str());
                                 break 'episodes;
                             },
                             // `Err` means :  VLC is close (because if VLC is not playing
@@ -233,7 +277,7 @@ pub async fn handle_l_pod_home(
                                 info!("[handle_l_pod_home][Quit] Session successfully closed");
                                 // send one last time media progress (bug to retrieve media
                                 // progress otherwise)
-                                let _ = update_media_progress_pod(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], id_pod_ep, server_address.clone()).await;
+                                let _ = update_media_progress_pod(&id, Some(token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
                                 info!("[handle_l_pod_home][Quit] VLC closed");
                                 info!("[handle_l_pod_home][Quit] Item {id_pod_ep} closed at {data_fetched_from_vlc}s");
 
@@ -252,7 +296,7 @@ pub async fn handle_l_pod_home(
                         info!("[handle_l_pod_home][None]");
                         let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
                         info!("[handle_l_pod_home][None] Session successfully closed");
-                        let _ = update_media_progress_pod(id, Some(token), Some(current_time), &info_item[2], id_pod_ep, server_address.clone()).await;
+                        let _ = update_media_progress_pod(&id, Some(token), Some(current_time), &info_item[2], &id_pod_ep, server_address.clone()).await;
                         info!("[handle_l_pod_home][None] VLC closed");
                         info!("[handle_l_pod_home][None] Item {id} closed at {current_time}s");
 
@@ -271,4 +315,54 @@ pub async fn handle_l_pod_home(
             break 'episodes;
         }
     }
+}
+
+/// Fetches the current "New & Unfinished" queue fresh and returns the (podcast id,
+/// episode id, published_at) of whatever's genuinely adjacent to the episode that just
+/// finished, in the same sort order the Home list itself uses (respects whichever sort
+/// direction was active when this autoplay chain started - `newest_first`, captured once
+/// at the top-level play same as the rest of this task's state).
+///
+/// This is deliberately NOT "whatever's at the front of the queue": the episode that
+/// just finished isn't necessarily the newest (or oldest) unfinished one - it could sit
+/// anywhere in the sort order - so "next" has to mean "the closest one on the other
+/// side of it," found via `current_published_at`, not "the global top of the list."
+/// Picking the global top would autoplay into whatever's chronologically first
+/// regardless of where the just-finished episode actually was, which can be a
+/// completely different, unrelated episode - including one already listened to earlier.
+///
+/// `current_published_at` is `None` only for the very first episode of a chain if its
+/// publish date wasn't available; in that case this falls back to the queue's front,
+/// same as before this refinement. Returns `None` if the queue is empty, the fetch
+/// fails, or - when `current_published_at` is known - there's nothing further along in
+/// the current sort direction (the just-finished episode was already the last one),
+/// in which case autoplay stops like before this feature existed rather than wrapping
+/// back around to the top.
+///
+/// `current_id_pod` (the just-finished episode) is explicitly excluded from candidacy -
+/// its own isFinished update may not have propagated server-side by the time this fetch
+/// runs, in which case it would still match its own published_at via the `<=`/`>=`
+/// comparison and get picked as "next," replaying itself forever.
+async fn next_autoplay_episode(token: &str, server_address: &str, id_selected_lib: &str, newest_first: bool, current_published_at: Option<i64>, current_id_pod: &str) -> Option<(String, String, i64)> {
+    let roots = get_new_and_unfinished_pod(token, server_address.to_string(), &id_selected_lib.to_string()).await.ok()?;
+    let ids = collect_ids_pod_cnt_list(&roots).await;
+    let ids_ep = collect_ids_ep_pod_cnt_list(&roots).await;
+    let published_at = collect_published_at_pod_cnt_list(&roots).await;
+
+    let mut order: Vec<usize> = (0..published_at.len()).collect();
+    if newest_first {
+        order.sort_by_key(|&i| std::cmp::Reverse(published_at[i]));
+    } else {
+        order.sort_by_key(|&i| published_at[i]);
+    }
+    order.retain(|&i| ids_ep.get(i).map(String::as_str) != Some(current_id_pod));
+
+    let chosen = match current_published_at {
+        Some(cur) => order.iter().copied().find(|&i| {
+            if newest_first { published_at[i] <= cur } else { published_at[i] >= cur }
+        }),
+        None => order.first().copied(),
+    }?;
+
+    Some((ids.get(chosen)?.clone(), ids_ep.get(chosen)?.clone(), published_at[chosen]))
 }

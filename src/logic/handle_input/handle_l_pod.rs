@@ -10,7 +10,7 @@ use std::io::stdout;
 use log::{info, error};
 use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_is_podcast_autoplay};
 use crate::utils::vlc_tcp_stream::vlc_tcp_stream;
-use crate::player::vlc::quit_vlc::pkill_vlc;
+use crate::player::vlc::quit_vlc::{pkill_vlc, quit_vlc};
 use crate::utils::convert_seconds::progress_time_diff;
 
 
@@ -211,7 +211,6 @@ pub async fn handle_l_pod(
                                                 let _ = update_media_progress2_pod(id_pod, Some(token), Some(data_fetched_from_vlc), &info_item[2], is_finised, id, server_address.clone()).await;
                                                 info!("[handle_l_pod][Finished] VLC stopped");
                                                 info!("[handle_l_pod][Finished] Item {id_pod} closed at {data_fetched_from_vlc}s");
-                                                let _ = update_is_loop_break("1", username.as_str());
 
                                                 let _ = update_is_vlc_running("0", username.as_str());
 
@@ -222,9 +221,29 @@ pub async fn handle_l_pod(
                                                 if get_is_podcast_autoplay(username.as_str()) == "1"
                                                     && current_index + 1 < ids_library_items.len() {
                                                         info!("[handle_l_pod][Finished] Autoplay is on, advancing to next episode");
+                                                        // Deliberately NOT setting is_loop_break here - this task
+                                                        // is about to keep running for the next episode, not
+                                                        // actually exit. `wait_prev_session_finished` (run before
+                                                        // any fresh manual play) polls this exact flag to know
+                                                        // this background task is done - setting it here on every
+                                                        // mid-chain transition let it go stale, so a manual replay
+                                                        // of the still-autoplaying episode would see a false "done"
+                                                        // and spawn a second task racing this same one over VLC
+                                                        // and the shared listening_session row.
+                                                        //
+                                                        // VLC doesn't exit on its own at end-of-track, it just
+                                                        // goes idle - without explicitly quitting it here (same
+                                                        // as every other place that starts new playback does),
+                                                        // it keeps holding the RC port, the next episode's VLC
+                                                        // can't bind it, and all control/sync ends up silently
+                                                        // talking to this now-finished instance instead.
+                                                        let _ = quit_vlc(&address_player, &port);
+                                                        pkill_vlc();
+                                                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                                                         current_index += 1;
                                                         continue 'episodes;
                                                 }
+                                                let _ = update_is_loop_break("1", username.as_str());
                                                 break 'episodes;
                                             },
                                             // `Err` means :  VLC is close (because if VLC is not playing

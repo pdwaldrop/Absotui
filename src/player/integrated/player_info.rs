@@ -31,9 +31,12 @@ pub fn player_info(username: &str) -> Vec<String> {
             if !session.id_pod.is_empty() {
                 player_info.push(String::new());
             } else if let Some(chapter) = current_chapter {
-                let num = chapter.id.unwrap_or(0) + 1;
                 let title = chapter.title.clone().unwrap_or_default();
-                player_info.push(format!("Chapter {num}. {title}"));
+                if title.is_empty() {
+                    player_info.push(format!("Chapter {}", chapter.id.unwrap_or(0) + 1));
+                } else {
+                    player_info.push(title);
+                }
             } else if let Ok(num) = session.chapter.trim().parse::<u32>() {
                 let new_chapter = format!("Chapter {}", num + 1);
                 player_info.push(new_chapter);

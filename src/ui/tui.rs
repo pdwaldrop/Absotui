@@ -12,7 +12,7 @@ use ratatui::{
     },
 };
 use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
-use crate::db::crud::{get_listening_session, get_is_podcast_autoplay};
+use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc_running};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::config::load_config;
 use crate::utils::html_to_text::html_to_lines;
@@ -75,7 +75,14 @@ impl App {
         // load/refresh) so it reacts as soon as playback starts. Books match by id_item;
         // podcasts must match by episode ID (id_pod) since id_item there is the parent
         // podcast's ID, which multiple episodes in this list could share.
-        if let Ok(Some(active_session)) = get_listening_session() {
+        //
+        // Gated on is_vlc_running: the listening_session row lingers indefinitely after
+        // playback ends (nothing clears it, only the next playback start overwrites it),
+        // so without this check, whichever item was last ever played would get yanked
+        // to the top of the list on every render forever - including right after a
+        // fresh app launch with nothing playing at all.
+        if get_is_vlc_running(&self.username) == "1"
+            && let Ok(Some(active_session)) = get_listening_session() {
             if !self.is_podcast
                 && let Some(pos) = self._ids_cnt_list.iter().position(|id| id == &active_session.id_item)
                 && pos != 0 {
@@ -125,7 +132,11 @@ impl App {
         // wherever the cursor/highlight currently happens to be sitting in the list. Books
         // match by id_item; podcasts must match by episode ID (id_pod), same reasoning as
         // the reorder above.
-        let active_session = get_listening_session().ok().flatten();
+        //
+        // Gated on is_vlc_running for the same reason as the reorder above - the session
+        // row lingers after playback ends, so without this the "now playing" marker would
+        // sit on whatever was last ever played, forever, even with nothing playing.
+        let active_session = (get_is_vlc_running(&self.username) == "1").then(|| get_listening_session().ok().flatten()).flatten();
         let now_playing_id: Option<String> = active_session.as_ref().map(|s| if self.is_podcast { s.id_pod.clone() } else { s.id_item.clone() });
 
         // Flattened book/chapter rows - plain Book rows 1:1 with _ids_cnt_list unless the
@@ -219,11 +230,15 @@ impl App {
             home_rows.iter().map(|row| match row {
                 HomeRow::Book(i) => self._titles_cnt_list.get(*i).cloned().unwrap_or_default(),
                 HomeRow::Chapter { chapter, .. } => {
-                    let num = chapter.id.unwrap_or(0) + 1;
                     let title = chapter.title.clone().unwrap_or_default();
+                    let label = if title.is_empty() {
+                        format!("Chapter {}", chapter.id.unwrap_or(0) + 1)
+                    } else {
+                        title
+                    };
                     let is_current_chapter = chapter.id.is_some() && chapter.id == current_chapter_id;
                     let marker = if is_current_chapter { "●" } else { " " };
-                    format!("    {marker} Chapter {num}. {title}")
+                    format!("    {marker} {label}")
                 }
             }).collect()
         };

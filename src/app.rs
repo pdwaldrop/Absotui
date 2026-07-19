@@ -14,8 +14,9 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running};
 use crate::db::database_struct::Database;
+use crate::utils::convert_seconds::convert_seconds;
 use color_eyre::Result;
 use log::warn;
 use ratatui::{
@@ -221,8 +222,8 @@ struct PodcastHomeData {
     embedded_cover_ino: Vec<Option<String>>,
 }
 
-async fn fetch_podcast_home_data(token: &str, server_address: String, id_selected_lib: &String, newest_first: bool) -> Result<PodcastHomeData> {
-    let continue_listening_pod = get_new_and_unfinished_pod(token, server_address, id_selected_lib).await?;
+async fn fetch_podcast_home_data(token: &str, server_address: String, id_selected_lib: &String, newest_first: bool, username: &str) -> Result<PodcastHomeData> {
+    let continue_listening_pod = get_new_and_unfinished_pod(token, server_address.clone(), id_selected_lib).await?;
     let mut data = PodcastHomeData {
         ids: collect_ids_pod_cnt_list(&continue_listening_pod).await,
         titles: collect_titles_cnt_list_pod(&continue_listening_pod).await,
@@ -259,7 +260,67 @@ async fn fetch_podcast_home_data(token: &str, server_address: String, id_selecte
     data.published_at = order.iter().map(|&i| data.published_at[i]).collect();
     data.embedded_cover_ino = order.iter().map(|&i| data.embedded_cover_ino[i].clone()).collect();
 
+    pin_now_playing_episode(&mut data, username);
+
     Ok(data)
+}
+
+// If the actively-playing podcast episode isn't in the freshly-fetched "New &
+// Unfinished" list, pin it at the top instead of letting it silently vanish from view.
+// This happens for real: a freshly-autoplayed episode only joins the server's
+// "Continue Listening" shelf once this app's own periodic progress sync reaches it
+// (every ~10s of active polling), so there's a window where the episode that's
+// actually playing isn't in either server shelf `get_new_and_unfinished_pod` reads from
+// - during which a user who can't see it playing may reselect it, thinking it's
+// unplayed, which used to restart the same session.
+//
+// Deliberately NOT a network fetch for full metadata: this runs on the main render
+// loop's own periodic refresh (`refresh_podcast_home_if_stale`), not a background task,
+// so any network call here blocks rendering and key handling for however long it takes
+// - and it would fire almost every time right after an autoplay transition, exactly
+// when this same propagation delay is in effect. Instead this reuses what's already
+// sitting in the local session row: `title` is stored as "Episode Title | Podcast
+// Title" (see the `insert_listening_session` call sites), split back apart here rather
+// than re-fetched. Subtitle/author/description/season/episode-number are left blank for
+// this pinned row - they only matter if the user selects it, and self-correct as soon
+// as the server's shelves catch up and a normal fetch picks the episode up with full
+// data.
+fn pin_now_playing_episode(data: &mut PodcastHomeData, username: &str) {
+    // The listening_session row lingers indefinitely after playback ends - nothing
+    // clears it, it's only ever replaced by the next `insert_listening_session` call -
+    // so a non-empty id_pod alone doesn't mean anything is actually still playing. Gate
+    // on is_vlc_running too, or every fresh launch/refresh would pin whichever podcast
+    // episode was last listened to, ever, even if that was days ago - a phantom "now
+    // playing" row that pushes everything else down a line for nothing.
+    if get_is_vlc_running(username) != "1" {
+        return;
+    }
+
+    let Some(session) = get_listening_session().ok().flatten() else { return };
+    if session.id_pod.is_empty() || data.ids_ep.contains(&session.id_pod) {
+        return;
+    }
+
+    let (episode_title, podcast_title) = session.title.split_once(" | ")
+        .map(|(ep, pod)| (ep.to_string(), pod.to_string()))
+        .unwrap_or_else(|| (session.title.clone(), String::new()));
+    let duration = session.duration.parse::<f64>().unwrap_or(0.0);
+
+    data.ids.insert(0, session.id_item.clone());
+    data.titles.insert(0, episode_title);
+    data.ids_ep.insert(0, session.id_pod.clone());
+    data.subtitles.insert(0, String::new());
+    data.nums_ep.insert(0, String::new());
+    data.seasons.insert(0, String::new());
+    data.authors.insert(0, String::new());
+    data.descs.insert(0, String::new());
+    data.titles_pod.insert(0, podcast_title);
+    data.durations.insert(0, convert_seconds(vec![duration]).into_iter().next().unwrap_or_default());
+    data.progress.insert(0, (session.current_time as f64, duration, 0.0));
+    // Pinned regardless of natural sort position, so its published_at doesn't matter -
+    // i64::MAX just documents that it was never meant to be re-sorted.
+    data.published_at.insert(0, i64::MAX);
+    data.embedded_cover_ino.insert(0, None);
 }
 
 /// Init app
@@ -368,7 +429,7 @@ impl App {
 
     if is_podcast {
         // init for `Home` (new & unfinished episodes) for podcasts
-        let data = fetch_podcast_home_data(&token, server_address.clone(), &id_selected_lib, podcast_sort_newest_first).await?;
+        let data = fetch_podcast_home_data(&token, server_address.clone(), &id_selected_lib, podcast_sort_newest_first, &username).await?;
         _ids_cnt_list = data.ids;
         _titles_cnt_list = data.titles;
         ids_ep_cnt_list = data.ids_ep;
@@ -770,7 +831,7 @@ impl App {
             .and_then(|i| self.ids_ep_cnt_list.get(i))
             .cloned();
 
-        let data = fetch_podcast_home_data(&token, self.server_address.clone(), &self.id_selected_lib, self.podcast_sort_newest_first).await?;
+        let data = fetch_podcast_home_data(&token, self.server_address.clone(), &self.id_selected_lib, self.podcast_sort_newest_first, &self.username).await?;
         self._ids_cnt_list = data.ids;
         self._titles_cnt_list = data.titles;
         self.ids_ep_cnt_list = data.ids_ep;
@@ -788,6 +849,14 @@ impl App {
 
         if let Some(id) = selected_ep_id
             && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == id) {
+                self.list_state_cnt_list.select(Some(new_pos));
+        } else if let Some(session) = get_listening_session().ok().flatten()
+            && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == session.id_pod) {
+                // The previously selected episode is gone - most commonly because it just
+                // finished and Podcast Autoplay moved on to the next one, dropping it out of
+                // this "New & Unfinished" list. Follow the now-playing episode instead of
+                // leaving the cursor on whatever numeric index it used to be, which would
+                // otherwise silently point at a different episode once the list shifts.
                 self.list_state_cnt_list.select(Some(new_pos));
         }
 
@@ -1110,6 +1179,13 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             let start_vlc_program = self.start_vlc_program.clone();
             let is_cvlc_term = self.is_cvlc_term.clone();
 
+            // Podcast Autoplay needs these to re-fetch the live "New & Unfinished"
+            // queue on each transition rather than relying on a stale snapshot - see
+            // handle_l_pod_home::next_autoplay_episode.
+            let id_selected_lib = self.id_selected_lib.clone();
+            let podcast_sort_newest_first = self.podcast_sort_newest_first;
+            let initial_published_at = selected_cnt_list.and_then(|i| self.podcast_published_at_cnt_list.get(i)).copied();
+
             // Init message 
             let message = "Loading the media...";
 
@@ -1149,16 +1225,19 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                             // start the track
                             handle_l_pod_home(
-                                token.as_ref(), 
-                                &ids_cnt_list, 
-                                selected_cnt_list, 
-                                port, 
+                                token.as_ref(),
+                                &ids_cnt_list,
+                                selected_cnt_list,
+                                port,
                                 address_player,
-                                ids_ep_cnt_list, 
+                                ids_ep_cnt_list,
                                 server_address,
                                 start_vlc_program,
                                 is_cvlc_term,
                                 username,
+                                id_selected_lib,
+                                podcast_sort_newest_first,
+                                initial_published_at,
                             ).await;
                         });
                     } else {

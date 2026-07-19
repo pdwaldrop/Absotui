@@ -28,6 +28,7 @@ use crate::ui::player_tui::render_player;
 use std::env;
 use std::path::PathBuf;
 use crate::utils::clap::clap;
+use crate::utils::scroll_wheel::{disable_terminal_scroll_wheel, restore_terminal_scroll_wheel};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -67,6 +68,7 @@ async fn main() -> Result<()> {
         if _database.default_usr.is_empty() {
             let app_login = AppLogin::new().await?;
             let terminal = ratatui::init();
+            disable_terminal_scroll_wheel();
             let _app_result = app_login.run(terminal);
             // Process login result here
             // Wait for 1 second before checking again
@@ -99,6 +101,7 @@ async fn main() -> Result<()> {
 
         let mut app = App::new().await?;
         let mut terminal = ratatui::init();
+        disable_terminal_scroll_wheel();
 
         // Running the app in a loop
         loop {
@@ -168,5 +171,6 @@ async fn main() -> Result<()> {
 
     // Restore the terminal state before exiting the application
     ratatui::restore();
+    restore_terminal_scroll_wheel();
     Ok(())
 }

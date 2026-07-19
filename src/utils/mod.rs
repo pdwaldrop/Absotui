@@ -9,3 +9,4 @@ pub mod clap;
 pub mod check_update;
 pub mod html_to_text;
 pub mod cover_cache;
+pub mod scroll_wheel;
