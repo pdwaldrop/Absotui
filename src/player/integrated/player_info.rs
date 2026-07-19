@@ -1,5 +1,17 @@
 use log::info;
 use crate::db::crud::{get_listening_session, get_speed_rate, get_is_speed_adjusted_time};
+use crate::api::libraries::get_library_perso_view_pod::Chapter;
+
+// Finds which chapter `current_time` (raw content-time seconds) falls within, using the
+// start/end timestamps Audiobookshelf sends per chapter. Returns None if there's no chapter
+// data at all (older session, or a book without embedded chapters) or the time is out of range.
+pub fn find_current_chapter(chapters: &[Chapter], current_time: f64) -> Option<&Chapter> {
+    chapters.iter().find(|c| {
+        let start = c.start.unwrap_or(0.0);
+        let end = c.end.unwrap_or(f64::MAX);
+        current_time >= start && current_time < end
+    })
+}
 
 pub fn player_info(username: &str) -> Vec<String> {
     let mut player_info = Vec::new();
@@ -7,14 +19,21 @@ pub fn player_info(username: &str) -> Vec<String> {
 
     match get_listening_session() {
         Ok(Some(session)) => {
-            player_info.push(session.title);
-            player_info.push(session.author);
+            let chapters: Vec<Chapter> = serde_json::from_str(&session.chapters).unwrap_or_default();
+            let current_chapter = find_current_chapter(&chapters, session.current_time as f64);
+
+            player_info.push(session.title.clone());
+            player_info.push(session.author.clone());
 
             // Podcast episodes are single audio files with no chapters - VLC still
             // reports a "chapter" for them (always 0, i.e. "Chapter 1"), so that field
             // is only meaningful for books. id_pod is only set for podcast sessions.
             if !session.id_pod.is_empty() {
                 player_info.push(String::new());
+            } else if let Some(chapter) = current_chapter {
+                let num = chapter.id.unwrap_or(0) + 1;
+                let title = chapter.title.clone().unwrap_or_default();
+                player_info.push(format!("Chapter {num}. {title}"));
             } else if let Ok(num) = session.chapter.trim().parse::<u32>() {
                 let new_chapter = format!("Chapter {}", num + 1);
                 player_info.push(new_chapter);
@@ -23,17 +42,29 @@ pub fn player_info(username: &str) -> Vec<String> {
             }
 
             player_info.push(session.is_playback.to_string());
-            player_info.push(format_time(session.current_time));
 
             // `session.current_time` comes straight from VLC's real, unscaled position in
-            // the content, so the total duration it's compared against must stay unscaled
-            // too - dividing only the duration by speed_rate here used to desync the two,
-            // making progress hit 100% long before the content actually finished.
+            // the content. When we know the current chapter, Current/Duration/Percent/Left
+            // are shown relative to that chapter instead of the whole book - falls back to
+            // whole-book numbers when there's no chapter data (older session, or a book
+            // without embedded chapters).
             let original_duration = session.duration.parse::<u32>().unwrap_or(0);
-            player_info.push(format_time(original_duration));
+            let (chapter_current, chapter_duration) = match current_chapter {
+                Some(chapter) => {
+                    let start = chapter.start.unwrap_or(0.0);
+                    let end = chapter.end.unwrap_or(original_duration as f64);
+                    let current = (session.current_time as f64 - start).max(0.0) as u32;
+                    let duration = (end - start).max(0.0) as u32;
+                    (current, duration)
+                }
+                None => (session.current_time, original_duration),
+            };
+
+            player_info.push(format_time(chapter_current));
+            player_info.push(format_time(chapter_duration));
 
             let speed_rate: f32 = get_speed_rate(username).parse().unwrap_or(1.0);
-            let remaining_time = original_duration.saturating_sub(session.current_time);
+            let remaining_time = chapter_duration.saturating_sub(chapter_current);
 
             // Session (time so far this playback session) and Remaining are the two fields
             // that can mean either "real, speed-adjusted time" or "raw content time".
@@ -49,7 +80,11 @@ pub fn player_info(username: &str) -> Vec<String> {
                 player_info.push(format_time(remaining_time));
             }
 
-            let percent_progress = (session.current_time as f32 / original_duration as f32) * 100.0;
+            let percent_progress = if chapter_duration > 0 {
+                (chapter_current as f32 / chapter_duration as f32) * 100.0
+            } else {
+                0.0
+            };
             player_info.push(format!("{}", percent_progress.round() as u32));
         }
         Ok(None) => {

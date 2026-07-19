@@ -41,6 +41,7 @@ pub struct ListeningSession {
     pub author: String,
     pub is_playback: bool,
     pub chapter: String,
+    pub chapters: String,
 }
 
 pub struct Others {
@@ -77,6 +78,7 @@ impl Database {
             author: String::new(),
             is_playback: false,
             chapter: String::new(),
+            chapters: String::new(),
         };
 
         let others = Others {

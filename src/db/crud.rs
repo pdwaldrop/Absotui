@@ -374,7 +374,7 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
 
     if let Ok(conn) = Connection::open(db_path) {
         let mut stmt = conn.prepare(
-            "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter
+            "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter, chapters
              FROM listening_session
              LIMIT 1",
         )?;
@@ -394,6 +394,7 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
                 author: row.get(8)?,
                 is_playback: row.get(9)?,
                 chapter: row.get(10)?,
+                chapters: row.get(11)?,
             };
             return Ok(Some(session));
         }
@@ -418,6 +419,7 @@ pub fn insert_listening_session(
     author: String,
     is_playback: bool,
     chapter: String,
+    chapters: String,
 
 ) -> Result<()> {
 
@@ -440,9 +442,9 @@ pub fn insert_listening_session(
     if let Ok(conn) = Connection::open(db_path) {
         conn.execute("DELETE FROM listening_session", params![])?;
         conn.execute(
-            "INSERT INTO listening_session (id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter) 
-             VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![id_session, id_item, current_time, duration, id_pod, elapsed_time, title, author, is_playback, chapter],
+            "INSERT INTO listening_session (id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter, chapters)
+             VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![id_session, id_item, current_time, duration, id_pod, elapsed_time, title, author, is_playback, chapter, chapters],
         )?;
     } else {
         let mut stdout = stdout();
@@ -1108,12 +1110,21 @@ pub fn init_db() -> Result<()> {
             title TEXT NOT NULL,
             author TEXT NOT NULL,
             is_playback INTEGER NOT NULL DEFAULT 1,
-            chapter TEXT NOT NULL
+            chapter TEXT NOT NULL,
+            chapters TEXT NOT NULL DEFAULT ''
             )",
         [],
     )?;
 
-    //Create table `others` if there is none 
+    // Migration for databases created before `chapters` existed.
+    // SQLite has no "ADD COLUMN IF NOT EXISTS", so we just ignore the error
+    // when the column is already there.
+    let _ = conn.execute(
+        "ALTER TABLE listening_session ADD COLUMN chapters TEXT NOT NULL DEFAULT ''",
+        [],
+    );
+
+    //Create table `others` if there is none
     conn.execute(
         "CREATE TABLE IF NOT EXISTS others (
             login_err TEXT NOT NULL DEFAULT ''

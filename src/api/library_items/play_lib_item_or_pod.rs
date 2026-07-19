@@ -1,9 +1,10 @@
-use reqwest::Client; 
-use color_eyre::eyre::Result; 
+use reqwest::Client;
+use color_eyre::eyre::Result;
 use reqwest::header::AUTHORIZATION;
 use serde_json::Value;
 use serde_json::json;
 use crate::player::vlc::fetch_vlc_data::get_vlc_version;
+use crate::api::libraries::get_library_perso_view_pod::Chapter;
 
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -70,14 +71,21 @@ pub async fn post_start_playback_session_book(token: Option<&String>, id_library
         .as_str()
         .unwrap_or("N/A");
 
+    // book playback sessions carry full chapter title/start/end data, confirmed via
+    // live testing against a real server (books were previously assumed to only
+    // get a chapter count, not full metadata)
+    let chapters: Vec<Chapter> = serde_json::from_value(v["chapters"].clone()).unwrap_or_default();
+    let chapters_json = serde_json::to_string(&chapters).unwrap_or_default();
+
     let info_item = vec![
-        current_time.to_string(), 
-        content_url.to_string(), 
-        duration.to_string(), 
-        id_session.to_string(), 
-        title.to_string(), 
-        subtitle.to_string(), 
-        author.to_string()
+        current_time.to_string(),
+        content_url.to_string(),
+        duration.to_string(),
+        id_session.to_string(),
+        title.to_string(),
+        subtitle.to_string(),
+        author.to_string(),
+        chapters_json,
     ];
 
     Ok(info_item)

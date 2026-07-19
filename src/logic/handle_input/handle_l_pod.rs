@@ -66,6 +66,7 @@ pub async fn handle_l_pod(
                                 String::new(), // author not shown for podcasts
                                 true, // is_playback
                                 String::new(), // chapter
+                                String::new(), // chapters (not wired for podcasts yet)
                                 );
 
 

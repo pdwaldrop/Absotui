@@ -52,7 +52,8 @@ pub async fn handle_l_book(
                         info_item[6].clone(), // author
                         true, // is_playback
                         String::new(), // chapter
-                        ); 
+                        info_item[7].clone(), // chapters (JSON array of {id, title, start, end})
+                        );
                         
                     // clone otherwise, these variable will  be consumed and not available anymore
                     // for use outside start_vlc spawn
