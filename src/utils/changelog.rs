@@ -223,11 +223,10 @@ let changelog_13 = "Changelog Toutui v0.4.1-beta (14/05/2025) \n\
          \n\
          Enjoy and be toutui!\n
          ####\n".to_string();
-let changelog_14 = format!(
-    "Changelog Toutui v{VERSION} (15/05/2025) \n\
+let changelog_14 = "Changelog Toutui v0.4.2-beta (15/05/2025) \n\
          \n\
          Warning:\n\
-         - If you're already using the app v0.3.5 or bellow, please follow the upgrade instructions here: => 
+         - If you're already using the app v0.3.5 or bellow, please follow the upgrade instructions here: =>
          https://github.com/AlbanDAVID/Toutui/wiki/Major-upgrade-instruction#v--035-beta-to-v040-beta
 
          Added:\n\
@@ -242,11 +241,41 @@ let changelog_14 = format!(
          - AlbanDAVID
          \n\
          Enjoy and be toutui!\n
+         ####\n".to_string();
+let changelog_15 = format!(
+    "Changelog Absotui v{VERSION} (18/07/2026) \n\
+         \n\
+         This is a fork of Toutui, renamed Absotui, continuing development independently.
+         \n\
+         Added:\n\
+         - Progress bars and time/duration display for both books and podcast episodes
+         - Podcast Home list reworked into a \"New & Unfinished\" view (merging Continue
+           Listening and Newest Episodes, actively filtered by real finished status)
+         - Now-playing marker, age labels (\"1Day\", \"2Weeks\"...), and a sort-by-age
+           toggle (D) for the podcast list
+         - Podcast Autoplay setting: automatically start the next episode when one finishes
+         - Speed-adjusted vs raw content time toggle (T) for Elapsed/Left display
+         - Switching libraries in Settings now applies immediately, no manual refresh needed
+
+         Fixed:\n\
+         - Podcast episodes were never actually detected as finished (progress lookup used
+           the wrong API shape), so finished episodes never left the list
+         - Crash (integer underflow) when jumping backward during podcast playback
+         - Podcast player/list title inconsistency (now always \"Episode Title | Podcast Title\")
+         - Progress showing over 100% at non-1x playback speed
+         - ebookProgress deserialization failure for items with mixed audio/ebook progress
+         \n\
+         Changed:\n\
+         - Modernized dependencies and Rust edition (2021 to 2024)
+         - Renamed project from Toutui to Absotui throughout
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
-    changelog.push_str(&changelog_14); 
+    changelog.push_str(&changelog_15);
+    changelog.push_str(&changelog_14);
     changelog.push_str(&changelog_13); 
     changelog.push_str(&changelog_12); 
     changelog.push_str(&changelog_11); 
