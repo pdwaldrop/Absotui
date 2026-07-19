@@ -77,19 +77,19 @@ check_shasum() {
 
 }
 
-# TODO: these are still checksums of the ORIGINAL Toutui project's release binaries.
-# They will not match anything built from this fork. Regenerate with
-# `shasum -a 256 <file>` once you publish your own releases on the stable branch.
+# Checksums of Absotui's own v0.5.0-beta release artifacts. Regenerate with
+# `shasum -a 256 <file>` (or download the release assets and hash those directly)
+# whenever a new release is cut on the stable branch.
 # [0] config.example.toml
 # [1] absotui-aarch64-unknown-linux-gnu.tar.gz
 # [2] absotui-universal-apple-darwin.tar.gz
 # [3] absotui-x86_64-unknown-linux-gnu.tar.gz
 # [4] absotui.desktop
-sha256sums=( 'e398fc5f9ff3f4a8841a9ae4675031a0f7e6e87b2762dab544ff23ae74eab0a9'
-             '633f91fefa04c1946076feb0e30b6195b08b379fb6a7379b8d23610d950af8c7'
-             '716c80905a72dc77ef4de9ef85e5ef50f76bf29306adfb91a0734d06130eee99'
-             '21cff0370108981eee0a70660e31bed8960650eb7d85c3c10e4b7f044f1244f2'
-             'cd3281594f0d27f559732539f841c3fa44dba192ca7f0fa0d21a97f1f97ce6a0'
+sha256sums=( '4e8ee03c555f439e09a6a9cbb3e299ec97fe2a0ea18f2b682a859b1940426d1b'
+             '299c9227fc53aa12d781c10a8c39b201b54fc807758d91ee371670372aef856b'
+             'd8497fb79eeb9a2efe91b06e61ce3aaba07ad4ee70e0c6e528a6a910d45d1674'
+             '373a6f479753a707ef64e4718833bedc2b3756362430d539f7c0ca406912a034'
+             'f894b8709783839c98621957240f72525bef117820efa653e07cb06ae8b6f610'
             )
 
 
@@ -218,19 +218,39 @@ usage() {
 }
 
 get_distro() {
-    local distro=$(head -n1 /etc/os-release 2>/dev/null| sed -E "s%.*\"([^\"]*).*\"%\1%")
-    if [[ -z $distro ]]; then distro=$(lsb_release -a 2>/dev/null | grep Description | sed "s/Description:\s*//") ;fi
-    if [[ -z $distro ]]; then distro=$(hostnamectl | grep "Operating System" | sed "s/Operating System:\s*//"); fi
-    if [[ -z $distro ]]; then distro="unknown"; fi
-    # rename distro to a lowercase general name (easier for package handling later)
-    case "$distro" in
-        Arch*) distro="archlinux";;
-        Debian*|Ubuntu*) distro="debian";;
-        Fedora*) distro="fedora";;
-        CentOS*) distro="centos";;
-        OpenSUSE*) distro="opensuse";;
-        unknown|*) distro="unknown";;
+    # Prefer ID_LIKE/ID from /etc/os-release - the standardized fields distros use to
+    # declare their family (e.g. Arch derivatives like CachyOS, Manjaro, EndeavourOS all
+    # set ID_LIKE=arch; Ubuntu/Debian derivatives like Pop!_OS and Linux Mint set
+    # ID_LIKE="ubuntu debian"). Matching on NAME/PRETTY_NAME alone (as before) missed any
+    # derivative distro whose display name doesn't literally start with the parent's name.
+    local ids=""
+    if [[ -f /etc/os-release ]]; then
+        ids=$(. /etc/os-release 2>/dev/null && echo "$ID $ID_LIKE")
+    fi
+    local distro="unknown"
+    case " $ids " in
+        *" arch "*)                distro="archlinux";;
+        *" debian "*|*" ubuntu "*) distro="debian";;
+        *" fedora "*|*" rhel "*)   distro="fedora";;
+        *" centos "*)              distro="centos";;
+        *" suse "*|*" opensuse "*) distro="opensuse";;
     esac
+
+    # Fall back to the older display-name matching if os-release didn't give us
+    # anything usable (missing file, or a distro we don't recognize at all).
+    if [[ "$distro" == "unknown" ]]; then
+        local pretty=$(head -n1 /etc/os-release 2>/dev/null| sed -E "s%.*\"([^\"]*).*\"%\1%")
+        if [[ -z $pretty ]]; then pretty=$(lsb_release -a 2>/dev/null | grep Description | sed "s/Description:\s*//") ;fi
+        if [[ -z $pretty ]]; then pretty=$(hostnamectl | grep "Operating System" | sed "s/Operating System:\s*//"); fi
+        case "$pretty" in
+            Arch*) distro="archlinux";;
+            Debian*|Ubuntu*) distro="debian";;
+            Fedora*) distro="fedora";;
+            CentOS*) distro="centos";;
+            OpenSUSE*) distro="opensuse";;
+            *) distro="unknown";;
+        esac
+    fi
     echo "$distro"
 }
 
