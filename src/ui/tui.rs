@@ -150,13 +150,26 @@ impl App {
             }).collect())
         } else {
             Some(self._titles_cnt_list.iter().enumerate().map(|(i, _)| {
-                let percent = self.book_progress_cnt_list.get(i)
-                    .and_then(|v| v.first())
-                    .and_then(|s| s.trim().parse::<f32>().ok())
-                    .unwrap_or(0.0);
                 let is_now_playing = self._ids_cnt_list.get(i).is_some_and(|id| Some(id) == now_playing_id.as_ref());
-                let current_time = self.book_progress_cnt_list_cur_time.get(i).and_then(|v| v.first()).copied().unwrap_or(0.0);
-                let duration = self.duration_cnt_list.get(i).copied().unwrap_or(0.0);
+                let duration = self.duration_cnt_list.get(i).copied().unwrap_or(0.0) as f32;
+
+                // For the actively-playing book, use the live position from the local
+                // listening_session (updated every second while VLC plays) instead of the
+                // snapshot fetched from the server when the list last loaded - keeps this
+                // one row's progress current without any extra network calls.
+                let current_time = if is_now_playing {
+                    active_session.as_ref().map(|s| s.current_time as f32).unwrap_or(0.0)
+                } else {
+                    self.book_progress_cnt_list_cur_time.get(i).and_then(|v| v.first()).copied().unwrap_or(0.0) as f32
+                };
+                let percent = if is_now_playing && duration > 0.0 {
+                    (current_time / duration) * 100.0
+                } else {
+                    self.book_progress_cnt_list.get(i)
+                        .and_then(|v| v.first())
+                        .and_then(|s| s.trim().parse::<f32>().ok())
+                        .unwrap_or(0.0)
+                };
                 // Gate on the raw current_time, not the rounded percent string - a book
                 // with small-but-real progress (e.g. 0.3% into an 11-hour audiobook) would
                 // round to "0" and get misreported as never started.
