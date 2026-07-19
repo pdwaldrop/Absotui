@@ -9,20 +9,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: taiki-e/create-gh-release-action@v1
-        with:
-          # (optional) Path to changelog.
-          #changelog: CHANGELOG.md
-          # (required) GitHub token for creating GitHub Releases.
-          draft: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-
+  # No separate "create the release" job: we create and write the release
+  # ourselves (gh release create, with our own notes) before this workflow ever
+  # runs. This job only needs to build binaries and attach them to whatever
+  # release already exists for the tag - it must not touch the release's own
+  # draft/published state, since that job used to force it back to draft (and
+  # wipe our release notes) every time this workflow fired.
   upload-assets:
-    needs: create-release
     strategy:
       matrix:
         include:
@@ -60,7 +53,6 @@ jobs:
       - name: Create GitHub release and upload files
         uses: softprops/action-gh-release@v1
         with:
-          draft: true
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
