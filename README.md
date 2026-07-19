@@ -71,7 +71,7 @@ To ensure the best experience, it's recommended to use **Kitty** or **Alacritty*
 >  - For any issues, check first the [issues](https://github.com/pdwaldrop/Absotui/issues) here. Otherwise, open a new one.
 
 >[!NOTE]
-> There's no AUR package or prebuilt binary release for this fork yet — for now, building from source is the reliable path. The install script below is present but its binary-download option won't work until releases exist.
+> There's no AUR package for this fork yet, so `yay`/pacman won't pick up Absotui updates - use the install script below (or `absotui --update`) instead. Prebuilt binaries (Linux x86_64/aarch64, macOS universal) are available via the install script's Option 1.
 
 ### ⚡ Easy installation (install script)
 
