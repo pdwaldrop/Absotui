@@ -286,8 +286,7 @@ let changelog_16 = "Changelog Absotui v0.5.1-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_17 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_17 = "Changelog Absotui v0.5.2-beta (19/07/2026) \n\
          \n\
          Fixed:\n\
          - The install script's release checksums (for config.example.toml,
@@ -298,10 +297,28 @@ let changelog_17 = format!(
            actual uploaded assets, so this class of bug can't recur.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_18 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Added:\n\
+         - Podcast episodes now show cover art next to their description in Continue
+           Listening, matching audiobooks - preferring the episode's own embedded
+           artwork when its audio file has one, falling back to the podcast's cover
+           otherwise.
+         \n\
+         Fixed:\n\
+         - The podcast Home list's selection cursor could appear to drift to a
+           different episode on its own every few seconds - the periodic background
+           refresh (which keeps finished episodes from lingering in the list) reordered
+           the list without preserving which episode was selected.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_18);
     changelog.push_str(&changelog_17);
     changelog.push_str(&changelog_16);
     changelog.push_str(&changelog_15);
