@@ -130,6 +130,10 @@ async fn main() -> Result<()> {
                 frame.render_widget(&mut app, frame.area());
             })?;
 
+            // Keeps the podcast "New & Unfinished" list from going stale without
+            // requiring a manual refresh - the method itself no-ops unless enough time
+            // has passed, so this is cheap to call every loop iteration.
+            let _ = app.refresh_podcast_home_if_stale().await;
 
             // Checking if any key is pressed (waiting for events with a 200ms delay here)
             if crossterm::event::poll(Duration::from_millis(200))?

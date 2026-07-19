@@ -1,12 +1,12 @@
 use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, collect_auth_names_cnt_list, collect_pub_year_cnt_list, collect_duration_cnt_list, collect_desc_cnt_list, collect_ids_cnt_list};
-use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list};
+use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list, collect_progress_pod_cnt_list, collect_published_at_pod_cnt_list};
 use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library};
 use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_pod_ep, collect_subtitles_pod_ep, collect_seasons_pod_ep, collect_episodes_pod_ep, collect_authors_pod_ep, collect_descs_pod_ep, collect_titles_pod, collect_durations_pod_ep};
 use crate::api::utils::collect_get_all_libraries::{collect_library_names, collect_media_types, collect_library_ids};
 use crate::api::utils::collect_get_media_progress::{collect_progress_percentage_book, collect_is_finished_book, collect_current_time_prg};
 use crate::api::me::get_media_progress::get_book_progress;
 use crate::api::libraries::get_library_perso_view::get_continue_listening;
-use crate::api::libraries::get_library_perso_view_pod::get_continue_listening_pod;
+use crate::api::libraries::get_library_perso_view_pod::get_new_and_unfinished_pod;
 use crate::api::libraries::get_all_books::get_all_books;
 use crate::api::libraries::get_all_libraries::get_all_libraries;
 use crate::api::library_items::get_pod_ep::get_pod_ep;
@@ -117,6 +117,15 @@ pub struct App {
     pub descs_pod_cnt_list: Vec<String>,
     pub titles_pod_cnt_list: Vec<String>,
     pub durations_pod_cnt_list: Vec<String>,
+    pub podcast_progress_cnt_list: Vec<(f64, f64, f32)>,
+    pub podcast_published_at_cnt_list: Vec<i64>,
+    pub podcast_sort_newest_first: bool,
+    // Marquee-scroll state for a truncated title on the currently selected list row.
+    // Ticks forward on a timer (not every render) so scroll speed stays constant
+    // regardless of render rate; resets whenever the selection moves to a new row.
+    pub title_scroll_offset: u32,
+    pub title_scroll_last_tick: std::time::Instant,
+    pub title_scroll_selected: Option<usize>,
     pub published_year_library: Vec<String>,
     pub desc_library: Vec<String>,
     pub duration_library: Vec<f64>,
@@ -152,6 +161,66 @@ pub struct App {
     pub config: ConfigFile,
     pub changelog: String,
     pub update_msg: String,
+    pub podcast_home_last_refresh: std::time::Instant,
+}
+
+// Bundles what render_home needs for the podcast "New & Unfinished" list, so the same
+// fetch logic can run both at initial load (App::new) and on a periodic refresh
+// without duplicating it or needing to reconstruct the whole App.
+struct PodcastHomeData {
+    ids: Vec<String>,
+    titles: Vec<String>,
+    ids_ep: Vec<String>,
+    subtitles: Vec<String>,
+    nums_ep: Vec<String>,
+    seasons: Vec<String>,
+    authors: Vec<String>,
+    descs: Vec<String>,
+    titles_pod: Vec<String>,
+    durations: Vec<String>,
+    // (current_time, duration_seconds, percent) per episode - raw values, formatted for
+    // display in render_home like the book progress text.
+    progress: Vec<(f64, f64, f32)>,
+    published_at: Vec<i64>,
+}
+
+async fn fetch_podcast_home_data(token: &str, server_address: String, id_selected_lib: &String, newest_first: bool) -> Result<PodcastHomeData> {
+    let continue_listening_pod = get_new_and_unfinished_pod(token, server_address, id_selected_lib).await?;
+    let mut data = PodcastHomeData {
+        ids: collect_ids_pod_cnt_list(&continue_listening_pod).await,
+        titles: collect_titles_cnt_list_pod(&continue_listening_pod).await,
+        ids_ep: collect_ids_ep_pod_cnt_list(&continue_listening_pod).await,
+        subtitles: collect_subtitles_pod_cnt_list(&continue_listening_pod).await,
+        nums_ep: collect_nums_ep_pod_cnt_list(&continue_listening_pod).await,
+        seasons: collect_seasons_pod_cnt_list(&continue_listening_pod).await,
+        authors: collect_authors_pod_cnt_list(&continue_listening_pod).await,
+        descs: collect_descs_pod_cnt_list(&continue_listening_pod).await,
+        titles_pod: collect_titles_pod_cnt_list(&continue_listening_pod).await,
+        durations: collect_durations_pod_cnt_list(&continue_listening_pod).await,
+        progress: collect_progress_pod_cnt_list(&continue_listening_pod).await,
+        published_at: collect_published_at_pod_cnt_list(&continue_listening_pod).await,
+    };
+
+    let mut order: Vec<usize> = (0..data.published_at.len()).collect();
+    if newest_first {
+        order.sort_by_key(|&i| std::cmp::Reverse(data.published_at[i]));
+    } else {
+        order.sort_by_key(|&i| data.published_at[i]);
+    }
+    data.ids = order.iter().map(|&i| data.ids[i].clone()).collect();
+    data.titles = order.iter().map(|&i| data.titles[i].clone()).collect();
+    data.ids_ep = order.iter().map(|&i| data.ids_ep[i].clone()).collect();
+    data.subtitles = order.iter().map(|&i| data.subtitles[i].clone()).collect();
+    data.nums_ep = order.iter().map(|&i| data.nums_ep[i].clone()).collect();
+    data.seasons = order.iter().map(|&i| data.seasons[i].clone()).collect();
+    data.authors = order.iter().map(|&i| data.authors[i].clone()).collect();
+    data.descs = order.iter().map(|&i| data.descs[i].clone()).collect();
+    data.titles_pod = order.iter().map(|&i| data.titles_pod[i].clone()).collect();
+    data.durations = order.iter().map(|&i| data.durations[i].clone()).collect();
+    data.progress = order.iter().map(|&i| data.progress[i]).collect();
+    data.published_at = order.iter().map(|&i| data.published_at[i]).collect();
+
+    Ok(data)
 }
 
 /// Init app
@@ -251,22 +320,27 @@ impl App {
     let mut descs_pod_cnt_list: Vec<String> = Vec::new();
     let mut titles_pod_cnt_list: Vec<String> = Vec::new();
     let mut durations_pod_cnt_list: Vec<String> = Vec::new();
+    let mut podcast_progress_cnt_list: Vec<(f64, f64, f32)> = Vec::new();
+    let mut podcast_published_at_cnt_list: Vec<i64> = Vec::new();
+    let podcast_sort_newest_first = true;
     let mut book_progress_cnt_list: Vec<Vec<String>> = Vec::new();
     let mut book_progress_cnt_list_cur_time: Vec<Vec<f64>> = Vec::new();
 
     if is_podcast {
-        // init for  `Home` (continue listening) for podcasts
-        let continue_listening_pod = get_continue_listening_pod(&token, server_address.clone(), &id_selected_lib.clone()).await?;
-        _ids_cnt_list = collect_ids_pod_cnt_list(&continue_listening_pod).await; // id of a podcast
-        _titles_cnt_list = collect_titles_cnt_list_pod(&continue_listening_pod).await; // title of podcast ep
-        ids_ep_cnt_list = collect_ids_ep_pod_cnt_list(&continue_listening_pod).await; // id of a podcast episode
-        subtitles_pod_cnt_list = collect_subtitles_pod_cnt_list(&continue_listening_pod).await;
-        nums_ep_pod_cnt_list = collect_nums_ep_pod_cnt_list(&continue_listening_pod).await;
-        seasons_pod_cnt_list = collect_seasons_pod_cnt_list(&continue_listening_pod).await;
-        authors_pod_cnt_list = collect_authors_pod_cnt_list(&continue_listening_pod).await;
-        descs_pod_cnt_list = collect_descs_pod_cnt_list(&continue_listening_pod).await;
-        titles_pod_cnt_list = collect_titles_pod_cnt_list(&continue_listening_pod).await; // title of a podcast
-        durations_pod_cnt_list = collect_durations_pod_cnt_list(&continue_listening_pod).await;
+        // init for `Home` (new & unfinished episodes) for podcasts
+        let data = fetch_podcast_home_data(&token, server_address.clone(), &id_selected_lib, podcast_sort_newest_first).await?;
+        _ids_cnt_list = data.ids;
+        _titles_cnt_list = data.titles;
+        ids_ep_cnt_list = data.ids_ep;
+        subtitles_pod_cnt_list = data.subtitles;
+        nums_ep_pod_cnt_list = data.nums_ep;
+        seasons_pod_cnt_list = data.seasons;
+        authors_pod_cnt_list = data.authors;
+        descs_pod_cnt_list = data.descs;
+        titles_pod_cnt_list = data.titles_pod;
+        durations_pod_cnt_list = data.durations;
+        podcast_progress_cnt_list = data.progress;
+        podcast_published_at_cnt_list = data.published_at;
     }
     else {
         // init for  `Home` (continue listening) for books
@@ -554,6 +628,12 @@ impl App {
         descs_pod_cnt_list,
         titles_pod_cnt_list,
         durations_pod_cnt_list,
+        podcast_progress_cnt_list,
+        podcast_published_at_cnt_list,
+        podcast_sort_newest_first,
+        title_scroll_offset: 0,
+        title_scroll_last_tick: std::time::Instant::now(),
+        title_scroll_selected: None,
         published_year_library,
         desc_library,
         duration_library,
@@ -603,7 +683,56 @@ impl App {
         config,
         changelog,
         update_msg,
+        podcast_home_last_refresh: std::time::Instant::now(),
     })
+    }
+
+    // Re-fetches just the podcast "New & Unfinished" list if it's gotten stale, without
+    // touching cursor position/selection or anything else - so an episode that just
+    // finished (or a newly-published one) shows up without needing a manual refresh,
+    // and without disrupting whatever the user is doing in the list.
+    pub async fn refresh_podcast_home_if_stale(&mut self) -> Result<()> {
+        const STALE_AFTER: std::time::Duration = std::time::Duration::from_secs(20);
+
+        if !self.is_podcast || self.podcast_home_last_refresh.elapsed() < STALE_AFTER {
+            return Ok(());
+        }
+
+        let Some(token) = self.token.clone() else { return Ok(()) };
+        let data = fetch_podcast_home_data(&token, self.server_address.clone(), &self.id_selected_lib, self.podcast_sort_newest_first).await?;
+        self._ids_cnt_list = data.ids;
+        self._titles_cnt_list = data.titles;
+        self.ids_ep_cnt_list = data.ids_ep;
+        self.subtitles_pod_cnt_list = data.subtitles;
+        self.nums_ep_pod_cnt_list = data.nums_ep;
+        self.seasons_pod_cnt_list = data.seasons;
+        self.authors_pod_cnt_list = data.authors;
+        self.descs_pod_cnt_list = data.descs;
+        self.titles_pod_cnt_list = data.titles_pod;
+        self.durations_pod_cnt_list = data.durations;
+        self.podcast_progress_cnt_list = data.progress;
+        self.podcast_published_at_cnt_list = data.published_at;
+        self.podcast_home_last_refresh = std::time::Instant::now();
+
+        Ok(())
+    }
+
+    // Applies a permutation to every one of the podcast Home list's parallel arrays at
+    // once, so they can never end up desynced from each other - used both when pinning
+    // the now-playing episode to the top and when toggling sort order.
+    pub fn reorder_podcast_lists(&mut self, order: &[usize]) {
+        self._titles_cnt_list = order.iter().map(|&i| self._titles_cnt_list[i].clone()).collect();
+        self._ids_cnt_list = order.iter().map(|&i| self._ids_cnt_list[i].clone()).collect();
+        self.ids_ep_cnt_list = order.iter().map(|&i| self.ids_ep_cnt_list[i].clone()).collect();
+        self.subtitles_pod_cnt_list = order.iter().map(|&i| self.subtitles_pod_cnt_list[i].clone()).collect();
+        self.nums_ep_pod_cnt_list = order.iter().map(|&i| self.nums_ep_pod_cnt_list[i].clone()).collect();
+        self.seasons_pod_cnt_list = order.iter().map(|&i| self.seasons_pod_cnt_list[i].clone()).collect();
+        self.authors_pod_cnt_list = order.iter().map(|&i| self.authors_pod_cnt_list[i].clone()).collect();
+        self.descs_pod_cnt_list = order.iter().map(|&i| self.descs_pod_cnt_list[i].clone()).collect();
+        self.titles_pod_cnt_list = order.iter().map(|&i| self.titles_pod_cnt_list[i].clone()).collect();
+        self.durations_pod_cnt_list = order.iter().map(|&i| self.durations_pod_cnt_list[i].clone()).collect();
+        self.podcast_progress_cnt_list = order.iter().map(|&i| self.podcast_progress_cnt_list[i]).collect();
+        self.podcast_published_at_cnt_list = order.iter().map(|&i| self.podcast_published_at_cnt_list[i]).collect();
     }
 
 
@@ -685,6 +814,29 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             let _ = update_is_speed_adjusted_time("1", self.username.as_str());
             } else if value == "1" {
             let _ = update_is_speed_adjusted_time("0", self.username.as_str());
+            }
+        }
+
+        // toggle newest/oldest-first sort order for the podcast New & Unfinished list.
+        // Re-sorts immediately using data already in memory - no need to re-fetch.
+        KeyCode::Char('D') if self.is_podcast => {
+            self.podcast_sort_newest_first = !self.podcast_sort_newest_first;
+
+            let selected_ep_id = self.list_state_cnt_list.selected()
+                .and_then(|i| self.ids_ep_cnt_list.get(i))
+                .cloned();
+
+            let mut order: Vec<usize> = (0..self.podcast_published_at_cnt_list.len()).collect();
+            if self.podcast_sort_newest_first {
+                order.sort_by_key(|&i| std::cmp::Reverse(self.podcast_published_at_cnt_list[i]));
+            } else {
+                order.sort_by_key(|&i| self.podcast_published_at_cnt_list[i]);
+            }
+            self.reorder_podcast_lists(&order);
+
+            if let Some(id) = selected_ep_id
+                && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == id) {
+                    self.list_state_cnt_list.select(Some(new_pos));
             }
         }
 

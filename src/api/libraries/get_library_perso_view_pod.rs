@@ -4,6 +4,7 @@ use reqwest::header::AUTHORIZATION;
 use color_eyre::eyre::{Result, Report};
 use serde::Deserialize;
 use serde::Serialize;
+use crate::api::me::get_media_progress::get_book_progress;
 
 /// Get a `PersonalizedView`'s Personalized View  for podcast(allow to have continue linstening)
 /// <https://api.audiobookshelf.org/#get-a-library-39-s-personalized-view>
@@ -43,6 +44,13 @@ pub struct Entity {
     pub num_files: Option<i64>,
     pub size: Option<i64>,
     pub recent_episode: Option<RecentEpisode>,
+    // Not part of the personalized-view API response - filled in manually after fetching,
+    // from the same per-episode progress check already done to filter out finished
+    // episodes, so we don't need a second round of API calls just to display it.
+    #[serde(skip)]
+    pub progress_percent: Option<f32>,
+    #[serde(skip)]
+    pub progress_current_time: Option<f64>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -149,8 +157,9 @@ pub struct AudioFile {
     pub mime_type: Option<String>,
 }
 
-// filter only podcast continue to listening from personalized view
-pub async fn get_continue_listening_pod(token: &str, server_address: String, id_selected_lib: &String) -> Result<Vec<Root>> {
+// Combines the "Continue Listening" and "Newest Episodes" shelves from the personalized
+// view into one "new & unfinished" list, filtered to exclude already-finished episodes.
+pub async fn get_new_and_unfinished_pod(token: &str, server_address: String, id_selected_lib: &String) -> Result<Vec<Root>> {
     let client = Client::new();
     let url = format!("{server_address}/api/libraries/{id_selected_lib}/personalized");
 
@@ -171,12 +180,59 @@ pub async fn get_continue_listening_pod(token: &str, server_address: String, id_
     // Deserialize JSON response into Vec<Root>
     let libraries: Vec<Root> = response.json().await?;
 
-    // Filter libraries to keep only those with label "Continue Listening"
-    let continue_listening: Vec<Root> = libraries
+    // Combine "Continue Listening" (in-progress) and "Newest Episodes" (never started)
+    // into one "new & unfinished" list, rather than just the server's own "Continue
+    // Listening" shelf - which by definition only covers already-started episodes, and
+    // (per observed behavior) doesn't reliably drop episodes once finished either.
+    let mut entities: Vec<Entity> = libraries
         .into_iter()
-        .filter(|lib| lib.label == "Continue Listening")
+        .filter(|lib| lib.label == "Continue Listening" || lib.label == "Newest Episodes")
+        .filter_map(|lib| lib.entities)
+        .flatten()
         .collect();
 
-    Ok(continue_listening)
+    // De-duplicate by episode ID - an episode could plausibly appear in both shelves.
+    let mut seen_episode_ids = std::collections::HashSet::new();
+    entities.retain(|entity| {
+        let episode_id = entity.recent_episode.as_ref().and_then(|ep| ep.id.clone());
+        match episode_id {
+            Some(id) => seen_episode_ids.insert(id),
+            None => true,
+        }
+    });
+
+    // Exclude already-finished episodes. `get_book_progress` also accepts an episode ID
+    // (per the ABS API), so this reuses the same call already used for books. A 404/Err
+    // means the episode was never started, which counts as "unfinished", not excluded.
+    // The percent/current_time from this same call is stashed on the entity for display,
+    // so we don't need a second round of API calls just to show progress.
+    let mut unfinished_entities = Vec::new();
+    for mut entity in entities {
+        let episode_id = entity.recent_episode.as_ref().and_then(|ep| ep.id.clone());
+        let progress = match &episode_id {
+            Some(id) => get_book_progress(token, id, server_address.clone()).await.ok(),
+            None => None,
+        };
+        let is_finished = progress.as_ref().is_some_and(|p| p.is_finished);
+        if !is_finished {
+            if let Some(p) = &progress {
+                entity.progress_percent = Some((p.progress * 100.0) as f32);
+                entity.progress_current_time = Some(p.current_time);
+            }
+            unfinished_entities.push(entity);
+        }
+    }
+    let entities = unfinished_entities;
+
+    let combined = Root {
+        id: None,
+        label: "New & Unfinished".to_string(),
+        label_string_key: None,
+        type_field: None,
+        total: Some(entities.len() as i64),
+        entities: Some(entities),
+    };
+
+    Ok(vec![combined])
 }
 

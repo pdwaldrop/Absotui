@@ -10,7 +10,7 @@ use ratatui::{
         Widget, Wrap
     },
 };
-use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg};
+use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
 use crate::db::crud::get_listening_session;
 use crate::player::integrated::player_info::format_time;
 use crate::config::load_config;
@@ -52,54 +52,101 @@ impl App {
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
 
         let items_number = self._titles_cnt_list.len();
-        let render_list_title = format!("Continue Listening [{items_number} items]");
+        let render_list_title = if self.is_podcast {
+            format!("New & Unfinished [{items_number} items]")
+        } else {
+            format!("Continue Listening [{items_number} items]")
+        };
 
-        let text_render_footer = "j/↓, k/↑: move, l/→: play, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot";
+        let text_render_footer = if self.is_podcast {
+            "j/↓, k/↑: move, l/→: play, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, D: sort by age, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot"
+        } else {
+            "j/↓, k/↑: move, l/→: play, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot"
+        };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, text_render_footer);
 
-        // Pin the actively-playing item to the top of Continue Listening. This runs on
-        // every render (not just on load/refresh) so it reacts as soon as playback starts,
-        // rather than only picking it up the next time the whole view is reloaded.
-        // Book-only for now: book_progress_cnt_list/duration_cnt_list/etc. are never
-        // populated for podcasts, so reordering them here would panic on an empty Vec.
-        if !self.is_podcast
-            && let Ok(Some(active_session)) = get_listening_session()
-            && let Some(pos) = self._ids_cnt_list.iter().position(|id| id == &active_session.id_item)
-            && pos != 0 {
-                // preserve which logical item the cursor was on through the reorder
-                let selected_id = self.list_state_cnt_list.selected()
-                    .and_then(|i| self._ids_cnt_list.get(i))
-                    .cloned();
+        // Pin the actively-playing item to the top. Runs on every render (not just on
+        // load/refresh) so it reacts as soon as playback starts. Books match by id_item;
+        // podcasts must match by episode ID (id_pod) since id_item there is the parent
+        // podcast's ID, which multiple episodes in this list could share.
+        if let Ok(Some(active_session)) = get_listening_session() {
+            if !self.is_podcast
+                && let Some(pos) = self._ids_cnt_list.iter().position(|id| id == &active_session.id_item)
+                && pos != 0 {
+                    let selected_id = self.list_state_cnt_list.selected()
+                        .and_then(|i| self._ids_cnt_list.get(i))
+                        .cloned();
 
-                let mut order: Vec<usize> = (0..self._ids_cnt_list.len()).collect();
-                order.remove(pos);
-                order.insert(0, pos);
+                    let mut order: Vec<usize> = (0..self._ids_cnt_list.len()).collect();
+                    order.remove(pos);
+                    order.insert(0, pos);
 
-                self._titles_cnt_list = order.iter().map(|&i| self._titles_cnt_list[i].clone()).collect();
-                self.auth_names_cnt_list = order.iter().map(|&i| self.auth_names_cnt_list[i].clone()).collect();
-                self.pub_year_cnt_list = order.iter().map(|&i| self.pub_year_cnt_list[i].clone()).collect();
-                self.duration_cnt_list = order.iter().map(|&i| self.duration_cnt_list[i]).collect();
-                self.desc_cnt_list = order.iter().map(|&i| self.desc_cnt_list[i].clone()).collect();
-                self._ids_cnt_list = order.iter().map(|&i| self._ids_cnt_list[i].clone()).collect();
-                self.book_progress_cnt_list = order.iter().map(|&i| self.book_progress_cnt_list[i].clone()).collect();
-                self.book_progress_cnt_list_cur_time = order.iter().map(|&i| self.book_progress_cnt_list_cur_time[i].clone()).collect();
+                    self._titles_cnt_list = order.iter().map(|&i| self._titles_cnt_list[i].clone()).collect();
+                    self.auth_names_cnt_list = order.iter().map(|&i| self.auth_names_cnt_list[i].clone()).collect();
+                    self.pub_year_cnt_list = order.iter().map(|&i| self.pub_year_cnt_list[i].clone()).collect();
+                    self.duration_cnt_list = order.iter().map(|&i| self.duration_cnt_list[i]).collect();
+                    self.desc_cnt_list = order.iter().map(|&i| self.desc_cnt_list[i].clone()).collect();
+                    self._ids_cnt_list = order.iter().map(|&i| self._ids_cnt_list[i].clone()).collect();
+                    self.book_progress_cnt_list = order.iter().map(|&i| self.book_progress_cnt_list[i].clone()).collect();
+                    self.book_progress_cnt_list_cur_time = order.iter().map(|&i| self.book_progress_cnt_list_cur_time[i].clone()).collect();
 
-                if let Some(id) = selected_id
-                    && let Some(new_pos) = self._ids_cnt_list.iter().position(|i| *i == id) {
-                        self.list_state_cnt_list.select(Some(new_pos));
-                }
+                    if let Some(id) = selected_id
+                        && let Some(new_pos) = self._ids_cnt_list.iter().position(|i| *i == id) {
+                            self.list_state_cnt_list.select(Some(new_pos));
+                    }
+            }
+
+            if self.is_podcast
+                && let Some(pos) = self.ids_ep_cnt_list.iter().position(|id| id == &active_session.id_pod)
+                && pos != 0 {
+                    let selected_ep_id = self.list_state_cnt_list.selected()
+                        .and_then(|i| self.ids_ep_cnt_list.get(i))
+                        .cloned();
+
+                    let mut order: Vec<usize> = (0..self.ids_ep_cnt_list.len()).collect();
+                    order.remove(pos);
+                    order.insert(0, pos);
+                    self.reorder_podcast_lists(&order);
+
+                    if let Some(id) = selected_ep_id
+                        && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == id) {
+                            self.list_state_cnt_list.select(Some(new_pos));
+                    }
+            }
         }
 
         // Which item (if any) matches the actual active listening session - distinct from
-        // wherever the cursor/highlight currently happens to be sitting in the list.
-        let now_playing_id: Option<String> = get_listening_session().ok().flatten().map(|s| s.id_item);
+        // wherever the cursor/highlight currently happens to be sitting in the list. Books
+        // match by id_item; podcasts must match by episode ID (id_pod), same reasoning as
+        // the reorder above.
+        let active_session = get_listening_session().ok().flatten();
+        let now_playing_id: Option<String> = active_session.as_ref().map(|s| if self.is_podcast { s.id_pod.clone() } else { s.id_item.clone() });
 
-        // Book progress (current/duration/percent) is only fetched for the book
-        // continue-listening path, not podcasts - so the progress bar only applies there.
         let progress_info: Option<Vec<(String, f32, bool)>> = if self.is_podcast {
-            None
+            // Progress percent isn't shown here - it isn't as meaningful for a list
+            // already filtered to "new or unfinished" episodes. Instead the time slot
+            // shows the episode's age (e.g. "1Day", "2Weeks"), with percent forced to
+            // 0.0 so it renders as plain text with no underline fill.
+            //
+            // Left-aligned within a fixed-width field (trailing spaces, not leading) so
+            // the leading character (the digit, or the "T" of "Today") lands in the same
+            // column on every row - right-padding instead of left-padding, since the
+            // labels vary in length and right-aligning only lines up their trailing
+            // edge. Width is wide enough for the longest realistic label ("12Months").
+            const AGE_LABEL_WIDTH: usize = 8;
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0);
+            Some(self._titles_cnt_list.iter().enumerate().map(|(i, _)| {
+                let is_now_playing = self.ids_ep_cnt_list.get(i).is_some_and(|id| Some(id) == now_playing_id.as_ref());
+                let age = self.podcast_published_at_cnt_list.get(i)
+                    .map(|&published_at| format_age(published_at, now_ms))
+                    .unwrap_or_default();
+                (format!("{age:<AGE_LABEL_WIDTH$}"), 0.0, is_now_playing)
+            }).collect())
         } else {
             Some(self._titles_cnt_list.iter().enumerate().map(|(i, _)| {
                 let percent = self.book_progress_cnt_list.get(i)
@@ -120,7 +167,20 @@ impl App {
                 (text, percent, is_now_playing)
             }).collect())
         };
-        self.render_list(list_area, buf, &render_list_title, &self._titles_cnt_list.clone(), &mut self.list_state_cnt_list.clone(), progress_info.as_deref());
+        // Podcasts: show "Episode Title | Podcast Title" in the list row, not just the
+        // episode title alone - _titles_cnt_list is episode titles, titles_pod_cnt_list
+        // is the parent podcast's own title.
+        let display_titles: Vec<String> = if self.is_podcast {
+            self._titles_cnt_list.iter().enumerate().map(|(i, ep_title)| {
+                match self.titles_pod_cnt_list.get(i) {
+                    Some(pod_title) => format!("{ep_title} | {pod_title}"),
+                    None => ep_title.clone(),
+                }
+            }).collect()
+        } else {
+            self._titles_cnt_list.clone()
+        };
+        self.render_list(list_area, buf, &render_list_title, &display_titles, &mut self.list_state_cnt_list.clone(), progress_info.as_deref());
         if !&self._titles_cnt_list.is_empty() {
             self.render_info_home(item_area1, buf, &self.list_state_cnt_list.clone());
             self.render_desc_home(item_area2, buf, &self.list_state_cnt_list.clone());
@@ -503,9 +563,35 @@ impl App {
             .border_style(header_style)
             .bg(Color::Rgb(bg_color_block[0], bg_color_block[1], bg_color_block[2]));
 
-        // Approximate content width available inside each row, after the "➤ " highlight
+        // Approximate content width available inside each row, after the "▎" highlight
         // symbol column that HighlightSpacing::Always reserves on every row.
-        let content_width = area.width.saturating_sub(2) as usize;
+        let content_width = area.width.saturating_sub(1) as usize;
+
+        // Minimum gap (in characters) always kept clear between a title and the
+        // time/age label, so a long title can never push the label off the row -
+        // it gets truncated (or, on the selected row, scrolled) instead. Kept small
+        // since the podcast age label already reserves its own trailing space via
+        // its fixed-width left-alignment (see AGE_LABEL_WIDTH in render_home) - this
+        // is just a little breathing room on top of that, and the only gap at all
+        // for the book list's variable-length progress text.
+        const MIN_TITLE_GAP: usize = 2;
+        // How many ticks the marquee scroll holds still at the start/end of a
+        // truncated title before continuing - purely a readability pause.
+        const SCROLL_PAUSE_TICKS: u32 = 3;
+
+        // Advance the title-scroll tick once per render (not once per row), on a
+        // timer independent of render rate, and reset it whenever the selection
+        // moves to a different row.
+        let selected = list_state.selected();
+        if selected != self.title_scroll_selected {
+            self.title_scroll_selected = selected;
+            self.title_scroll_offset = 0;
+            self.title_scroll_last_tick = std::time::Instant::now();
+        } else if self.title_scroll_last_tick.elapsed() >= std::time::Duration::from_millis(300) {
+            self.title_scroll_offset = self.title_scroll_offset.wrapping_add(1);
+            self.title_scroll_last_tick = std::time::Instant::now();
+        }
+        let scroll_offset = self.title_scroll_offset;
 
         let items: Vec<ListItem> = render_list_items
             .iter()
@@ -516,14 +602,50 @@ impl App {
                     Some((progress_text, percent, is_now_playing)) => {
                         // Line 1: now-playing marker (cobalt/progress-colored background) +
                         // title on the left, time/duration right-justified.
+                        //
+                        // The colored box itself is 3 columns wide with the ▶ glyph in the
+                        // middle column, so the icon sits centered within its own box. A
+                        // separate plain (uncolored) 1-column gap follows the box before
+                        // the title, matching the 1-column blank the selection highlight
+                        // symbol ("▎ ") already leaves before the box - so the box as a
+                        // whole ends up with equal blank space on both sides of it too.
+                        const MARKER_BOX_WIDTH: usize = 3;
+                        const MARKER_GAP_WIDTH: usize = 1;
+                        const MARKER_TOTAL_WIDTH: usize = MARKER_BOX_WIDTH + MARKER_GAP_WIDTH;
                         let marker_span = if *is_now_playing {
                             Span::styled(" ▶ ", Style::default().bg(progress_color))
                         } else {
                             Span::raw("   ")
                         };
-                        let title_len = title.chars().count();
                         let time_len = progress_text.chars().count();
-                        let padding = content_width.saturating_sub(3 + title_len + time_len);
+                        let available_for_title = content_width.saturating_sub(MARKER_TOTAL_WIDTH + time_len + MIN_TITLE_GAP);
+                        let title_chars: Vec<char> = title.chars().collect();
+
+                        let display_title: String = if title_chars.len() <= available_for_title {
+                            title.clone()
+                        } else if available_for_title == 0 {
+                            String::new()
+                        } else if selected == Some(i) {
+                            // Selected + truncated: scroll a window across the title to
+                            // reveal the hidden tail, pausing at both ends before looping.
+                            let overflow = title_chars.len() - available_for_title;
+                            let cycle_len = overflow as u32 + 2 * SCROLL_PAUSE_TICKS;
+                            let pos = scroll_offset % cycle_len;
+                            let window_start = if pos < SCROLL_PAUSE_TICKS {
+                                0
+                            } else if pos < SCROLL_PAUSE_TICKS + overflow as u32 {
+                                (pos - SCROLL_PAUSE_TICKS) as usize
+                            } else {
+                                overflow
+                            };
+                            title_chars[window_start..window_start + available_for_title].iter().collect()
+                        } else {
+                            let cut = available_for_title.saturating_sub(1);
+                            format!("{}…", title_chars[..cut].iter().collect::<String>())
+                        };
+
+                        let title_len = display_title.chars().count();
+                        let padding = content_width.saturating_sub(MARKER_TOTAL_WIDTH + title_len + time_len);
 
                         // Progress shown as an underline beneath the time text itself -
                         // not a full-height background fill - filled up to percent complete.
@@ -534,7 +656,8 @@ impl App {
 
                         let line1 = Line::from(vec![
                             marker_span,
-                            Span::raw(title.clone()),
+                            Span::raw(" ".repeat(MARKER_GAP_WIDTH)),
+                            Span::raw(display_title),
                             Span::raw(" ".repeat(padding)),
                             Span::styled(time_filled, Style::default().underline_color(progress_color).add_modifier(Modifier::UNDERLINED)),
                             Span::raw(time_unfilled),
@@ -551,7 +674,7 @@ impl App {
         let list = List::new(items)
             .block(block)
             .highlight_style(selected_style)
-            .highlight_symbol("▎ ")
+            .highlight_symbol("▎")
             .highlight_spacing(HighlightSpacing::Always);
 
         StatefulWidget::render(list, area, buf, list_state);

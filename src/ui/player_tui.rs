@@ -65,7 +65,14 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     // Title line: progress bar rendered as a background fill directly behind the text,
     // rather than a separate bar, to avoid spending extra vertical space in an already
     // compact player bar.
-    let title_text = format!("{} by {} | {}", player_info[0], player_info[1], player_info[2]);
+    // Podcasts store "Episode Title | Podcast Title" directly as the title with an empty
+    // author/chapter (see handle_l_pod_home.rs/handle_l_pod.rs), so there's nothing to
+    // append here for them - books still show "Title by Author | Chapter N".
+    let title_text = if player_info[1].is_empty() && player_info[2].is_empty() {
+        player_info[0].clone()
+    } else {
+        format!("{} by {} | {}", player_info[0], player_info[1], player_info[2])
+    };
     let percent: f32 = player_info[8].parse().unwrap_or(0.0);
     let progress_color = Color::Rgb(progress_bar_color[0], progress_bar_color[1], progress_bar_color[2]);
 

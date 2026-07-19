@@ -11,6 +11,7 @@ use log::{info, error};
 use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break};
 use crate::utils::vlc_tcp_stream::vlc_tcp_stream;
 use crate::player::vlc::quit_vlc::pkill_vlc;
+use crate::utils::convert_seconds::progress_time_diff;
 
 
 // handle l for App::View PodcastEpisode //
@@ -53,8 +54,8 @@ pub async fn handle_l_pod(
                                         info_item[2].clone(),
                                         id.clone(), // id (the episode of the podcast) 
                                         0, // elapsed time start at 0 seconds
-                                        info_item[4].clone(), // title
-                                        info_item[6].clone(), // author
+                                        format!("{} | {}", info_item[5], info_item[4]), // "Episode Title | Podcast Title" - info_item[5] (displayTitle) is the actual episode title, info_item[4] (mediaMetadata.title) is the podcast's own title
+                                        String::new(), // author not shown for podcasts
                                         true, // is_playback
                                         String::new(), // chapter
                                         ); 
@@ -136,7 +137,7 @@ pub async fn handle_l_pod(
                                                     let speed_rate = speed_rate_str.parse::<f64>().unwrap_or(1.0);
                                                     let current_time_adjusted = f64::from(current_time) / speed_rate; 
                                                     let data_fetched_from_vlc_adjusted = f64::from(data_fetched_from_vlc) / speed_rate; 
-                                                    let diff = data_fetched_from_vlc_adjusted as u32 - current_time_adjusted as u32;
+                                                    let diff = progress_time_diff(data_fetched_from_vlc_adjusted, current_time_adjusted);
                                                     // if > 20 means that new current_time is not take into account
                                                     // so we need to temporarly, put 1 sec if it happens (not the
                                                     // most accurate...)

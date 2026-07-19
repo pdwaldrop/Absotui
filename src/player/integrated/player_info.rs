@@ -10,7 +10,12 @@ pub fn player_info(username: &str) -> Vec<String> {
             player_info.push(session.title);
             player_info.push(session.author);
 
-            if let Ok(num) = session.chapter.trim().parse::<u32>() {
+            // Podcast episodes are single audio files with no chapters - VLC still
+            // reports a "chapter" for them (always 0, i.e. "Chapter 1"), so that field
+            // is only meaningful for books. id_pod is only set for podcast sessions.
+            if !session.id_pod.is_empty() {
+                player_info.push(String::new());
+            } else if let Ok(num) = session.chapter.trim().parse::<u32>() {
                 let new_chapter = format!("Chapter {}", num + 1);
                 player_info.push(new_chapter);
             } else {

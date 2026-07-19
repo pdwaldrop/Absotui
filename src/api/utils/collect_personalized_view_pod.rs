@@ -226,3 +226,45 @@ pub async fn collect_titles_cnt_list_pod(roots: &[Root]) -> Vec<String> {
 
     titles_cnt_list
 }
+
+/// collect (current_time, duration_seconds, percent) per episode - stashed on the entity
+/// during the finished-check in `get_new_and_unfinished_pod`, since that already calls
+/// the progress API per episode. Never-started episodes (no progress record) get 0.0/0.0/0.0.
+pub async fn collect_progress_pod_cnt_list(roots: &[Root]) -> Vec<(f64, f64, f32)> {
+    let mut progress_cnt_list = Vec::new();
+
+    for root in roots {
+        if let Some(entities) = &root.entities {
+            for entity in entities {
+                if entity.recent_episode.is_some() {
+                    let current_time = entity.progress_current_time.unwrap_or(0.0);
+                    let duration = entity.recent_episode.as_ref()
+                        .and_then(|ep| ep.audio_file.as_ref())
+                        .and_then(|af| af.duration)
+                        .unwrap_or(0.0);
+                    let percent = entity.progress_percent.unwrap_or(0.0);
+                    progress_cnt_list.push((current_time, duration, percent));
+                }
+            }
+        }
+    }
+
+    progress_cnt_list
+}
+
+/// collect published_at (ms since epoch) per episode, for the age display and sort order
+pub async fn collect_published_at_pod_cnt_list(roots: &[Root]) -> Vec<i64> {
+    let mut published_at_cnt_list = Vec::new();
+
+    for root in roots {
+        if let Some(entities) = &root.entities {
+            for entity in entities {
+                if let Some(recent_episode) = &entity.recent_episode {
+                    published_at_cnt_list.push(recent_episode.published_at.unwrap_or(0));
+                }
+            }
+        }
+    }
+
+    published_at_cnt_list
+}
