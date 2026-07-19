@@ -234,11 +234,11 @@ impl App {
         let render_list_title = "Settings";
 
         let mut _text_render_footer = "";
-        if self.list_state_settings.selected() == Some(2) {
+        if self.list_state_settings.selected() == Some(3) {
             // for `About` section
             _text_render_footer = "j/↓, k/↑: move, Scroll what's new: J(down) K(up) H(top),\n Tab: home, R: refresh, Q/Esc: quit.";
         }
-        else if self.list_state_settings.selected() == Some(3) {
+        else if self.list_state_settings.selected() == Some(4) {
             _text_render_footer = "j/↓, k/↑: move, Scroll : J(down) K(up) H(top),\n Tab: home, R: refresh, Q/Esc: quit.";
 
         } else {
@@ -949,7 +949,8 @@ impl App {
         match list_state.selected() {
             Some(0) => {}
             Some(1) => {}
-            Some(2) => {
+            Some(2) => {}
+            Some(3) => {
 
                 Paragraph::new(format!("Absotui v{} - Licence: GPL-3.0 - Issues: {}/issues\nSource code: {}\nWhat's new:",
                         VERSION,
@@ -984,13 +985,14 @@ Uninstall:
 
             Some(0) => {}
             Some(1) => {}
-            Some(2) => {
+            Some(2) => {}
+            Some(3) => {
                 Paragraph::new(self.changelog.clone())
                     .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })
                     .render(area, buf);
                 }
-            Some(3) => {
+            Some(4) => {
                 Paragraph::new(instructions)
                     .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })
