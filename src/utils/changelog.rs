@@ -242,8 +242,7 @@ let changelog_14 = "Changelog Toutui v0.4.2-beta (15/05/2025) \n\
          \n\
          Enjoy and be toutui!\n
          ####\n".to_string();
-let changelog_15 = format!(
-    "Changelog Absotui v{VERSION} (18/07/2026) \n\
+let changelog_15 = "Changelog Absotui v0.5.0-beta (18/07/2026) \n\
          \n\
          This is a fork of Toutui, renamed Absotui, continuing development independently.
          \n\
@@ -270,10 +269,28 @@ let changelog_15 = format!(
          - Renamed project from Toutui to Absotui throughout
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_16 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Install script's OS/distro detection only matched a handful of hardcoded
+           distro names, so derivatives like CachyOS, Manjaro, Pop!_OS, and Linux Mint
+           fell through to \"unknown\" and aborted the install. Now reads the
+           standardized ID_LIKE field from /etc/os-release instead.
+         - The checksums for config.example.toml, absotui.desktop, and the release
+           binaries were still the original Toutui project's values, which would have
+           failed verification for every install regardless of distro.
+         - The hello_absotui.sh checksum baked into `absotui --update`/`--uninstall`
+           was stale after the above script fixes, breaking update/uninstall for
+           anyone who had already installed the binary.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_16);
     changelog.push_str(&changelog_15);
     changelog.push_str(&changelog_14);
     changelog.push_str(&changelog_13); 

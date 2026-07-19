@@ -77,9 +77,9 @@ check_shasum() {
 
 }
 
-# Checksums of Absotui's own v0.5.0-beta release artifacts. Regenerate with
-# `shasum -a 256 <file>` (or download the release assets and hash those directly)
-# whenever a new release is cut on the stable branch.
+# Checksums of Absotui's own release artifacts. Regenerate with `shasum -a 256
+# <file>` (or download the release assets and hash those directly) whenever a
+# new release is cut on the stable branch.
 # [0] config.example.toml
 # [1] absotui-aarch64-unknown-linux-gnu.tar.gz
 # [2] absotui-universal-apple-darwin.tar.gz
