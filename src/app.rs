@@ -182,6 +182,16 @@ pub struct App {
     pub changelog: String,
     pub update_msg: String,
     pub podcast_home_last_refresh: std::time::Instant,
+    // None if the terminal doesn't support any image protocol (Kitty/Sixel/iTerm2) -
+    // queried once at startup via Picker::from_query_stdio().
+    pub image_picker: Option<ratatui_image::picker::Picker>,
+    // The decoded cover currently being shown, and which item id it belongs to - compared
+    // against the selected row each render to know when to load a different cover.
+    pub cover_protocol: Option<ratatui_image::protocol::StatefulProtocol>,
+    pub cover_loaded_for_id: Option<String>,
+    // Item ids a background fetch has already been kicked off for, so repeatedly
+    // rendering the same selection while the fetch is in flight doesn't spawn duplicates.
+    pub cover_fetch_requested: std::collections::HashSet<String>,
 }
 
 // Bundles what render_home needs for the podcast "New & Unfinished" list, so the same
@@ -396,6 +406,10 @@ impl App {
                     book_progress_cnt_list_cur_time.push(values_f64);
                 }
             }}}
+
+    // None if the terminal doesn't support any image protocol - cover images just won't
+    // be shown, falling back to text-only description panels everywhere.
+    let image_picker = ratatui_image::picker::Picker::from_query_stdio().ok();
 
     //init for `Library ` (all books  or podcasts of a Library (shelf))
     let all_books = get_all_books(&token, &id_selected_lib, server_address.clone()).await?;
@@ -711,6 +725,10 @@ impl App {
         changelog,
         update_msg,
         podcast_home_last_refresh: std::time::Instant::now(),
+        image_picker,
+        cover_protocol: None,
+        cover_loaded_for_id: None,
+        cover_fetch_requested: std::collections::HashSet::new(),
     })
     }
 

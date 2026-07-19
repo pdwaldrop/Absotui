@@ -16,6 +16,7 @@ use crate::db::crud::{get_listening_session, get_is_podcast_autoplay};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::config::load_config;
 use crate::utils::html_to_text::html_to_lines;
+use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover};
 
 
 // const version
@@ -797,7 +798,7 @@ impl App {
     }
 
     // description of the book or podcast `Home`
-    fn render_desc_home(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
+    fn render_desc_home(&mut self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
         // See render_info_home - chapter rows resolve back to their parent book's index.
         let selected = if self.is_podcast {
             list_state.selected()
@@ -808,19 +809,88 @@ impl App {
             }))
         };
 
-        if let Some(selected) = selected {
-            let mut _content: String = String::new();
-            if self.is_podcast {
-                _content = self.subtitles_pod_cnt_list[selected].clone();
-            } else {
-                _content = self.desc_cnt_list[selected].clone();
+        let Some(selected) = selected else { return };
+
+        let mut _content: String = String::new();
+        if self.is_podcast {
+            _content = self.subtitles_pod_cnt_list[selected].clone();
+        } else {
+            _content = self.desc_cnt_list[selected].clone();
+        }
+
+        // Covers are only wired up for books for now - podcasts keep the text-only panel.
+        let selected_id = if self.is_podcast { None } else { self._ids_cnt_list.get(selected).cloned() };
+        self.load_cover_for_selection(selected_id.as_deref());
+
+        let show_cover = selected_id.is_some() && self.cover_loaded_for_id == selected_id;
+
+        if show_cover {
+            let [image_area, _gap_area, text_area] = Layout::horizontal([
+                Constraint::Length(30),
+                Constraint::Length(3),
+                Constraint::Fill(1),
+            ]).areas(area);
+
+            if let Some(cover) = &mut self.cover_protocol {
+                // Defaults to FilterType::Nearest, which drops pixels rather than blending
+                // them when downscaling - looks fine on flat cover art but shreds any fine
+                // text baked into it. Lanczos3 is slower but only runs once per cover, not
+                // per frame, since the protocol caches its encoded output.
+                let image = ratatui_image::StatefulImage::default()
+                    .resize(ratatui_image::Resize::Fit(Some(ratatui_image::FilterType::Lanczos3)));
+                StatefulWidget::render(image, image_area, buf, cover);
             }
 
             Paragraph::new(html_to_lines(&_content))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
+                .render(text_area, buf);
+        } else {
+            Paragraph::new(html_to_lines(&_content))
+                .scroll((self.scroll_offset, 0))
+                .wrap(Wrap { trim: true })
                 .render(area, buf);
-            }
+        }
+    }
+
+    // Loads the selected book's cover from the local disk cache if it's changed since
+    // the last render, kicking off a background fetch-and-cache when nothing's cached
+    // yet. Rendering just polls the cache file's existence each frame rather than
+    // waiting on the fetch directly - see fetch_and_cache_cover.
+    fn load_cover_for_selection(&mut self, selected_id: Option<&str>) {
+        let Some(id) = selected_id else { return };
+        if self.cover_loaded_for_id.as_deref() == Some(id) {
+            return;
+        }
+
+        let cache_path = cover_cache_path(id);
+        let dyn_img = if cache_path.exists() {
+            std::fs::read(&cache_path).ok().and_then(|bytes| image::load_from_memory(&bytes).ok())
+        } else {
+            None
+        };
+        let protocol = dyn_img.and_then(|img| self.image_picker.as_ref().map(|picker| picker.new_resize_protocol(img)));
+
+        if protocol.is_some() {
+            self.cover_protocol = protocol;
+            self.cover_loaded_for_id = Some(id.to_string());
+            return;
+        }
+
+        self.cover_protocol = None;
+        self.cover_loaded_for_id = None;
+
+        if self.image_picker.is_some() && !cache_path.exists() && !self.cover_fetch_requested.contains(id)
+            && let Some(token) = self.token.clone() {
+                self.cover_fetch_requested.insert(id.to_string());
+                let id_owned = id.to_string();
+                let server_address = self.server_address.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = fetch_and_cache_cover(token, id_owned.clone(), server_address).await {
+                        log::warn!("[fetch_and_cache_cover] item {id_owned}: {e}");
+                    }
+                });
+        }
     }
 
     // info about the book or podacst for `Library`
