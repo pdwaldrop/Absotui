@@ -748,6 +748,16 @@ impl App {
         }
 
         let Some(token) = self.token.clone() else { return Ok(()) };
+
+        // The refreshed list's composition/order can shift (an episode finishes and
+        // drops out, a new one appears, published_at ties break differently) - remember
+        // which episode the cursor was on so it can be re-found below, otherwise the
+        // still-valid numeric index silently ends up pointing at a different episode and
+        // the selection bar appears to jump around on its own every refresh.
+        let selected_ep_id = self.list_state_cnt_list.selected()
+            .and_then(|i| self.ids_ep_cnt_list.get(i))
+            .cloned();
+
         let data = fetch_podcast_home_data(&token, self.server_address.clone(), &self.id_selected_lib, self.podcast_sort_newest_first).await?;
         self._ids_cnt_list = data.ids;
         self._titles_cnt_list = data.titles;
@@ -762,6 +772,11 @@ impl App {
         self.podcast_progress_cnt_list = data.progress;
         self.podcast_published_at_cnt_list = data.published_at;
         self.podcast_home_last_refresh = std::time::Instant::now();
+
+        if let Some(id) = selected_ep_id
+            && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == id) {
+                self.list_state_cnt_list.select(Some(new_pos));
+        }
 
         Ok(())
     }
