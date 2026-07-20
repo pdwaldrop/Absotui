@@ -314,8 +314,7 @@ let changelog_18 = "Changelog Absotui v0.5.3-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_19 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_19 = "Changelog Absotui v0.5.4-beta (19/07/2026) \n\
          \n\
          Added:\n\
          - A volume indicator in the player bar (VLC's own volume is only ever
@@ -339,10 +338,27 @@ let changelog_19 = format!(
            repeated adjustments.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_20 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install/update/uninstall script's self-integrity check referenced
+           variables an outer wrapper never actually set, which crashed the installer
+           immediately for virtually everyone before any real install/update/uninstall
+           logic could run - and, in the narrower case of running the script from
+           inside a checked-out clone, could delete the script's own source file
+           instead of just failing safely. The check now verifies the running script
+           against the latest release's real published checksum, the same mechanism
+           already used for every other downloaded file, and no longer deletes
+           anything on a mismatch.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_20);
     changelog.push_str(&changelog_19);
     changelog.push_str(&changelog_18);
     changelog.push_str(&changelog_17);

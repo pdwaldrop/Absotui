@@ -9,8 +9,6 @@ set -eo pipefail
 main() {
     do_not_run_as_root
 
-    check_shasum $tmpfile "hello_absotui.sh" $expected_sha256 " "
-
     # URL variables for production (do not forget to ensure that repo name and branches are correct)
     url_config_file="https://github.com/pdwaldrop/Absotui/raw/stable/config.example.toml"
     url_latest_release="https://api.github.com/repos/pdwaldrop/Absotui/releases/latest"
@@ -18,6 +16,25 @@ main() {
     url_cargo_install="https://github.com/pdwaldrop/Absotui"
     url_absotui_desktop="https://raw.githubusercontent.com/pdwaldrop/Absotui/stable/linux/absotui.desktop"
     url_absotui_icon="https://raw.githubusercontent.com/pdwaldrop/Absotui/stable/linux/absotui.svg"
+
+    # Verifies the running script itself against the latest release's published
+    # checksum - guards against a corrupted/tampered download. `$0` is whatever this
+    # script is actually running as: the tmpfile path when invoked via the documented
+    # curl-pipe one-liner, or a local file path when run directly from a clone.
+    #
+    # This used to reference $tmpfile/$expected_sha256 as if some outer wrapper had
+    # set them - it never did (the documented one-liner's `tmpfile=$(mktemp)` is a
+    # plain, unexported shell variable in the *wrapper's* shell, invisible to this
+    # script's own process once it's `bash "$tmpfile" install`'d as a child). Both
+    # were always empty, and since they're unquoted, bash elides them from the
+    # argument list entirely rather than passing empty strings - shifting every
+    # later argument left by one. That made check_shasum hash (and, on the resulting
+    # mismatch, delete) whatever relative path landed in the wrong slot -
+    # "hello_absotui.sh" - which doesn't exist in most working directories (crashing
+    # the installer immediately for virtually everyone, before install/update/
+    # uninstall logic ever ran) but does, when run from inside a checked-out clone,
+    # happen to be the script's own source file.
+    check_shasum "$0" "hello_absotui.sh" "$(fetch_expected_checksum hello_absotui.sh)" "self"
 
     # Grab essential variables
     OS=$(identify_os)
@@ -65,13 +82,15 @@ check_shasum() {
         echo "[ERROR] Incorrect shasum for \"$file_name\""
         echo "expected shasum: "$expected_sha256""
         echo "actual shasum: "$actual_sha256""
+        # Only a downloaded-into-a-tmpdir mismatch ("dir", used by every caller
+        # except the self-check) gets cleaned up here - there's nothing else that's
+        # ours to delete: the self-check's $tmpfile is $0, the running script,
+        # deleting which would help nobody (it's either a real user's own file, or
+        # a tmpfile bash is already partway through executing).
         if [[ "$file_type" == "dir" ]]; then
             rm -rf "$tmpdir"
-            exit 1
-        else
-            rm "$tmpfile"
-            exit 1
         fi
+        exit 1
     else
         echo "[INFO] shasum for "$file_name": passed"
     fi
