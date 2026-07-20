@@ -4,34 +4,45 @@
 # 🦜 Absotui: A TUI Audiobookshelf client for Linux and macOS
 
 <p align="center">
-    <em>The name plays on "ABS" (Audiobookshelf) + "TUI" (terminal user interface), read like "absolutely."<br>
-    The original project, Toutui, took its name from the French phrase "tout ouïe" ("all ears").</em>
+    <em>"ABS" (Audiobookshelf) + "TUI" (terminal user interface) — read it like "absolutely."</em>
 </p>
 
 <p align="center">
     <img src="assets/screenshot.png" alt="📖 Screenshot">
 </p>
 
+<p align="center">
+    A fast, keyboard-driven terminal client for your self-hosted <a href="https://www.audiobookshelf.org/">Audiobookshelf</a> server —
+    browse your library, track chapters, and keep listening progress in sync, all without leaving the terminal.
+</p>
+
 <div align="center">
-🎨 Explore and try various themes <a href="https://github.com/AlbanDAVID/Toutui-theme">here</a> (the original project's theme repo — themes there should still be compatible).
+🎨 Explore and try various themes <a href="https://github.com/AlbanDAVID/Toutui-theme">here</a>.
 </div>
 
-## ✨ Features  
+## ✨ Foundation
  **Cross-platform:** <img src=".github/tux.png" align="top" width="24" alt="Tux (Linux)"/>  Linux and <img src=".github/apple.png" align="top" width="24" alt="Apple (macOS)"/> macOS    
  **Lightweight & Fast:** A minimalist terminal user interface (TUI) written in Rust 🦀  
  **Supports Books & Podcasts:** Enjoy both audiobooks and podcasts  
- **Sync Progress & Stats:** Keep your listening progress in sync, with accurate percentages even at non-1x playback speeds  
- **Speed-Adjusted Time Display:** Toggle (`T` key) between real elapsed/remaining time and raw content time  
- **At-a-Glance Progress:** See per-book progress and which book is actively playing directly in the Continue Listening list  
- **Cover Art:** Book and podcast episode cover art shown alongside the description in Continue Listening (terminal permitting - Kitty/Sixel/iTerm2), preferring a podcast episode's own embedded artwork over the podcast's cover when the episode's file has one  
- **Chapter Navigation:** Browse a book's full chapter list inline in Continue Listening, with live per-chapter progress  
  **Streaming Support:** Play directly without downloading  
- **Volume Indicator:** See where the player's volume sits at a glance, shown as a subtle underline in the player bar  
+ **Customizable Color Theme:** A config file lets you customize the color theme, including the progress indicator color
+
+## 🚀 Built in Absotui
+ **Podcast Home, Reworked:** A unified "New & Unfinished" view merges Continue Listening and newest episodes, actively filtered by real finished status  
+ **Podcast Autoplay:** Automatically start the next unfinished episode when one finishes  
+ **Mark Finished:** Instantly mark an episode finished (`F`) without waiting for it to play through — including the one currently playing  
+ **At-a-Glance Progress:** Per-book progress bars and a now-playing marker, right in the Continue Listening list  
+ **Cover Art:** Book and podcast episode cover art shown alongside the description (terminal permitting — Kitty/Sixel/iTerm2), preferring a podcast episode's own embedded artwork over the podcast's cover when the episode's file has one  
+ **Chapter Navigation:** Browse a book's full chapter list inline in Continue Listening, with live per-chapter progress  
  **Per-Item Playback Speed:** Optionally (Settings > Per-Item Speed) let each book or podcast show remember its own playback speed instead of sharing one speed across everything  
- **Customizable Color Theme:** A config file will allow you to customize the color theme, including the progress indicator color. Explore and try various themes [here](https://github.com/AlbanDAVID/Toutui-theme).
+ **Volume Indicator:** See where the player's volume sits at a glance, shown as a subtle underline in the player bar  
+ **Speed-Adjusted Time Display:** Toggle (`T` key) between real elapsed/remaining time and raw content time  
+ **Accurate Sync:** Progress percentages stay correct even at non-1x playback speeds  
+ **Recovers From a Down Server:** A clear retry/change-server screen instead of the app just closing when it can't reach Audiobookshelf  
+ **Desktop Integration:** A custom app icon, its own taskbar/dock window icon (on supported terminals), and a window title that shows what's currently playing
 
 ## 🛠️ Roadmap  
-Recent work: the terminal window title now shows what's currently playing ("Absotui - <book/podcast name>"); the installer gives Absotui its own taskbar/dock icon (instead of just the launcher icon) on terminals that support a custom window class (Ghostty, Kitty, Alacritty, Foot, WezTerm); `absotui --update`/`--uninstall` are fixed and now refresh the app icon and launcher too (previously only a fresh install did); added a volume indicator and optional per-book/per-podcast-show playback speed, a custom app icon, a "Mark Finished" command for podcast episodes, and fixed several Podcast Autoplay bugs (VLC not closing between episodes, a race that could start two playback sessions at once, autoplay picking from a stale episode list, and a blocking network call that could freeze the UI). See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding from the original project.
+Recent work: a recovery screen when the Audiobookshelf server can't be reached, instead of the app just closing; fixed marking the currently-playing podcast episode as finished (it used to revert itself and keep playing); fixed login sometimes needing two attempts; fixed the installer silently dropping custom `config.toml` settings on update. See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding.
 
 ## 🔮 Future features
 Here are some features that could be added in future releases:
@@ -64,7 +75,7 @@ The **font** and **emojis** may vary depending on the terminal you are using.
 To ensure the best experience, it's recommended to use **Kitty** or **Alacritty** terminal.
 
 ### 🙏 Credits
-Absotui began as a fork of [Toutui](https://github.com/AlbanDAVID/Toutui) by [AlbanDAVID](https://github.com/AlbanDAVID), archived in December 2025 ("I'm not able to properly maintain this project anymore... please don't wait for any new releases and issue fixing."). Thanks to the original author for the foundation this project builds on.
+Absotui began as a fork of [Toutui](https://github.com/AlbanDAVID/Toutui) by [AlbanDAVID](https://github.com/AlbanDAVID), archived in December 2025 ("I'm not able to properly maintain this project anymore... please don't wait for any new releases and issue fixing."). Thanks to the original author for the foundation this project builds on. Toutui itself took its name from the French phrase "tout ouïe" ("all ears").
 
 ## 🚨 Installation Instructions
 
