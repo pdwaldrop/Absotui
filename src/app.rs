@@ -15,7 +15,7 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished};
 use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
 use color_eyre::Result;
@@ -1037,14 +1037,35 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                     let token = self.token.clone();
                     let server_address = self.server_address.clone();
 
-                    // Marked at full duration (not whatever partial progress it was
-                    // at) - "finished" should mean fully listened, matching what a
-                    // natural playback completion would also land on.
-                    tokio::spawn(async move {
-                        if let Err(e) = update_media_progress2_pod(&id_pod, token.as_ref(), Some(duration as u32), &duration.to_string(), true, &ep_id, server_address).await {
-                            log::warn!("[mark_finished] episode {ep_id}: {e}");
+                    // If this episode is the one actively playing, the live playback
+                    // task (handle_l_pod_home) owns its progress syncing - every ~10s
+                    // it PATCHes progress/currentTime with no isFinished field at all,
+                    // which would silently revert the isFinished=true set below the
+                    // moment it next runs (the list item would vanish then reappear).
+                    // Flip listening_session.is_finished instead and let that task
+                    // notice it (polled every ~1s) and stop playback + mark finished
+                    // itself exactly once, with nothing left to race it.
+                    let currently_playing_session = if get_is_vlc_running(self.username.as_str()) == "1" {
+                        match get_listening_session() {
+                            Ok(Some(session)) if session.id_pod == ep_id => Some(session),
+                            _ => None,
                         }
-                    });
+                    } else {
+                        None
+                    };
+
+                    if let Some(session) = currently_playing_session {
+                        let _ = update_is_finished("1", session.id_session.as_str());
+                    } else {
+                        // Marked at full duration (not whatever partial progress it was
+                        // at) - "finished" should mean fully listened, matching what a
+                        // natural playback completion would also land on.
+                        tokio::spawn(async move {
+                            if let Err(e) = update_media_progress2_pod(&id_pod, token.as_ref(), Some(duration as u32), &duration.to_string(), true, &ep_id, server_address).await {
+                                log::warn!("[mark_finished] episode {ep_id}: {e}");
+                            }
+                        });
+                    }
 
                     let order: Vec<usize> = (0..self._ids_cnt_list.len()).filter(|&i| i != selected).collect();
                     self.reorder_podcast_lists(&order);
