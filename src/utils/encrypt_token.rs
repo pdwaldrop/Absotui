@@ -59,7 +59,10 @@ mod tests {
 
     #[test]
     fn encrypt_decrypt_roundtrip() {
-        // FIXME: Audit that the environment access only happens in single-threaded code.
+        // Audited 2026-07-20: this is the only test in the codebase that touches an
+        // environment variable at all (checked every #[test] and every env::var/
+        // set_var/remove_var call site) - cargo test's default concurrent test
+        // threads have nothing else to race with here.
         unsafe { env::set_var("ABSOTUI_SECRET_KEY", "test-secret-key-for-roundtrip") };
         let original = "some-fake-audiobookshelf-token-abc123";
 
