@@ -10,10 +10,6 @@ No major bug for the moment 🙏
 `bug_id: 2eb9e3`
 **Display (likely stale):** At the launch, the app is not displayed and no error message appears (especially if you change user, quit and restart the app). Solution: quit the terminal and try it again. Investigated 2026-07-20: could not reproduce via the documented repro (fresh start with no saved user, delete-user-then-restart, and repeated same-process failed logins all rendered correctly) in an isolated test config. Pre-dates the Absotui fork; several related sync/terminal bugs have been fixed since. Leaving filed in case it's terminal-emulator- or timing-specific in a way not reproduced here.
 
-`bug_id: a49eza`
-**cvlc error sync with ctrl vlc from a terminal:** If you use other command that `shutdown` to quit `cvlc` it may result of a sync issue.
-
-
 **FIXED**  
 `bug_id: 9bacac` 
 **Sync**: If you open VLC to listen X, close VLC and quickly open VLC again to listen Y: X will still be sync — according to Y (normally, only Y has to be sync in this case).   
@@ -37,6 +33,8 @@ No major bug for the moment 🙏
 **Cursor:** When you quit the app, terminal cursor disappear.  
 `bug_id: fe4116`
 **cvlc macOS:** `cvlc` option is not available for now in macOS.  
+`bug_id: a49eza` **(likely stale)**
+**cvlc error sync with ctrl vlc from a terminal:** If you use other command that `shutdown` to quit `cvlc` it may result of a sync issue. Investigated 2026-07-20: manually sent `quit` over a raw RC connection to a real playing session (simulating the `is_cvlc_term` raw-terminal feature) - the VLC process survived (matches expectation, only `shutdown` fully terminates it) and playback kept advancing normally across 3 clean trials. One earlier attempt appeared to show a frozen/desynced session, but that isn't reproducible and was very likely an artifact of leftover state in the test setup rather than a real app bug. Pre-dates the Absotui fork; several related VLC sync bugs fixed since.  
 `bug_id: 2d358c53`
 **Mark as finished:** When a title reach the end, mark as finished not always work. Fixed 2026-07-20: the actual bug was marking the *currently-playing* episode finished (the periodic progress sync would clobber it back to unfinished a few seconds later); the natural end-of-track path was verified still working correctly (confirmed live: `isFinished=true` held across 5+ refresh cycles after a real episode played to its end).  
 `bug_id: 255b86` **(fix committed, not yet released)**
