@@ -8,13 +8,10 @@ No major bug for the moment 🙏
 **Losing config after an update**: Ex: You change colors in config file and after an update, this configuration is lost and replaced by the config from main version.
 
 `bug_id: 4b3045`
-**Authentification Bug:** Even if you fill in valid credentials, the database sync can be buggy, and authentication may fail. Normally, it works on the second try.
+**Authentification Bug (fix committed, unreleased):** Even if you fill in valid credentials, the database sync can be buggy, and authentication may fail. Normally, it works on the second try. Root cause confirmed 2026-07-20: the login loop waited a flat 1s guess before re-checking the database instead of actually waiting for the async auth attempt to finish. Fixed locally (commit `47d728b`), not yet released - needs a real logout/login to confirm.
 
 `bug_id: 2eb9e3`
-**Display:** At the launch, the app is not displayed and no error message appears (especially if you change user, quit and restart the app). Solution: quit the terminal and try it again.
-
-`bug_id: 2d358c53`
-**Mark as finished:** When a title reach the end, mark as finished not always work.
+**Display (likely stale):** At the launch, the app is not displayed and no error message appears (especially if you change user, quit and restart the app). Solution: quit the terminal and try it again. Investigated 2026-07-20: could not reproduce via the documented repro (fresh start with no saved user, delete-user-then-restart, and repeated same-process failed logins all rendered correctly) in an isolated test config. Pre-dates the Absotui fork; several related sync/terminal bugs have been fixed since. Leaving filed in case it's terminal-emulator- or timing-specific in a way not reproduced here.
 
 `bug_id: a49eza`
 **cvlc error sync with ctrl vlc from a terminal:** If you use other command that `shutdown` to quit `cvlc` it may result of a sync issue.
@@ -43,3 +40,5 @@ No major bug for the moment 🙏
 **Cursor:** When you quit the app, terminal cursor disappear.  
 `bug_id: fe4116`
 **cvlc macOS:** `cvlc` option is not available for now in macOS.  
+`bug_id: 2d358c53`
+**Mark as finished:** When a title reach the end, mark as finished not always work. Fixed 2026-07-20: the actual bug was marking the *currently-playing* episode finished (the periodic progress sync would clobber it back to unfinished a few seconds later); the natural end-of-track path was verified still working correctly (confirmed live: `isFinished=true` held across 5+ refresh cycles after a real episode played to its end).  
