@@ -387,8 +387,7 @@ let changelog_22 = "Changelog Absotui v0.5.7-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_23 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_23 = "Changelog Absotui v0.5.8-beta (19/07/2026) \n\
          \n\
          Fixed:\n\
          - `absotui --update` never refreshed absotui.desktop or the app icon, only a
@@ -397,10 +396,27 @@ let changelog_23 = format!(
            same as installing does.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_24 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Added:\n\
+         - The installer now detects if you're running a terminal that supports a
+           custom window class (Ghostty, Kitty, Alacritty, Foot, WezTerm) and, if so,
+           gives the launcher entry its own window class instead of the terminal's
+           default one. Previously the app icon only showed up in the launcher/pinned
+           icon - the actual running window still showed as a generic terminal window
+           in the taskbar/dock, since that's controlled by the window's class, not the
+           .desktop file's Icon= line. Terminals not on that list still work exactly as
+           before (the desktop environment picks the terminal, no custom icon on the
+           live window).
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_24);
     changelog.push_str(&changelog_23);
     changelog.push_str(&changelog_22);
     changelog.push_str(&changelog_21);

@@ -704,12 +704,60 @@ dl_handle_compressed_binary() {
     rm -rf "$tmpdir"
 }
 
+# Absotui is a TUI: it has no window of its own, so on Wayland the taskbar/dock
+# icon for the *running* window is whatever terminal hosts it (the .desktop
+# Icon= line only controls the launcher/pinned-icon, which is why that part
+# already looked right). A handful of terminals let you override their window
+# class/app_id on the command line though - if the terminal running this
+# installer (detected via $TERM_PROGRAM/$TERM, which the terminal itself sets
+# and which this script inherits) is one of them, build an Exec= line that
+# launches absotui under its own class instead of the terminal's default one,
+# paired with a matching StartupWMClass so the compositor resolves absotui's
+# icon for the live window too. Leaves absotui_term_exec empty for any other
+# terminal (or a non-interactive/SSH install), so the caller falls back to the
+# generic Terminal=true entry - exactly what shipped before this existed.
+detect_terminal_launcher() {
+    absotui_term_exec=""
+    absotui_term_wm_class="com.absotui.Absotui"
+
+    local term_program_lower
+    term_program_lower=$(echo "${TERM_PROGRAM:-}" | tr '[:upper:]' '[:lower:]')
+
+    case "$term_program_lower" in
+        ghostty) absotui_term_exec="ghostty --class=$absotui_term_wm_class -e absotui"; return;;
+        wezterm) absotui_term_exec="wezterm start --class=$absotui_term_wm_class -- absotui"; return;;
+    esac
+
+    case "$TERM" in
+        xterm-kitty) absotui_term_exec="kitty --class=$absotui_term_wm_class absotui";;
+        alacritty)   absotui_term_exec="alacritty --class=$absotui_term_wm_class -e absotui";;
+        foot)        absotui_term_exec="foot --app-id=$absotui_term_wm_class absotui";;
+    esac
+}
+
 setup_launcher() {
     if [[ "$OS" == "linux" ]]; then
         local tmpdir
         tmpdir=$(mktemp -d)
-        curl -sSL "$url_absotui_desktop" -o "$tmpdir/absotui.desktop"
-        check_shasum "$tmpdir/absotui.desktop" "absotui.desktop" "$(fetch_expected_checksum absotui.desktop)" "dir"
+
+        detect_terminal_launcher
+        if [[ -n "$absotui_term_exec" ]]; then
+            echo "[INFO] Detected a supported terminal ($TERM_PROGRAM$TERM) - giving absotui its own window class ($absotui_term_wm_class) so it gets its own icon instead of the terminal's."
+            cat > "$tmpdir/absotui.desktop" <<EOF
+[Desktop Entry]
+Name=Absotui
+GenericName=Audiobookshelf client
+Exec=$absotui_term_exec
+Icon=absotui
+Type=Application
+Categories=Utility;
+Terminal=false
+StartupWMClass=$absotui_term_wm_class
+EOF
+        else
+            curl -sSL "$url_absotui_desktop" -o "$tmpdir/absotui.desktop"
+            check_shasum "$tmpdir/absotui.desktop" "absotui.desktop" "$(fetch_expected_checksum absotui.desktop)" "dir"
+        fi
         mkdir -p "$HOME/.local/share/applications"
         sudo cp "$tmpdir/absotui.desktop" "$HOME/.local/share/applications/absotui.desktop"
 
