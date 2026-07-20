@@ -14,7 +14,7 @@ use crossterm::event::{self, KeyEvent, KeyCode};
 use log::{info, error};
 use crate::utils::exit_app::clean_exit;
 use crate::utils::pop_up_message::pop_message;
-use crate::db::crud::{get_others, update_login_err};
+use crate::db::crud::{get_others, update_login_err, update_auth_in_progress};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -148,6 +148,12 @@ impl AppLogin {
         // send result
         if let Some(_active_textarea) = textareas.get(current_index) {
             let collected_data_clone = collected_data.clone();
+            // Set before spawning and cleared in both branches below once auth_process
+            // actually finishes - main.rs's login loop polls this instead of guessing a
+            // fixed delay before re-checking whether the database now has credentials
+            // (previously a blind 1s sleep, which failed - requiring the user to log in
+            // twice - whenever the server took longer than that to respond).
+            let _ = update_auth_in_progress("1");
             tokio::spawn(async move {
                 //              println!("Wait...");
                 match auth_process(
@@ -166,7 +172,9 @@ impl AppLogin {
                         let err = format!("ERROR: {e}");
                         let _ = update_login_err(err.as_str());
                     }
-                }});
+                }
+                let _ = update_auth_in_progress("0");
+            });
 
             // to quit the current thread and back to login or home (if connection is successful)
             // should_exit allow to quit the terminal in login_app.rs

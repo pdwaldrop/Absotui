@@ -1263,6 +1263,81 @@ pub fn update_login_err(value: &str) -> Result<()> {
     Ok(())
 }
 
+// Update auth_in_progress (for `others` table) - set to "1" right before spawning
+// the async auth_process call in auth_input.rs, and back to "0" once that spawned
+// task actually completes (success or failure). Lets main.rs's login loop wait for
+// the real result instead of guessing a fixed delay before re-checking the database -
+// see wait_for_auth_to_finish in main.rs.
+pub fn update_auth_in_progress(value: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+        conn.execute(
+            "INSERT INTO others (login_err) SELECT '' WHERE NOT EXISTS (SELECT 1 FROM others LIMIT 1)",
+            [],
+        )?;
+        conn.execute(
+            "UPDATE others SET auth_in_progress = ?1 WHERE rowid = 1",
+            params![value],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_auth_in_progress] {err_message}");
+    }
+
+    Ok(())
+}
+
+// get auth_in_progress (for `others` table) - defaults to "0" (not in progress) if
+// the table/row doesn't exist yet, same as a fresh `others` row's own column default.
+pub fn get_auth_in_progress() -> String {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let conn = match Connection::open(db_path) {
+        Ok(c) => c,
+        Err(_) => return String::from("0"),
+    };
+
+    let mut stmt = match conn.prepare("SELECT auth_in_progress FROM others LIMIT 1") {
+        Ok(s) => s,
+        Err(_) => return String::from("0"),
+    };
+
+    match stmt.query_row(params![], |row| row.get::<_, String>(0)) {
+        Ok(value) => value,
+        Err(_) => String::from("0"),
+    }
+}
+
 // Select default user
 pub fn select_default_usr() -> Result<Vec<String>> {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1459,10 +1534,19 @@ pub fn init_db() -> Result<()> {
     //Create table `others` if there is none
     conn.execute(
         "CREATE TABLE IF NOT EXISTS others (
-            login_err TEXT NOT NULL DEFAULT ''
+            login_err TEXT NOT NULL DEFAULT '',
+            auth_in_progress TEXT NOT NULL DEFAULT '0'
         )",
         [],
     )?;
+
+    // Migration for databases created before `auth_in_progress` existed.
+    // SQLite has no "ADD COLUMN IF NOT EXISTS", so we just ignore the error
+    // when the column is already there.
+    let _ = conn.execute(
+        "ALTER TABLE others ADD COLUMN auth_in_progress TEXT NOT NULL DEFAULT '0'",
+        [],
+    );
 
     Ok(())
 }

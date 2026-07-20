@@ -18,7 +18,7 @@ use std::io::stdout;
 use crate::utils::pop_up_message::{clear_message, pop_message};
 use crate::utils::logs::setup_logs;
 use log::info;
-use crate::db::crud::{update_is_vlc_launched_first_time, get_is_vlc_launched_first_time, get_is_vlc_running};
+use crate::db::crud::{update_is_vlc_launched_first_time, get_is_vlc_launched_first_time, get_is_vlc_running, get_auth_in_progress};
 use ratatui::{
     style::{Color, Style},
     widgets::Block
@@ -71,13 +71,10 @@ async fn main() -> Result<()> {
             let terminal = ratatui::init();
             disable_terminal_scroll_wheel();
             let _app_result = app_login.run(terminal);
-            // Process login result here
-            // Wait for 1 second before checking again
-            // If database is reinit to quickly before `auth_process.rs` is finished
-            // it can be buggy and mark as failed. Maybe add more time to be sure (like 6 sec).
-            // But normally, even it's failed, data are written in db. It will work at the second
-            // attempt...
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            // Wait for the login attempt just submitted to actually finish (success
+            // or failure) before re-checking the database, instead of guessing a
+            // fixed delay - see wait_for_auth_to_finish.
+            wait_for_auth_to_finish().await;
         } else {
             // If the database is ready, exit the loop
             print!("\x1B[2J\x1B[1;1H"); // clear all stdout (avoid to sill have the previous print when the app is launched)
@@ -208,4 +205,21 @@ async fn main() -> Result<()> {
     ratatui::restore();
     restore_terminal_scroll_wheel();
     Ok(())
+}
+
+// Waits for a just-submitted login attempt's spawned auth_process call (see
+// auth_input.rs::auth) to actually finish, instead of guessing a fixed delay before
+// re-checking whether the database now has credentials. Guessing too short (this used
+// to be a flat 1s sleep) meant a slow-but-successful login could still look like a
+// failure and force re-entering credentials a second time, even though the first
+// attempt was about to succeed. Capped at 30s so a hung request can't wedge the login
+// loop forever - past that, the normal "still empty, show the login screen again"
+// path takes over exactly like it always has for a genuine failure.
+async fn wait_for_auth_to_finish() {
+    for _ in 0..300 {
+        if get_auth_in_progress() != "1" {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
