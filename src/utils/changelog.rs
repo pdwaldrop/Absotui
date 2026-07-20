@@ -412,8 +412,7 @@ let changelog_24 = "Changelog Absotui v0.5.9-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_25 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_25 = "Changelog Absotui v0.5.10-beta (19/07/2026) \n\
          \n\
          Added:\n\
          - The terminal window title now shows \"Absotui - <book/podcast name>\" while
@@ -422,10 +421,27 @@ let changelog_25 = format!(
            window identifiable from a taskbar/dock/window-switcher without opening it.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_26 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - The window title from v0.5.10-beta prefixed itself with \"Absotui - \", which
+           duplicated the app name on taskbars/docks that already show it separately
+           (from the .desktop file's Name=) next to the window title - showing up as
+           \"Absotui • Absotui - <name>\". The title is now just the book/podcast
+           name while playing, and blank (not \"Absotui\") otherwise, which most docks
+           fall back to showing as just the app name with nothing to duplicate.
+         - Fixed a cosmetic typo in the installer's terminal-detection log line during
+           `--update`/`--install` that ran $TERM_PROGRAM and $TERM together with no
+           separator (e.g. \"ghosttyxterm-ghostty\").
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_26);
     changelog.push_str(&changelog_25);
     changelog.push_str(&changelog_24);
     changelog.push_str(&changelog_23);

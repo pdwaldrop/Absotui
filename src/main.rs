@@ -106,8 +106,12 @@ async fn main() -> Result<()> {
         // Absotui has no window of its own - the terminal's title is whatever the
         // running program sets it to (or just "absotui", the binary name, if nothing
         // sets it). Keeping it in sync with what's actually playing makes the window
-        // identifiable from a taskbar/dock without opening it.
-        let mut last_window_title = String::new();
+        // identifiable from a taskbar/dock without opening it. An empty title (rather
+        // than repeating "Absotui") when idle avoids duplicating the app name a
+        // taskbar/dock already shows next to it from the .desktop file's Name= - most
+        // (this was confirmed empirically against DMS/quickshell) fall back to just
+        // that name when the window title itself is blank.
+        let mut last_window_title: Option<String> = None;
 
         // Running the app in a loop
         loop {
@@ -116,13 +120,13 @@ async fn main() -> Result<()> {
             let player_info = player_info(app.username.as_str());
 
             let window_title = if is_playing == "1" {
-                format!("Absotui - {}", playing_item_name(&player_info[0]))
+                playing_item_name(&player_info[0]).to_string()
             } else {
-                "Absotui".to_string()
+                String::new()
             };
-            if window_title != last_window_title {
+            if last_window_title.as_deref() != Some(window_title.as_str()) {
                 let _ = crossterm::execute!(stdout(), crossterm::terminal::SetTitle(&window_title));
-                last_window_title = window_title;
+                last_window_title = Some(window_title);
             }
 
             terminal.draw(|frame| {

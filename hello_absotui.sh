@@ -742,7 +742,7 @@ setup_launcher() {
 
         detect_terminal_launcher
         if [[ -n "$absotui_term_exec" ]]; then
-            echo "[INFO] Detected a supported terminal ($TERM_PROGRAM$TERM) - giving absotui its own window class ($absotui_term_wm_class) so it gets its own icon instead of the terminal's."
+            echo "[INFO] Detected a supported terminal (${TERM_PROGRAM:-$TERM}) - giving absotui its own window class ($absotui_term_wm_class) so it gets its own icon instead of the terminal's."
             cat > "$tmpdir/absotui.desktop" <<EOF
 [Desktop Entry]
 Name=Absotui
