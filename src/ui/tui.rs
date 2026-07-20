@@ -64,13 +64,13 @@ impl App {
         };
 
         let text_render_footer = if self.is_podcast {
-            "j/↓, k/↑: move, l/→: play, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, D: sort by age, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot"
+            format!("{}, l/→: play, F: mark finished, {}\n B: toggle player ctrl, D: sort by age, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
         } else {
-            "j/↓, k/↑: move, l/→: play, c: chapters, Tab: library, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot"
+            format!("{}, l/→: play, c: chapters, {}\n B: toggle player ctrl, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
         };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, text_render_footer);
+        App::render_footer(footer_area, buf, &text_render_footer);
 
         // Pin the actively-playing item to the top. Runs on every render (not just on
         // load/refresh) so it reacts as soon as playback starts. Books match by id_item;
@@ -265,15 +265,14 @@ impl App {
         let items_number = self.titles_library.len();
         let render_list_title = format!("Library [{items_number} items]");
 
-        let mut _text_render_footer = "";
-        if self.is_podcast {
-        _text_render_footer = "j/↓, k/↑: move, l/→: episodes, Tab: home, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot";       
+        let _text_render_footer = if self.is_podcast {
+            format!("{}, l/→: episodes, {}\n B: toggle player ctrl, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
         } else {
-        _text_render_footer = "j/↓, k/↑: move, l/→: play, Tab: home, R: refresh, S: Settings, Q/Esc: quit\n B: toggle player ctrl, '/': search, Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot";
-        }
+            format!("{}, l/→: play, {}\n B: toggle player ctrl, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+        };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, _text_render_footer);
+        App::render_footer(footer_area, buf, &_text_render_footer);
         self.render_list(list_area, buf, &render_list_title, &self.titles_library.clone(), &mut self.list_state_library.clone(), None);
         if !&self.titles_library.is_empty() {
             self.render_info_library(item_area1, buf, &self.list_state_library.clone());
@@ -295,20 +294,18 @@ impl App {
 
         let render_list_title = "Settings";
 
-        let mut _text_render_footer = "";
-        if self.list_state_settings.selected() == Some(4) {
+        let _text_render_footer = if self.list_state_settings.selected() == Some(4) {
             // for `About` section
-            _text_render_footer = "j/↓, k/↑: move, Scroll what's new: J(down) K(up) H(top),\n Tab: home, R: refresh, Q/Esc: quit.";
+            format!("{}, Scroll what's new: J(↓) K(↑) H(⇡),\n {}.", Self::FOOTER_MOVE, Self::footer_trailer("home", false))
         }
         else if self.list_state_settings.selected() == Some(5) {
-            _text_render_footer = "j/↓, k/↑: move, Scroll : J(down) K(up) H(top),\n Tab: home, R: refresh, Q/Esc: quit.";
-
+            format!("{}, Scroll instructions: J(↓) K(↑) H(⇡),\n {}.", Self::FOOTER_MOVE, Self::footer_trailer("home", false))
         } else {
-            _text_render_footer = "j/↓, k/↑: move, l/→: see options,\n Tab: home, R: refresh, Q/Esc: quit.";
-        }
+            format!("{}, l/→: see options,\n {}.", Self::FOOTER_MOVE, Self::footer_trailer("home", false))
+        };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, _text_render_footer);
+        App::render_footer(footer_area, buf, &_text_render_footer);
         self.render_list(list_area, buf, render_list_title, &self.settings.clone(), &mut self.list_state_settings.clone(), None);
         self.render_info_settings(item_area1, buf, &self.list_state_settings.clone());
         self.render_desc_settings(item_area2, buf, &self.list_state_settings.clone());
@@ -327,10 +324,10 @@ impl App {
         let [list_area, _item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let render_list_title = "Settings account";
-        let text_render_footer = "h: back, l/→: remove saved user,\n Tab: home, R: refresh, Q/Esc: quit.";
+        let text_render_footer = format!("h: back, l/→: remove saved user,\n {}.", Self::footer_trailer("home", false));
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, text_render_footer);
+        App::render_footer(footer_area, buf, &text_render_footer);
         self.render_list(list_area, buf, render_list_title, &self.all_usernames.clone(), &mut self.list_state_settings_account.clone(), None);
         //self.render_selected_item(item_area, buf, &self.titles_library.clone(), self.auth_names_library.clone());
     }
@@ -350,10 +347,10 @@ impl App {
         let items_number = self.libraries_names.len();
         let render_list_title = format!("Settings Library [{items_number} items]");
 
-        let text_render_footer = "h: back, l/→: change library,\n Tab: home, R: refresh, Q/Esc: quit.";
+        let text_render_footer = format!("h: back, l/→: change library,\n {}.", Self::footer_trailer("home", false));
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, text_render_footer);
+        App::render_footer(footer_area, buf, &text_render_footer);
         self.render_list(list_area, buf, &render_list_title, &self.libraries_names.clone(), &mut self.list_state_settings_library.clone(), None);
         self.render_info_settings_library(item_area, buf, &self.list_state_settings_library.clone());
     }
@@ -371,12 +368,12 @@ impl App {
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let render_list_title = "Podcast Autoplay";
-        let text_render_footer = "h: back, l/→: apply,\n Tab: home, R: refresh, Q/Esc: quit.";
+        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
         let options = vec!["On".to_string(), "Off".to_string()];
         let current = if get_is_podcast_autoplay(&self.username) == "1" { "On" } else { "Off" };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, text_render_footer);
+        App::render_footer(footer_area, buf, &text_render_footer);
         self.render_list(list_area, buf, render_list_title, &options, &mut self.list_state_settings_autoplay.clone(), None);
         Paragraph::new(format!("Currently: {current}\n\nWhen on, finishing a podcast episode automatically starts the next unfinished one in the list it was played from."))
             .left_aligned()
@@ -397,12 +394,12 @@ impl App {
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let render_list_title = "Per-Item Speed";
-        let text_render_footer = "h: back, l/→: apply,\n Tab: home, R: refresh, Q/Esc: quit.";
+        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
         let options = vec!["On".to_string(), "Off".to_string()];
         let current = if get_is_per_item_speed(&self.username) == "1" { "On" } else { "Off" };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, text_render_footer);
+        App::render_footer(footer_area, buf, &text_render_footer);
         self.render_list(list_area, buf, render_list_title, &options, &mut self.list_state_settings_per_item_speed.clone(), None);
         Paragraph::new(format!("Currently: {current}\n\nWhen on, each book or podcast show remembers its own playback speed (O/I in the player) instead of sharing one speed across everything. Turning this on resets every book/show back to 1.0x - each one then adjusts independently from there as you play it, starting fresh at 1.0x the first time. When off, O/I always adjust the single shared speed, same as before this setting existed."))
             .left_aligned()
@@ -424,12 +421,11 @@ impl App {
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
 
         let render_list_title = "Search result";
-        let mut _text_render_footer = "";
-        if self.is_podcast {
-        _text_render_footer = "j/↓, k/↑: move, l/→: episodes, Tab: home, R: refresh, S: Settings, Q/Esc: quit\n '/': search, Scroll desc: J(down) K(up) H(top), g/G: top/bottom";
+        let _text_render_footer = if self.is_podcast {
+            format!("{}, l/→: episodes, {}\n '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
         } else {
-        _text_render_footer = "j/↓, k/↑: move, l/→: play, Tab: home, R: refresh, S: Settings, Q/Esc: quit\n '/': search, Scroll desc: J(down) K(up) H(top), g/G: top/bottom";
-        } 
+            format!("{}, l/→: play, {}\n '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+        };
 
 
         if self.search_mode
@@ -574,7 +570,7 @@ impl App {
             .collect();
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, _text_render_footer);
+        App::render_footer(footer_area, buf, &_text_render_footer);
         self.render_list(list_area, buf, render_list_title, titles_search_book_or_pod, &mut self.list_state_search_results.clone(), None);
         if !titles_search_book_or_pod.is_empty() {
             self.render_info_search_book(item_area1, buf, &self.list_state_search_results.clone() );
@@ -595,10 +591,10 @@ impl App {
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
 
 
-        let text_render_footer = "j/↓, k/↑: move, l/→: play, h: back, Tab: home, R: refresh, S: Settings, Q/Esc: quit\n '/': search, Scroll desc: J(down) K(up) H(top), g/G: top/bottom";
+        let text_render_footer = format!("{}, l/→: play, h: back, {}\n '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC);
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
-        App::render_footer(footer_area, buf, text_render_footer);
+        App::render_footer(footer_area, buf, &text_render_footer);
         let no_episodes_message = "No episodes found for this podcast.\nPress 'h' to go back.";
 
         if self.is_from_search_pod {
@@ -654,6 +650,24 @@ impl App {
         Paragraph::new(text_render_footer)
             .centered()
             .render(area, buf);
+    }
+
+    // Shared footer key-hint fragments, kept in one place so wording can't drift
+    // between screens the way it used to (top/bot vs top/bottom, arrows vs
+    // spelled-out words, "Settings" capitalized in some footers but not others).
+    const FOOTER_MOVE: &str = "j/↓, k/↑: move";
+    const FOOTER_SCROLL_DESC: &str = "Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot";
+
+    // The trailing "Tab: X, R: refresh, [S: settings,] Q/Esc: quit" every footer ends
+    // with - `tab_target` differs (Home's Tab goes to Library, everywhere else's Tab
+    // goes to Home), and the Settings submenus don't mention `S` since you're already
+    // there.
+    fn footer_trailer(tab_target: &str, show_settings: bool) -> String {
+        if show_settings {
+            format!("Tab: {tab_target}, R: refresh, S: settings, Q/Esc: quit")
+        } else {
+            format!("Tab: {tab_target}, R: refresh, Q/Esc: quit")
+        }
     }
 
     fn render_list(&mut self, area: Rect, buf: &mut Buffer, render_list_title: &str, render_list_items: &[String], list_state: &mut ListState, progress_info: Option<&[(String, f32, bool)]>) {
@@ -1230,5 +1244,20 @@ Uninstall:
         } else {
             Color::Rgb(color_alt_bg_list[0], color_alt_bg_list[1], color_alt_bg_list[2])
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::App;
+
+    #[test]
+    fn footer_trailer_with_settings() {
+        assert_eq!(App::footer_trailer("library", true), "Tab: library, R: refresh, S: settings, Q/Esc: quit");
+    }
+
+    #[test]
+    fn footer_trailer_without_settings() {
+        assert_eq!(App::footer_trailer("home", false), "Tab: home, R: refresh, Q/Esc: quit");
     }
 }

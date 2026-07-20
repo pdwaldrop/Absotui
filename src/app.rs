@@ -5,6 +5,7 @@ use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_p
 use crate::api::utils::collect_get_all_libraries::{collect_library_names, collect_media_types, collect_library_ids};
 use crate::api::utils::collect_get_media_progress::{collect_progress_percentage_book, collect_is_finished_book, collect_current_time_prg};
 use crate::api::me::get_media_progress::get_book_progress;
+use crate::api::me::update_media_progress::update_media_progress2_pod;
 use crate::api::libraries::get_library_perso_view::get_continue_listening;
 use crate::api::libraries::get_library_perso_view_pod::{get_new_and_unfinished_pod, Chapter};
 use crate::api::libraries::get_all_books::get_all_books;
@@ -1019,6 +1020,41 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             if let Some(id) = selected_ep_id
                 && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == id) {
                     self.list_state_cnt_list.select(Some(new_pos));
+            }
+        }
+
+        // Marks the selected podcast episode as finished server-side and removes it
+        // from the New & Unfinished list immediately, rather than waiting on the next
+        // periodic refresh to notice the server no longer considers it unfinished.
+        // Reuses reorder_podcast_lists (built for resorting, not removal) by permuting
+        // to every index except the removed one - same effect on all 13 parallel
+        // arrays, no separate per-array removal logic needed.
+        KeyCode::Char('F') if self.is_podcast && matches!(self.view_state, AppView::Home) => {
+            if let Some(selected) = self.list_state_cnt_list.selected()
+                && let Some(id_pod) = self._ids_cnt_list.get(selected).cloned()
+                && let Some(ep_id) = self.ids_ep_cnt_list.get(selected).cloned() {
+                    let duration = self.podcast_progress_cnt_list.get(selected).map(|&(_, duration, _)| duration).unwrap_or(0.0);
+                    let token = self.token.clone();
+                    let server_address = self.server_address.clone();
+
+                    // Marked at full duration (not whatever partial progress it was
+                    // at) - "finished" should mean fully listened, matching what a
+                    // natural playback completion would also land on.
+                    tokio::spawn(async move {
+                        if let Err(e) = update_media_progress2_pod(&id_pod, token.as_ref(), Some(duration as u32), &duration.to_string(), true, &ep_id, server_address).await {
+                            log::warn!("[mark_finished] episode {ep_id}: {e}");
+                        }
+                    });
+
+                    let order: Vec<usize> = (0..self._ids_cnt_list.len()).filter(|&i| i != selected).collect();
+                    self.reorder_podcast_lists(&order);
+
+                    let new_len = self._ids_cnt_list.len();
+                    if new_len == 0 {
+                        self.list_state_cnt_list.select(None);
+                    } else if selected >= new_len {
+                        self.list_state_cnt_list.select(Some(new_len - 1));
+                    }
             }
         }
 

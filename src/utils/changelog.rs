@@ -354,8 +354,7 @@ let changelog_20 = "Changelog Absotui v0.5.5-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_21 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_21 = "Changelog Absotui v0.5.6-beta (19/07/2026) \n\
          \n\
          Fixed:\n\
          - `absotui --update`/`--uninstall` embedded a checksum for hello_absotui.sh
@@ -369,10 +368,30 @@ let changelog_21 = format!(
            report failure instead of always exiting 0 regardless of what happened.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_22 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Added:\n\
+         - `F` in the podcast Home list marks the selected episode finished and
+           removes it from New & Unfinished immediately, without waiting on it to
+           actually be played through.
+         \n\
+         Fixed:\n\
+         - Cleaned up inconsistent footer key-hint text across screens: \"Settings\"
+           was capitalized while other screen names (like \"library\"/\"home\") weren't,
+           \"top/bot\" vs \"top/bottom\" varied by screen for the same binding, some
+           footers spelled out \"J(down) K(up) H(top)\" while others used arrows, and
+           one Settings screen's footer had a leftover typo (\"Scroll :\" missing a
+           word). All footers now share the same wording, built from one place so
+           this can't drift between screens again as new ones get added.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_22);
     changelog.push_str(&changelog_21);
     changelog.push_str(&changelog_20);
     changelog.push_str(&changelog_19);
