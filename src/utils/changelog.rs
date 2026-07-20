@@ -422,8 +422,7 @@ let changelog_25 = "Changelog Absotui v0.5.10-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_26 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_26 = "Changelog Absotui v0.5.11-beta (19/07/2026) \n\
          \n\
          Fixed:\n\
          - The window title from v0.5.10-beta prefixed itself with \"Absotui - \", which
@@ -437,10 +436,25 @@ let changelog_26 = format!(
            separator (e.g. \"ghosttyxterm-ghostty\").
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_27 = format!(
+    "Changelog Absotui v{VERSION} (20/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - The app used to just close, with no explanation, if it couldn't reach your
+           Audiobookshelf server (off your home network, server down, etc.) - whether
+           at startup or from a mid-session refresh/library switch. It now shows a
+           recovery screen instead, with the server address, the error, and the
+           option to retry, enter a different server address, or quit; the two
+           mid-session cases can also cancel back to what was already loaded instead
+           of forcing a fix-or-quit loop.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_27);
     changelog.push_str(&changelog_26);
     changelog.push_str(&changelog_25);
     changelog.push_str(&changelog_24);
