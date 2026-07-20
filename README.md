@@ -1,6 +1,3 @@
-## ℹ️ This is a fork
-Absotui is a fork of [Toutui](https://github.com/AlbanDAVID/Toutui), a TUI Audiobookshelf client whose original author archived it in December 2025 ("I'm not able to properly maintain this project anymore... please don't wait for any new releases and issue fixing."). This fork exists to keep the project going and as a personal project to learn Rust, so expect things to move slowly and change shape as we go.
-
 [![GitHub release](https://img.shields.io/github/v/release/pdwaldrop/Absotui?label=Latest%20Release&color=green&cacheSeconds=3600)](https://github.com/pdwaldrop/Absotui/releases/latest)
 [![Release](https://github.com/pdwaldrop/Absotui/actions/workflows/release.yml/badge.svg)](https://github.com/pdwaldrop/Absotui/actions/workflows/release.yml)
 
@@ -65,6 +62,9 @@ This project follows this [branching workflow](https://gist.github.com/digitaljh
 Explore and share themes [here](https://github.com/AlbanDAVID/Toutui-theme).    
 The **font** and **emojis** may vary depending on the terminal you are using.    
 To ensure the best experience, it's recommended to use **Kitty** or **Alacritty** terminal.
+
+### 🙏 Credits
+Absotui began as a fork of [Toutui](https://github.com/AlbanDAVID/Toutui) by [AlbanDAVID](https://github.com/AlbanDAVID), archived in December 2025 ("I'm not able to properly maintain this project anymore... please don't wait for any new releases and issue fixing."). Thanks to the original author for the foundation this project builds on.
 
 
 
