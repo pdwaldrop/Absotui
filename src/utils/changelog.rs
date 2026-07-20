@@ -437,8 +437,7 @@ let changelog_26 = "Changelog Absotui v0.5.11-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_27 = format!(
-    "Changelog Absotui v{VERSION} (20/07/2026) \n\
+let changelog_27 = "Changelog Absotui v0.5.12-beta (20/07/2026) \n\
          \n\
          Fixed:\n\
          - The app used to just close, with no explanation, if it couldn't reach your
@@ -450,10 +449,27 @@ let changelog_27 = format!(
            of forcing a fix-or-quit loop.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_28 = format!(
+    "Changelog Absotui v{VERSION} (20/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Marking the currently-playing podcast episode as finished (F) didn't
+           actually work - it looked like it did for a moment, then the episode
+           reappeared in New & Unfinished a few seconds later and kept playing. It
+           now stops playback immediately and stays marked finished for good.
+         - Logging in could sometimes require two attempts even with correct
+           credentials, on a slower connection or server response.
+         - Updating could silently drop any config.toml setting not present in the
+           current config.example.toml (custom or just old), instead of preserving
+           it like a normal config value.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_28);
     changelog.push_str(&changelog_27);
     changelog.push_str(&changelog_26);
     changelog.push_str(&changelog_25);
