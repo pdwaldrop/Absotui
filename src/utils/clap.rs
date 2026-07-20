@@ -18,25 +18,30 @@ pub fn clap() {
         .get_matches();
 
     if matches.get_flag("uninstall") {
-        std::process::Command::new("sh")
-            .arg("-c")
-            .arg(
-                r#"bash -c 'expected_sha256="d4291ed5287406ff47268bebd34b38e6c5a1141222863739ae9c6ef30f49f24b" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'"#,
-            )
-            .status()
-            .expect("failed to run uninstall script");
-        std::process::exit(0);
+        run_hello_absotui("uninstall");
     }
     if matches.get_flag("update") {
-        std::process::Command::new("sh")
-            .arg("-c")
-            .arg(
-                r#"bash -c 'expected_sha256="d4291ed5287406ff47268bebd34b38e6c5a1141222863739ae9c6ef30f49f24b" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'"#,
-            )
-            .status()
-            .expect("failed to run update script");
-        std::process::exit(0);
+        run_hello_absotui("update");
     }
+}
 
+// Downloads hello_absotui.sh fresh from the stable branch and runs it - no checksum is
+// hardcoded here. An earlier version of this function embedded one directly in the
+// binary, which inevitably went stale the next time the script changed (as it just
+// did) and broke update/uninstall for anyone still on an older binary - exactly the
+// class of bug the script's own checksum handling was already supposed to have
+// eliminated. hello_absotui.sh verifies itself against the latest release's actual
+// published checksum at run time instead (see fetch_expected_checksum there), so
+// there's nothing left for this binary to keep in sync.
+fn run_hello_absotui(command: &str) {
+    let script = format!(
+        r#"tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" {command} && rm -f "$tmpfile""#
+    );
+    let status = std::process::Command::new("bash")
+        .arg("-c")
+        .arg(script)
+        .status()
+        .expect("failed to run hello_absotui.sh");
+    std::process::exit(status.code().unwrap_or(1));
 }
 

@@ -339,8 +339,7 @@ let changelog_19 = "Changelog Absotui v0.5.4-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_20 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_20 = "Changelog Absotui v0.5.5-beta (19/07/2026) \n\
          \n\
          Fixed:\n\
          - The install/update/uninstall script's self-integrity check referenced
@@ -354,10 +353,27 @@ let changelog_20 = format!(
            anything on a mismatch.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_21 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - `absotui --update`/`--uninstall` embedded a checksum for hello_absotui.sh
+           directly in the compiled binary, which went stale the moment the script
+           changed again (as it just did) and silently broke update/uninstall for
+           anyone on an older binary - the exact class of bug this checksum handling
+           was already supposed to have eliminated everywhere else. The binary no
+           longer hardcodes anything here; hello_absotui.sh already verifies itself
+           against the latest release's real checksum at run time, so there's nothing
+           left for it to keep in sync. `--update`/`--uninstall` also now correctly
+           report failure instead of always exiting 0 regardless of what happened.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_21);
     changelog.push_str(&changelog_20);
     changelog.push_str(&changelog_19);
     changelog.push_str(&changelog_18);
