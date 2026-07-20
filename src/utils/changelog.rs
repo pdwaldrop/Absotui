@@ -369,8 +369,7 @@ let changelog_21 = "Changelog Absotui v0.5.6-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_22 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_22 = "Changelog Absotui v0.5.7-beta (19/07/2026) \n\
          \n\
          Added:\n\
          - `F` in the podcast Home list marks the selected episode finished and
@@ -387,10 +386,22 @@ let changelog_22 = format!(
            this can't drift between screens again as new ones get added.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_23 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - `absotui --update` never refreshed absotui.desktop or the app icon, only a
+           fresh install did - so the custom icon added in v0.5.4-beta went unnoticed
+           by anyone who updated instead of reinstalling. Updating now refreshes both,
+           same as installing does.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_23);
     changelog.push_str(&changelog_22);
     changelog.push_str(&changelog_21);
     changelog.push_str(&changelog_20);

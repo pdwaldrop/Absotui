@@ -970,6 +970,11 @@ pull_latest_version() {
                 check_and_cleanup_source_install
             fi
             install_config
+            # Refreshes absotui.desktop and the app icon too, not just the binary/config -
+            # otherwise an update never picks up changes to either (this is how the custom
+            # icon added in v0.5.4-beta went unnoticed by anyone updating from an older
+            # version instead of doing a fresh install).
+            setup_launcher
             # cargo build --release
             # sudo cp ./target/release/Absotui "${INSTALL_DIR}/absotui" || exit $EXIT_BUILD_FAIL
             echo "[OK] Latest version installed (v$version)."
