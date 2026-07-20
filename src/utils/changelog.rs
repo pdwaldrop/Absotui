@@ -397,8 +397,7 @@ let changelog_23 = "Changelog Absotui v0.5.8-beta (19/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_24 = format!(
-    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+let changelog_24 = "Changelog Absotui v0.5.9-beta (19/07/2026) \n\
          \n\
          Added:\n\
          - The installer now detects if you're running a terminal that supports a
@@ -412,10 +411,22 @@ let changelog_24 = format!(
            live window).
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_25 = format!(
+    "Changelog Absotui v{VERSION} (19/07/2026) \n\
+         \n\
+         Added:\n\
+         - The terminal window title now shows \"Absotui - <book/podcast name>\" while
+           something's playing, and just \"Absotui\" otherwise, instead of whatever the
+           terminal defaults to (usually just \"absotui\", the binary name). Makes the
+           window identifiable from a taskbar/dock/window-switcher without opening it.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_25);
     changelog.push_str(&changelog_24);
     changelog.push_str(&changelog_23);
     changelog.push_str(&changelog_22);

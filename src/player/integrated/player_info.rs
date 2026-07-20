@@ -26,6 +26,18 @@ pub fn find_current_chapter(chapters: &[Chapter], current_time: f64) -> Option<&
     })
 }
 
+// The book/podcast-show name for the currently playing item, for display outside
+// the player bar itself (e.g. the terminal window title). Podcasts store
+// "Episode Title | Podcast Title" directly as session.title (see
+// handle_l_pod_home.rs/handle_l_pod.rs), so this takes just the show name; books
+// store the plain title with nothing to split, so it's returned as-is.
+pub fn playing_item_name(title: &str) -> &str {
+    match title.split_once(" | ") {
+        Some((_, podcast_name)) => podcast_name,
+        None => title,
+    }
+}
+
 pub fn player_info(username: &str) -> Vec<String> {
     let mut player_info = Vec::new();
     let is_speed_adjusted_time = get_is_speed_adjusted_time(username) == "1";
@@ -135,5 +147,20 @@ pub fn format_time(seconds: u32) -> String {
         format!("{minutes}:{secs:02}")
     } else {
         format!("0:{secs}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn podcast_title_returns_just_the_show_name() {
+        assert_eq!(playing_item_name("Ep 42: Big News | The X-Files: Cold Cases"), "The X-Files: Cold Cases");
+    }
+
+    #[test]
+    fn book_title_with_no_separator_is_returned_as_is() {
+        assert_eq!(playing_item_name("Alien III"), "Alien III");
     }
 }

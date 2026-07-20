@@ -23,7 +23,7 @@ use ratatui::{
     style::{Color, Style},
     widgets::Block
 };
-use crate::player::integrated::player_info::player_info;
+use crate::player::integrated::player_info::{player_info, playing_item_name};
 use crate::ui::player_tui::render_player;
 use std::env;
 use std::path::PathBuf;
@@ -103,11 +103,27 @@ async fn main() -> Result<()> {
         let mut terminal = ratatui::init();
         disable_terminal_scroll_wheel();
 
+        // Absotui has no window of its own - the terminal's title is whatever the
+        // running program sets it to (or just "absotui", the binary name, if nothing
+        // sets it). Keeping it in sync with what's actually playing makes the window
+        // identifiable from a taskbar/dock without opening it.
+        let mut last_window_title = String::new();
+
         // Running the app in a loop
         loop {
 
             let is_playing = get_is_vlc_running(app.username.as_str());
             let player_info = player_info(app.username.as_str());
+
+            let window_title = if is_playing == "1" {
+                format!("Absotui - {}", playing_item_name(&player_info[0]))
+            } else {
+                "Absotui".to_string()
+            };
+            if window_title != last_window_title {
+                let _ = crossterm::execute!(stdout(), crossterm::terminal::SetTitle(&window_title));
+                last_window_title = window_title;
+            }
 
             terminal.draw(|frame| {
                 let bg_color = app.config.colors.background_color.clone();
