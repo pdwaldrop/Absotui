@@ -4,9 +4,6 @@ No major bug for the moment 🙏
 
 **MINOR**
 
-`bug_id: 255b86`
-**Losing config after an update**: Ex: You change colors in config file and after an update, this configuration is lost and replaced by the config from main version.
-
 `bug_id: 4b3045`
 **Authentification Bug (fix committed, unreleased):** Even if you fill in valid credentials, the database sync can be buggy, and authentication may fail. Normally, it works on the second try. Root cause confirmed 2026-07-20: the login loop waited a flat 1s guess before re-checking the database instead of actually waiting for the async auth attempt to finish. Fixed locally (commit `47d728b`), not yet released - needs a real logout/login to confirm.
 
@@ -42,3 +39,5 @@ No major bug for the moment 🙏
 **cvlc macOS:** `cvlc` option is not available for now in macOS.  
 `bug_id: 2d358c53`
 **Mark as finished:** When a title reach the end, mark as finished not always work. Fixed 2026-07-20: the actual bug was marking the *currently-playing* episode finished (the periodic progress sync would clobber it back to unfinished a few seconds later); the natural end-of-track path was verified still working correctly (confirmed live: `isFinished=true` held across 5+ refresh cycles after a real episode played to its end).  
+`bug_id: 255b86` **(fix committed, not yet released)**
+**Losing config after an update**: Ex: You change colors in config file and after an update, this configuration is lost and replaced by the config from main version. Root cause found 2026-07-20: `hello_absotui.sh`'s config-merge logic had a typo (`pseudo_escape_line` vs `pseudo_escaped_line`) that silently dropped any user config key not present in `config.example.toml`. Fixing just the typo would have exposed a second, worse bug underneath it (bracket-containing lines and section headers getting duplicated on every merge) - both are now fixed together, replacing the fragile `sed`-stripped `grep -E` prefix matching with bash-native literal string comparison. Verified via an isolated test harness against sample configs and a read-only dry run against the real config files - no release cut yet, so this hasn't reached `hello_absotui.sh` on `stable` (what the installer actually pulls from) until one does.

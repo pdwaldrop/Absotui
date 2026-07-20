@@ -473,8 +473,21 @@ install_config() {
                 # Now, merge user_extracted_section with example_extracted_section
                 local merged_section=
                 while read example_config_line; do
-		    local pseudo_escaped_line=$(sed "s/\[//;s/\]//;s/(//;s/)//" <<< "$example_config_line") # avoids trouble with substrings
-                    if grep -E "^$pseudo_escaped_line" <<< "$user_extracted_section" >/dev/null; then
+		    # Prefix-match example_config_line against every line of
+		    # user_extracted_section using bash's own quoted-string comparison
+		    # (not grep -E) - config lines can contain anything, including
+		    # regex metacharacters like the brackets in an array value, and
+		    # `[[ "$a" == "$b"* ]]` treats both sides as literal text (glob
+		    # rules only apply to the unquoted trailing `*`), so nothing here
+		    # needs escaping.
+		    local line_in_user_config=false
+		    while IFS= read -r candidate_line; do
+			if [[ "$candidate_line" == "$example_config_line"* ]]; then
+			    line_in_user_config=true
+			    break
+			fi
+		    done <<< "$user_extracted_section"
+                    if $line_in_user_config; then
 			# Keep lines that match in both example and user's config
                         merged_section+="${example_config_line}"$'\n'
                     elif [[ "$example_config_line" =~ ^([^\ ]+)\ *=\ *(.*)$ ]]; then
@@ -497,10 +510,17 @@ install_config() {
                     fi
                 done <<< "$example_extracted_section"
 		# For each user's config line that is not in config.example.toml,
-		# add it to new config if not already added previously.
+		# add it to new config if not already added previously. Same
+		# literal-text prefix comparison as above, for the same reason.
                 while read user_config_line; do
-		    local pseudo_escaped_line=$(sed "s/\[//;s/\]//;s/(//;s/)//" <<< "$user_config_line") # avoids trouble with substrings
-                    if ! grep -E "^$pseudo_escape_line" <<< "$merged_section" >/dev/null; then
+		    local line_in_merged=false
+		    while IFS= read -r candidate_line; do
+			if [[ "$candidate_line" == "$user_config_line"* ]]; then
+			    line_in_merged=true
+			    break
+			fi
+		    done <<< "$merged_section"
+                    if ! $line_in_merged; then
                         merged_section+="${user_config_line}"$'\n'
                     fi
                 done <<< "$user_extracted_section"
