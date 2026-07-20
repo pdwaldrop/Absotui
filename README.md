@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-    <img src="assets/demo_3.gif" alt="🎬 Demo">
+    <img src="assets/screenshot.png" alt="📖 Screenshot">
 </p>
 
 <div align="center">
@@ -31,7 +31,7 @@
  **Customizable Color Theme:** A config file will allow you to customize the color theme, including the progress indicator color. Explore and try various themes [here](https://github.com/AlbanDAVID/Toutui-theme).
 
 ## 🛠️ Roadmap  
-Recent work: added a volume indicator and optional per-book/per-podcast-show playback speed, a custom app icon, and fixed several Podcast Autoplay bugs (VLC not closing between episodes, a race that could start two playback sessions at once, autoplay picking from a stale episode list, and a blocking network call that could freeze the UI). See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding from the original project.
+Recent work: `absotui --update`/`--uninstall` are fixed and now refresh the app icon and launcher too (previously only a fresh install did); added a volume indicator and optional per-book/per-podcast-show playback speed, a custom app icon, a "Mark Finished" command for podcast episodes, and fixed several Podcast Autoplay bugs (VLC not closing between episodes, a race that could start two playback sessions at once, autoplay picking from a stale episode list, and a blocking network call that could freeze the UI). See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding from the original project.
 
 ## 🔮 Future features
 Here are some features that could be added in future releases:
@@ -66,8 +66,6 @@ To ensure the best experience, it's recommended to use **Kitty** or **Alacritty*
 ### 🙏 Credits
 Absotui began as a fork of [Toutui](https://github.com/AlbanDAVID/Toutui) by [AlbanDAVID](https://github.com/AlbanDAVID), archived in December 2025 ("I'm not able to properly maintain this project anymore... please don't wait for any new releases and issue fixing."). Thanks to the original author for the foundation this project builds on.
 
-
-
 ## 🚨 Installation Instructions
 
 >[!WARNING]
@@ -82,36 +80,23 @@ Absotui began as a fork of [Toutui](https://github.com/AlbanDAVID/Toutui) by [Al
 **Run the following in your terminal, then follow the on-screen instructions:**    
 
 ```bash
-bash -c 'expected_sha256="d4291ed5287406ff47268bebd34b38e6c5a1141222863739ae9c6ef30f49f24b" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
+bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
 ```
 
 #### **Update**
 
-> [!IMPORTANT]  
-> `absotui --update` is not working. You can do this instead: 
-> ``` 
-> bash -c 'expected_sha256="d4291ed5287406ff47268bebd34b38e6c5a1141222863739ae9c6ef30f49f24b" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
-> ```
-
-Quit the app and run the following in your terminal
+Run `absotui --update`, or quit the app and run the following in your terminal:
 
 ```bash
-bash -c 'expected_sha256="d4291ed5287406ff47268bebd34b38e6c5a1141222863739ae9c6ef30f49f24b" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
+bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
 ```
 
 #### **Uninstall**
 
-> [!IMPORTANT]  
-> `absotui --uninstall` is not working. You can do this instead: 
-> ``` 
-> bash -c 'expected_sha256="d4291ed5287406ff47268bebd34b38e6c5a1141222863739ae9c6ef30f49f24b" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
-> ```
-
-Quit the app and run the following in your terminal
-
+Run `absotui --uninstall`, or quit the app and run the following in your terminal:
 
 ```bash
-bash -c 'expected_sha256="d4291ed5287406ff47268bebd34b38e6c5a1141222863739ae9c6ef30f49f24b" export expected_sha256 tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
+bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
 ```
 
 #### **Notes**  
@@ -140,7 +125,7 @@ In `~/.local/share/applications` for Linux:
 - `Netcat`
 - `VLC`
 
-Note: `main` might be unstable. Prefer `git clone --branch stable --single-branch https://github.com/pdwaldrop/Absotui` if you want to have the last stable release (once one exists).    
+Note: `main` might be unstable. Prefer `git clone --branch stable --single-branch https://github.com/pdwaldrop/Absotui` if you want the last stable release.    
 ```bash
 git clone https://github.com/pdwaldrop/Absotui
 cd Absotui/
