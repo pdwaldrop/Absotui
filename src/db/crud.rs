@@ -1090,7 +1090,42 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
     Ok(())
 }
 
-// update default user 
+// Update server_address
+pub fn update_server_address(server_address: &str, username: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "UPDATE users SET server_address = ?1 WHERE username = ?2",
+            params![server_address, username],
+        )?;
+        info!("[update_server_address] The server address has been updated");
+
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_server_address] {err_message}");
+    }
+
+    Ok(())
+}
+
+// update default user
 //pub fn update_default_user(conn: &Connection, username: &str) -> Result<()> {
 //    // Mark all user as 0 by default
 //    conn.execute(

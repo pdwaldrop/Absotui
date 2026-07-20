@@ -29,6 +29,7 @@ use std::env;
 use std::path::PathBuf;
 use crate::utils::clap::clap;
 use crate::utils::scroll_wheel::{disable_terminal_scroll_wheel, restore_terminal_scroll_wheel};
+use crate::logic::server_recovery::init_app_with_retry;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -99,9 +100,13 @@ async fn main() -> Result<()> {
         let value = get_is_vlc_launched_first_time(username.as_str());
         info!("[main][is_vlc_launched_first_time] {value}");
 
-        let mut app = App::new().await?;
         let mut terminal = ratatui::init();
         disable_terminal_scroll_wheel();
+        // No existing `App` to fall back to at startup, so `allow_cancel` is
+        // false and `init_app_with_retry` never returns `Ok(None)` here.
+        let Some(mut app) = init_app_with_retry(&mut terminal, false).await? else {
+            unreachable!("allow_cancel=false never returns Cancel");
+        };
 
         // Absotui has no window of its own - the terminal's title is whatever the
         // running program sets it to (or just "absotui", the binary name, if nothing
@@ -171,15 +176,25 @@ async fn main() -> Result<()> {
                         let mut stdout = stdout();
                         let _ = clear_message(&mut stdout, 3); // clear a message, if any, before print the message bellow
                         let _ = pop_message(&mut stdout, 3, "Refreshing app...");
-                        // Reinitialize app to refresh
-                        app = App::new().await?;
+                        // Reinitialize app to refresh - a working `app` already exists,
+                        // so on failure the recovery screen offers a way to cancel back
+                        // to it instead of forcing a fix-or-quit loop.
+                        if let Some(new_app) = init_app_with_retry(&mut terminal, true).await? {
+                            app = new_app;
+                        }
                         // clear message above
                         let _ = clear_message(&mut stdout, 3);
                     } else if app.library_needs_reload {
                         let mut stdout = stdout();
                         let _ = clear_message(&mut stdout, 3);
                         let _ = pop_message(&mut stdout, 3, "Switching library...");
-                        app = App::new().await?;
+                        if let Some(new_app) = init_app_with_retry(&mut terminal, true).await? {
+                            app = new_app;
+                        } else {
+                            // Cancelled - stay on the current app/library rather than
+                            // immediately re-triggering this same reinit next iteration.
+                            app.library_needs_reload = false;
+                        }
                         let _ = clear_message(&mut stdout, 3);
                     }
                 }
