@@ -29,10 +29,12 @@ Absotui is a fork of [Toutui](https://github.com/AlbanDAVID/Toutui), a TUI Audio
  **Cover Art:** Book and podcast episode cover art shown alongside the description in Continue Listening (terminal permitting - Kitty/Sixel/iTerm2), preferring a podcast episode's own embedded artwork over the podcast's cover when the episode's file has one  
  **Chapter Navigation:** Browse a book's full chapter list inline in Continue Listening, with live per-chapter progress  
  **Streaming Support:** Play directly without downloading  
+ **Volume Indicator:** See where the player's volume sits at a glance, shown as a subtle underline in the player bar  
+ **Per-Item Playback Speed:** Optionally (Settings > Per-Item Speed) let each book or podcast show remember its own playback speed instead of sharing one speed across everything  
  **Customizable Color Theme:** A config file will allow you to customize the color theme, including the progress indicator color. Explore and try various themes [here](https://github.com/AlbanDAVID/Toutui-theme).
 
 ## 🛠️ Roadmap  
-Recent work: added cover art for books and podcast episodes and an inline expandable chapter list (with live per-chapter progress) to Continue Listening, HTML-rendered descriptions instead of raw tags, and fixed the podcast list's selection cursor drifting during its periodic background refresh. See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding from the original project.
+Recent work: added a volume indicator and optional per-book/per-podcast-show playback speed, a custom app icon, and fixed several Podcast Autoplay bugs (VLC not closing between episodes, a race that could start two playback sessions at once, autoplay picking from a stale episode list, and a blocking network call that could freeze the UI). See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding from the original project.
 
 ## 🔮 Future features
 Here are some features that could be added in future releases:
