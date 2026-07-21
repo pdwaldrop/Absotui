@@ -8,9 +8,12 @@ use crate::config::load_config;
 
 // pop up message
 pub fn pop_message(stdout: &mut Stdout, lines_from_bottom: u16, message: &str) -> Result<()> {
-    // import backgorund color
-    let mut color = Vec::new();
-    if let Ok(cfg) = load_config() {
+    // import backgorund color - falls back to black rather than an empty Vec (which
+    // would panic below on color[0]) if config.toml is unreadable/malformed right now,
+    // eg. mid-edit or mid-update.
+    let mut color = vec![0, 0, 0];
+    if let Ok(cfg) = load_config()
+        && cfg.colors.background_color.len() == 3 {
         color = cfg.colors.background_color;
     }
 
@@ -34,9 +37,12 @@ pub fn pop_message(stdout: &mut Stdout, lines_from_bottom: u16, message: &str) -
 
 // to clear a pop up message
 pub fn clear_message(stdout: &mut Stdout, lines_from_bottom: u16) -> Result<()> {
-    // import backgorund color
-    let mut color = Vec::new();
-    if let Ok(cfg) = load_config() {
+    // import backgorund color - falls back to black rather than an empty Vec (which
+    // would panic below on color[0]) if config.toml is unreadable/malformed right now,
+    // eg. mid-edit or mid-update.
+    let mut color = vec![0, 0, 0];
+    if let Ok(cfg) = load_config()
+        && cfg.colors.background_color.len() == 3 {
         color = cfg.colors.background_color;
     }
     let (_cols, rows) = terminal::size()?; 
