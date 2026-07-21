@@ -450,8 +450,7 @@ let changelog_27 = "Changelog Absotui v0.5.12-beta (20/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_28 = format!(
-    "Changelog Absotui v{VERSION} (20/07/2026) \n\
+let changelog_28 = "Changelog Absotui v0.5.13-beta (20/07/2026) \n\
          \n\
          Fixed:\n\
          - Marking the currently-playing podcast episode as finished (F) didn't
@@ -465,10 +464,23 @@ let changelog_28 = format!(
            it like a normal config value.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_29 = format!(
+    "Changelog Absotui v{VERSION} (20/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Sometimes at launch the app would just drop you back to the login screen
+           with no explanation, even though you had a valid saved session -
+           especially noticeable right after deleting/changing a saved account and
+           quickly restarting. The app now retries briefly instead of giving up on
+           the first hiccup, and shows an actual error if it's still failing.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_29);
     changelog.push_str(&changelog_28);
     changelog.push_str(&changelog_27);
     changelog.push_str(&changelog_26);
