@@ -964,6 +964,41 @@ pub fn update_is_loop_break(value: &str, username: &str) -> Result<()> {
     Ok(())
 }
 
+// Atomically claims the "no other session is starting/running" slot for `username` by
+// flipping is_loop_break from "1" to "0" in a single UPDATE...WHERE, returning whether
+// this call was the one that flipped it. Unlike a separate get_is_loop_break() read
+// followed by a later update_is_loop_break("0", ...) write (what wait_prev_session_finished
+// used to do), this can't race: two concurrent callers issuing the same UPDATE can't both
+// get rows_affected()==1, since sqlite serializes writes to the same row - closes the
+// window that let two "l" presses close enough together both pass the old check-then-set
+// and start two VLC sessions at once (the second's insert_listening_session write would
+// then clobber the first's singleton listening_session row).
+pub fn try_claim_playback_slot(username: &str) -> bool {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let Ok(conn) = Connection::open(db_path) else {
+        return false;
+    };
+    let _ = conn.busy_timeout(std::time::Duration::from_millis(500));
+
+    conn.execute(
+        "UPDATE users SET is_loop_break = '0' WHERE username = ?1 AND is_loop_break = '1'",
+        params![username],
+    ).map(|rows_affected| rows_affected == 1).unwrap_or(false)
+}
+
 
 // get is_loop_break
 pub fn get_is_loop_break(username: &str) -> String {
