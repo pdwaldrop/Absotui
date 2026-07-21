@@ -488,8 +488,7 @@ let changelog_30 = "Changelog Absotui v0.5.15-beta (20/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_31 = format!(
-    "Changelog Absotui v{VERSION} (21/07/2026) \n\
+let changelog_31 = "Changelog Absotui v0.5.16-beta (21/07/2026) \n\
          \n\
          Added:\n\
          - Settings > Update / Uninstall (renamed from \"Update and uninstall\") now
@@ -511,10 +510,24 @@ let changelog_31 = format!(
            could otherwise misread.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_32 = format!(
+    "Changelog Absotui v{VERSION} (21/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Settings > Update / Uninstall's fingerprint authentication could time out
+           on a \"cold\" fingerprint reader (idle for a few minutes since your last
+           sudo use) - measured up to ~65s just for the reader itself to give up and
+           fall back, which didn't leave enough margin. Timeout bumped well above
+           that, and the screen now mentions fingerprint auth can take a bit so a
+           long wait doesn't look like it's stuck.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_32);
     changelog.push_str(&changelog_31);
     changelog.push_str(&changelog_30);
     changelog.push_str(&changelog_29);
