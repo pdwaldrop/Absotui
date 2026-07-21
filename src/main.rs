@@ -53,10 +53,14 @@ async fn main() -> Result<()> {
     // set dotenv to ~/.config.absotui/.env for linux
     // Library/Application Support/absotui/.env for macos
     // (dotenv will be use in `encrypt_token.rs`)
-    let home_dir = dirs::home_dir().expect("Unable to find the user's home directory");
     // if env::var("XDG_CONFIG_HOME") is not empty env_path will take designed path
-    // else, env_path will be set to default path
-    let config_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| { 
+    // else, env_path will be set to default path - home_dir() is only actually called
+    // in that fallback case (matches the pattern used everywhere else in the codebase,
+    // eg. cover_cache.rs/logs.rs/config.rs), since eagerly requiring $HOME here would
+    // defeat the whole point of the override on a system where $HOME isn't set/valid
+    // (containers, sandboxes) but XDG_CONFIG_HOME is.
+    let config_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let home_dir = dirs::home_dir().expect("Unable to find the user's home directory");
             if cfg!(target_os = "macos") {
             // If XDG_CONFIG_HOME is not defined on macOS, use the default directory
             home_dir.join("Library").join("Preferences")
