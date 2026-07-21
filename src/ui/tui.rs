@@ -454,8 +454,8 @@ impl App {
             }
             UpdateUninstallStage::Running(action) => {
                 let header = match action {
-                    Action::Update => "Updating... this may take a minute.",
-                    Action::Uninstall => "Uninstalling... this may take a minute.",
+                    Action::Update => "Updating... this may take a minute (longer if authenticating with a fingerprint reader).",
+                    Action::Uninstall => "Uninstalling... this may take a minute (longer if authenticating with a fingerprint reader).",
                 };
                 let mut lines = vec![header.to_string(), String::new()];
                 lines.extend(self.update_uninstall_log.iter().cloned());

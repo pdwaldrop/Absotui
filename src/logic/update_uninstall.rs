@@ -137,7 +137,12 @@ async fn validate_sudo(
     password_rx: &mut UnboundedReceiver<String>,
     tx: &UnboundedSender<ProgressEvent>,
 ) -> Result<(), UpdateError> {
-    match negotiate(pty, child, password_rx, tx, Duration::from_secs(150), "authenticating").await {
+    // 300s, not 150s: measured live (see the session notes around this feature) that a
+    // single cold-started fprintd cycle alone can take ~65s across two internal PAM
+    // retries with no user-visible progress in between - there's no hard guarantee that
+    // was the worst case, and this only matters once (per invocation), so erring toward
+    // "never fails" over "fails fast" is the right tradeoff here.
+    match negotiate(pty, child, password_rx, tx, Duration::from_secs(300), "authenticating").await {
         Ok(status) if status.success() => Ok(()),
         Ok(_) => Err(UpdateError::AuthFailed),
         Err(e) => Err(UpdateError::Other(e)),
