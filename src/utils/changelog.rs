@@ -465,8 +465,7 @@ let changelog_28 = "Changelog Absotui v0.5.13-beta (20/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_29 = format!(
-    "Changelog Absotui v{VERSION} (20/07/2026) \n\
+let changelog_29 = "Changelog Absotui v0.5.14-beta (20/07/2026) \n\
          \n\
          Fixed:\n\
          - Sometimes at launch the app would just drop you back to the login screen
@@ -476,10 +475,24 @@ let changelog_29 = format!(
            the first hiccup, and shows an actual error if it's still failing.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_30 = format!(
+    "Changelog Absotui v{VERSION} (20/07/2026) \n\
+         \n\
+         Added:\n\
+         - Settings > Update and uninstall can now update or uninstall right from
+           inside the app - confirm, enter your password if needed, and watch it run
+           in a live log panel instead of leaving to a terminal. A successful update
+           reloads the app into the new version automatically, no manual restart.
+           The absotui --update / --uninstall terminal flags still work exactly as
+           before, unchanged.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_30);
     changelog.push_str(&changelog_29);
     changelog.push_str(&changelog_28);
     changelog.push_str(&changelog_27);
