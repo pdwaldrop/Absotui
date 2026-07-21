@@ -23,6 +23,21 @@ use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_a
 // const version
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+// Shared by both render_desc_settings (the preview shown while "Update / Uninstall" is
+// merely highlighted in the Settings list) and render_update_uninstall_content (the
+// Instructions stage once you've actually entered that screen) - one string so the two
+// can't drift out of sync the way they did before (the preview kept describing a
+// quit-and-run-a-command-yourself flow long after Update now/Uninstall started running
+// things right here in-app).
+const UPDATE_UNINSTALL_INSTRUCTIONS: &str = "\
+Select Update now or Uninstall and press Enter (l/\u{2192}) to run it right here - no need \
+to leave the app. Both may ask for your password.
+
+You can still do either manually instead:
+- If you built from source: git pull && cargo build --release
+- If you installed using the script: absotui --update / absotui --uninstall
+";
+
 /// init widget for selected `AppView` 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
@@ -394,7 +409,7 @@ impl App {
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
-        let render_list_title = "Update and uninstall";
+        let render_list_title = "Update / Uninstall";
         let options = vec!["Update now".to_string(), "Uninstall".to_string()];
 
         let text_render_footer = match &self.update_uninstall_stage {
@@ -415,15 +430,7 @@ impl App {
     fn render_update_uninstall_content(&self, area: Rect, buf: &mut Buffer) {
         match &self.update_uninstall_stage {
             UpdateUninstallStage::Instructions => {
-                let instructions = "\
-Select Update now or Uninstall and press Enter (l/\u{2192}) to run it right here - no need \
-to leave the app. Both may ask for your password.
-
-You can still do either manually instead:
-- If you built from source: git pull && cargo build --release
-- If you installed using the script: absotui --update / absotui --uninstall
-";
-                Paragraph::new(instructions)
+                Paragraph::new(UPDATE_UNINSTALL_INSTRUCTIONS)
                     .wrap(Wrap { trim: true })
                     .render(area, buf);
             }
@@ -1275,18 +1282,6 @@ You can still do either manually instead:
     // desc for settings
     fn render_desc_settings(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
-        let instructions = "\
-Update:
-- Quit the app
-- If you built from source: git pull && cargo build --release
-- If you installed using the script: absotui --update
-
-Uninstall:
-- Quit the app
-- If you built from source: just delete the cloned folder
-- If you installed using the script: absotui --uninstall
-";
-
         match list_state.selected() {
 
             Some(4) => {
@@ -1295,12 +1290,10 @@ Uninstall:
                     .wrap(Wrap { trim: true })
                     .render(area, buf);
                 }
-            Some(5) => {
-                Paragraph::new(instructions)
-                    .scroll((self.scroll_offset, 0))
-                    .wrap(Wrap { trim: true })
-                    .render(area, buf);
-                }
+            // Update / Uninstall deliberately has no list-level preview here, same as
+            // every other item besides About - its Instructions stage (rendered once you
+            // actually enter the screen, see render_update_uninstall_content) already
+            // shows UPDATE_UNINSTALL_INSTRUCTIONS.
             _ =>  {}
         }
     }

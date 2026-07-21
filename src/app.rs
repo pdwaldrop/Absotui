@@ -626,7 +626,7 @@ impl App {
     }
 }
     // init for `Settings`
-    let settings = vec!["Library".to_string(), "Per-Item Speed".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update and uninstall".to_string()];
+    let settings = vec!["Library".to_string(), "Per-Item Speed".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update / Uninstall".to_string()];
 
     // init for `SettingsAccount`
     let mut all_usernames: Vec<String> = Vec::new();
@@ -925,7 +925,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         return;
     }
 
-    // The Confirm/Password/Running/Failed stages of Settings > Update and uninstall
+    // The Confirm/Password/Running/Failed stages of Settings > Update / Uninstall
     // own every key themselves (most importantly so free-text password typing can't
     // be swallowed by the global single-letter bindings below, eg. player controls) -
     // handle them here and return early. Only the passive `Instructions` stage (just
