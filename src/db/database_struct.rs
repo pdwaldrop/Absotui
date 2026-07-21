@@ -1,6 +1,8 @@
 use serde::{Serialize, Deserialize};
-use crate::db::crud::{init_db, select_default_usr};
+use crate::db::crud::{init_db, select_default_usr, update_login_err};
 use color_eyre::Result;
+use log::error;
+use std::time::Duration;
 
 pub struct Database  {
     pub users: Vec<User>,
@@ -59,11 +61,35 @@ impl Database {
         // init empty Vec<User> for future add of users
         let users: Vec<User> = vec![];
 
-        // retrieve default user
+        // Retrieve the default user. A failed query here (eg. the db is briefly
+        // locked right after a user was deleted/changed and the app was immediately
+        // restarted) used to be silently treated the same as "no default user
+        // exists", sending a returning user back to the login screen with no
+        // explanation (bug_id 2eb9e3). Retry a few times first since this is
+        // normally transient and self-resolves within a second or two; if it's
+        // still failing after that, surface it via the login screen's existing
+        // error banner instead of staying silent.
         let mut default_usr: Vec<String> = Vec::new();
-
-        if let Ok(result) = select_default_usr() {
-            default_usr = result;
+        let mut last_err = None;
+        for attempt in 0..5 {
+            match select_default_usr() {
+                Ok(result) => {
+                    default_usr = result;
+                    last_err = None;
+                    break;
+                }
+                Err(e) => {
+                    last_err = Some(e);
+                    if attempt < 4 {
+                        tokio::time::sleep(Duration::from_millis(400)).await;
+                    }
+                }
+            }
+        }
+        if let Some(e) = last_err {
+            let message = format!("Couldn't read your saved login ({e}) - please log in again.");
+            error!("[Database::new] {message}");
+            let _ = update_login_err(&message);
         }
 
 
