@@ -358,6 +358,8 @@ pub async fn handle_l_pod_home(
                     }
                     Err(e) => {
                         error!("[handle_l_pod_home][Err(e)]{e}");
+                        let _ = update_is_vlc_running("0", username.as_str());
+                        let _ = update_is_loop_break("1", username.as_str());
                         break 'episodes; // Exit on error
                     }
                 }
@@ -365,6 +367,11 @@ pub async fn handle_l_pod_home(
         } else {
             error!("[handle_l_pod_home] Failed to start playback session");
             eprintln!("Failed to start playback session");
+            // Without this, wait_prev_session_finished's poll loop (blocking every
+            // future play attempt until this flips back to "1") never sees it happen -
+            // a single transient failure here would otherwise permanently wedge
+            // playback until the app is quit cleanly with `Q`.
+            let _ = update_is_loop_break("1", username.as_str());
             break 'episodes;
         }
     }
