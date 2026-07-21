@@ -90,7 +90,7 @@ pub async fn handle_l_pod_home(
             tokio::spawn(async move {
                 // this info! is not the most reliable to know is VLC is really launched
                 info!("[handle_l_pod_home][start_vlc] VLC successfully launched");
-                start_vlc(
+                if let Err(e) = start_vlc(
                     &info_item_clone[0], // current_time
                     &port_clone, // player port
                     address_player_clone, // player address
@@ -103,14 +103,18 @@ pub async fn handle_l_pod_home(
                     program_clone,
                     username_clone,
                     id_clone,
-                ).await;
+                ).await {
+                    error!("[handle_l_pod_home][start_vlc] {e}");
+                }
             });
 
             if is_cvlc_term == "1" {
                 let port_clone = port.clone();
                 let address_player_clone = address_player.clone();
                 tokio::spawn(async move {
-                    exec_nc(&port_clone, address_player_clone).await;
+                    if let Err(e) = exec_nc(&port_clone, address_player_clone).await {
+                        error!("[handle_l_pod_home][exec_nc] {e}");
+                    }
                 });
             }
 

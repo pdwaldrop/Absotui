@@ -1,5 +1,7 @@
+use std::io;
 use std::process::Command;
 use std::process::Output;
+use log::error;
 use crate::db::crud::{get_speed_rate, get_is_per_item_speed, get_item_speed_rate, set_item_speed_rate};
 
 // Resolves the playback speed to launch VLC with: per-item if Settings > Per-Item
@@ -36,11 +38,16 @@ pub async fn start_vlc(
     program: String,
     username: String,
     id_item: String,
-) -> Output {
+) -> io::Result<Output> {
 
     let speed_rate = resolve_speed_rate(username.as_str(), id_item.as_str());
 
-    let output: Output = Command::new(&program)
+    // Called from an un-awaited tokio::spawn task (see handle_l_book.rs and its
+    // siblings) - a panic here (the old .expect()) would silently kill that task with
+    // no user-visible error if `program` (vlc/cvlc) is missing or misconfigured. The
+    // polling loop that checks is_vlc_running does eventually notice and clean up the
+    // session either way, but logging the actual cause here beats a silent no-op.
+    Command::new(&program)
         .arg("-I") // for macos
         .arg("dummy") // for macos
         .arg(format!("--start-time={current_time}"))
@@ -58,8 +65,6 @@ pub async fn start_vlc(
         .arg("--meta-artist")
         .arg(title)
         .output()
-        .expect("Failed to execute program");
-
-    output
+        .inspect_err(|e| error!("[start_vlc] Failed to execute {program}: {e}"))
 }
 
