@@ -476,8 +476,7 @@ let changelog_29 = "Changelog Absotui v0.5.14-beta (20/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_30 = format!(
-    "Changelog Absotui v{VERSION} (20/07/2026) \n\
+let changelog_30 = "Changelog Absotui v0.5.15-beta (20/07/2026) \n\
          \n\
          Added:\n\
          - Settings > Update and uninstall can now update or uninstall right from
@@ -488,10 +487,35 @@ let changelog_30 = format!(
            before, unchanged.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_31 = format!(
+    "Changelog Absotui v{VERSION} (21/07/2026) \n\
+         \n\
+         Added:\n\
+         - Settings > Update / Uninstall (renamed from \"Update and uninstall\") now
+           authenticates the same way a real terminal would: it tries your
+           fingerprint reader first if your system has one configured for sudo, and
+           falls back to a password prompt automatically if that doesn't work out -
+           instead of always asking for a typed password up front.
+         \n\
+         Fixed:\n\
+         - A full code review turned up and fixed a long list of crash/hang bugs:
+           several screens could crash on certain inputs (empty search results,
+           deleting your only account, a podcast with missing metadata), a stalled
+           VLC connection could freeze that session's syncing forever, a failed
+           playback start could permanently block all future play attempts until
+           quitting the app, and two rapid play presses close together could start
+           two playback sessions at once.
+         - The install/update script no longer leaves prompts hanging (Arch and
+           macOS specifically) that the in-app updater's password-prompt detection
+           could otherwise misread.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_31);
     changelog.push_str(&changelog_30);
     changelog.push_str(&changelog_29);
     changelog.push_str(&changelog_28);
