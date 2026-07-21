@@ -82,11 +82,7 @@ async fn run_update_or_uninstall(
     let mut validate_child = validate_cmd
         .spawn_borrowed(&pts)
         .map_err(|e| UpdateError::Other(format!("Failed to launch sudo: {e}")))?;
-    match negotiate(&mut pty, &mut validate_child, password_rx, tx, Duration::from_secs(150), "authenticating").await {
-        Ok(status) if status.success() => {}
-        Ok(_) => return Err(UpdateError::AuthFailed),
-        Err(e) => return Err(UpdateError::Other(e)),
-    }
+    validate_sudo(&mut pty, &mut validate_child, password_rx, tx).await?;
 
     // Reuses the same pty (`spawn_borrowed` instead of `spawn`, which would consume
     // `pts`) rather than opening a fresh one for the script - sudo's timestamp cache is
@@ -114,20 +110,17 @@ async fn run_update_or_uninstall(
     password_rx: &mut UnboundedReceiver<String>,
     tx: &UnboundedSender<ProgressEvent>,
 ) -> Result<(), UpdateError> {
-    {
-        let (mut pty, pts) = pty_process::open().map_err(|e| UpdateError::Other(format!("Couldn't open a pty: {e}")))?;
-        let mut validate_cmd = PtyCommand::new("sudo");
-        validate_cmd = validate_cmd.args(["-k", "-v"]);
-        let mut validate_child = validate_cmd
-            .spawn(pts)
-            .map_err(|e| UpdateError::Other(format!("Failed to launch sudo: {e}")))?;
-        match negotiate(&mut pty, &mut validate_child, password_rx, tx, Duration::from_secs(150), "authenticating").await {
-            Ok(status) if status.success() => {}
-            Ok(_) => return Err(UpdateError::AuthFailed),
-            Err(e) => return Err(UpdateError::Other(e)),
-        }
-    }
+    let (mut pty, pts) = pty_process::open().map_err(|e| UpdateError::Other(format!("Couldn't open a pty: {e}")))?;
+    let mut validate_cmd = PtyCommand::new("sudo");
+    validate_cmd = validate_cmd.args(["-k", "-v"]);
+    let mut validate_child = validate_cmd
+        .spawn(pts)
+        .map_err(|e| UpdateError::Other(format!("Failed to launch sudo: {e}")))?;
+    validate_sudo(&mut pty, &mut validate_child, password_rx, tx).await?;
 
+    // Shadowing `pty`/`pts` here drops the validate-phase pty/child before opening a
+    // fresh pair - macOS has no `spawn_borrowed` to share one pty across both phases
+    // (see the non-macOS variant above), so there's nothing to keep them alive for.
     let (mut pty, pts) = pty_process::open().map_err(|e| UpdateError::Other(format!("Couldn't open a pty: {e}")))?;
     let mut script_cmd = PtyCommand::new("bash");
     script_cmd = script_cmd.args(["-c", &install_script(action)]);
@@ -136,6 +129,19 @@ async fn run_update_or_uninstall(
         .map_err(|e| UpdateError::Other(format!("Failed to launch installer: {e}")))?;
 
     finish_script(&mut pty, &mut script_child, action, password_rx, tx).await
+}
+
+async fn validate_sudo(
+    pty: &mut pty_process::Pty,
+    child: &mut tokio::process::Child,
+    password_rx: &mut UnboundedReceiver<String>,
+    tx: &UnboundedSender<ProgressEvent>,
+) -> Result<(), UpdateError> {
+    match negotiate(pty, child, password_rx, tx, Duration::from_secs(150), "authenticating").await {
+        Ok(status) if status.success() => Ok(()),
+        Ok(_) => Err(UpdateError::AuthFailed),
+        Err(e) => Err(UpdateError::Other(e)),
+    }
 }
 
 async fn finish_script(
@@ -173,11 +179,8 @@ async fn finish_script(
     }
 }
 
-// Shared read/prompt/answer loop for both phases above: streams the child's pty output
-// back as ProgressEvent::Line, and if the child's side ever genuinely looks like it's
-// waiting on a password (see read_until_idle_or_eof), asks the UI for one and writes
-// whatever comes back in, then keeps reading - covers sudo retrying after a wrong
-// password same as a real terminal would, not just a single attempt.
+// Shared read/prompt/answer loop for both phases above. Loops rather than asking once:
+// covers sudo retrying after a wrong password the same way a real terminal would.
 async fn negotiate(
     pty: &mut pty_process::Pty,
     child: &mut tokio::process::Child,

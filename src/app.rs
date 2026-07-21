@@ -962,8 +962,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         self.update_uninstall_stage = UpdateUninstallStage::Running(action);
                     }
                     KeyCode::Esc => {
-                        // Drop the sender - authenticate_sudo's password_rx.recv() sees
-                        // the channel close, kills the in-flight sudo/pty, and returns.
+                        // Drop the sender - update_uninstall::negotiate's password_rx.recv()
+                        // sees the channel close, kills the in-flight sudo/pty, and returns.
                         self.update_uninstall_password_tx = None;
                         self.update_uninstall_stage = UpdateUninstallStage::Confirm(action);
                     }
@@ -1907,8 +1907,8 @@ pub fn poll_update_uninstall_event(&mut self) -> Option<ProgressEvent> {
 
 // Built lazily on ProgressEvent::NeedPassword rather than up front on confirm, since
 // we don't know a password will even be asked for until sudo's own conversation (run
-// over a real pty - see update_uninstall::authenticate_sudo) actually reaches that
-// prompt, eg. after a fingerprint attempt falls through.
+// over a real pty - see update_uninstall::negotiate) actually reaches that prompt,
+// eg. after a fingerprint attempt falls through.
 pub fn new_password_field(&self) -> TextArea<'static> {
     let fg_color = self.config.colors.login_foreground_color.clone();
     let mut password_field = TextArea::default();
