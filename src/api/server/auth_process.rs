@@ -56,6 +56,16 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
         let _media_types = collect_media_types(&all_libraries).await;
         let library_ids = collect_library_ids(&all_libraries).await;
 
+        // A fresh server, or an account restricted from every library, legitimately has
+        // zero accessible libraries - indexing [0] below would panic inside this spawned
+        // task before update_auth_in_progress("0") ever runs (see auth_input.rs), leaving
+        // the login screen stuck on "authenticating" forever with no visible error.
+        if library_names.is_empty() || library_ids.is_empty() {
+            return Err(Report::new(std::io::Error::other(
+                "This account has no accessible libraries - grant it at least one library on the server and try again.",
+            )));
+        }
+
         // Token encryption before insert it in the database
         let _token_to_encrypt = login_response.user.token.as_str();
         let mut token_encrypted = String::new();
