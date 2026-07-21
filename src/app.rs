@@ -208,6 +208,7 @@ pub struct App {
     pub update_uninstall_password: TextArea<'static>,
     pub update_uninstall_log: Vec<String>,
     pub update_uninstall_receiver: Option<tokio::sync::mpsc::UnboundedReceiver<ProgressEvent>>,
+    pub update_uninstall_password_tx: Option<tokio::sync::mpsc::UnboundedSender<String>>,
     pub podcast_home_last_refresh: std::time::Instant,
     // None if the terminal doesn't support any image protocol (Kitty/Sixel/iTerm2) -
     // queried once at startup via Picker::from_query_stdio().
@@ -828,6 +829,7 @@ impl App {
         update_uninstall_password: TextArea::default(),
         update_uninstall_log: Vec::new(),
         update_uninstall_receiver: None,
+        update_uninstall_password_tx: None,
         podcast_home_last_refresh: std::time::Instant::now(),
         image_picker,
         cover_protocol: None,
@@ -935,18 +937,11 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 let action = *action;
                 match key.code {
                     KeyCode::Char('y') | KeyCode::Char('Y') => {
-                        let fg_color = self.config.colors.login_foreground_color.clone();
-                        let mut password_field = TextArea::default();
-                        password_field.set_mask_char('\u{2022}');
-                        password_field.set_block(
-                            Block::default()
-                                .borders(Borders::ALL)
-                                .title("Password")
-                                .border_style(Style::default()
-                                    .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
-                        );
-                        self.update_uninstall_password = password_field;
-                        self.update_uninstall_stage = UpdateUninstallStage::Password(action);
+                        self.update_uninstall_log.clear();
+                        let (rx, password_tx) = update_uninstall::spawn(action);
+                        self.update_uninstall_receiver = Some(rx);
+                        self.update_uninstall_password_tx = Some(password_tx);
+                        self.update_uninstall_stage = UpdateUninstallStage::Running(action);
                     }
                     KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
                         self.update_uninstall_stage = UpdateUninstallStage::Instructions;
@@ -961,11 +956,15 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                     KeyCode::Enter => {
                         let password = self.update_uninstall_password.lines().join("\n");
                         self.update_uninstall_password = TextArea::default();
-                        self.update_uninstall_log.clear();
-                        self.update_uninstall_receiver = Some(update_uninstall::spawn(action, password));
+                        if let Some(tx) = &self.update_uninstall_password_tx {
+                            let _ = tx.send(password);
+                        }
                         self.update_uninstall_stage = UpdateUninstallStage::Running(action);
                     }
                     KeyCode::Esc => {
+                        // Drop the sender - authenticate_sudo's password_rx.recv() sees
+                        // the channel close, kills the in-flight sudo/pty, and returns.
+                        self.update_uninstall_password_tx = None;
                         self.update_uninstall_stage = UpdateUninstallStage::Confirm(action);
                     }
                     _ => {
@@ -983,6 +982,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 if let KeyCode::Esc = key.code {
                     self.update_uninstall_stage = UpdateUninstallStage::Instructions;
                     self.update_uninstall_receiver = None;
+                    self.update_uninstall_password_tx = None;
                     self.update_uninstall_log.clear();
                 }
                 return;
@@ -1903,6 +1903,24 @@ pub fn select_last(&mut self) {
 // dedicated blocking sub-loop.
 pub fn poll_update_uninstall_event(&mut self) -> Option<ProgressEvent> {
     self.update_uninstall_receiver.as_mut()?.try_recv().ok()
+}
+
+// Built lazily on ProgressEvent::NeedPassword rather than up front on confirm, since
+// we don't know a password will even be asked for until sudo's own conversation (run
+// over a real pty - see update_uninstall::authenticate_sudo) actually reaches that
+// prompt, eg. after a fingerprint attempt falls through.
+pub fn new_password_field(&self) -> TextArea<'static> {
+    let fg_color = self.config.colors.login_foreground_color.clone();
+    let mut password_field = TextArea::default();
+    password_field.set_mask_char('\u{2022}');
+    password_field.set_block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Password")
+            .border_style(Style::default()
+                .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
+    );
+    password_field
 }
 
 }

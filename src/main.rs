@@ -181,6 +181,10 @@ async fn main() -> Result<()> {
                 if let Some(action) = running_action {
                     match event {
                         ProgressEvent::Line(line) => app.update_uninstall_log.push(line),
+                        ProgressEvent::NeedPassword => {
+                            app.update_uninstall_password = app.new_password_field();
+                            app.update_uninstall_stage = UpdateUninstallStage::Password(action);
+                        }
                         ProgressEvent::AuthFailed => {
                             app.update_uninstall_stage = UpdateUninstallStage::Failed(action, "Incorrect password".to_string());
                             app.update_uninstall_receiver = None;
