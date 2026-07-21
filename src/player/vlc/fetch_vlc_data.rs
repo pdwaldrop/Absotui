@@ -27,6 +27,10 @@ pub async fn fetch_vlc_data(port: String, address: String) -> Result<Option<u32>
            //         eprintln!("Failed to log to vlc: {}", file_error);
            //         error!("Failed to log to vlc: {}", file_error);
            //     }
+                // Unlike the "no data yet" path below, this had no sleep - a persistent
+                // handshake failure (port open but VLC not yet ready to talk RC) busy-
+                // looped this task at full CPU instead of backing off.
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 continue;
             }
         }; 
