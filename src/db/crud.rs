@@ -561,6 +561,12 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
     let err_message = "Error connecting to the database.";
 
     if let Ok(conn) = Connection::open(db_path) {
+        // Called ~5x/sec from the render loop (via player_info -> render_player) while
+        // the detached playback task writes to this same row roughly every second from
+        // its own connection - without a busy_timeout, a collision surfaces as an
+        // immediate SQLITE_BUSY Err instead of a short, self-resolving wait, which
+        // player_tui.rs then has no valid session data to render.
+        let _ = conn.busy_timeout(std::time::Duration::from_millis(500));
         let mut stmt = conn.prepare(
             "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter, chapters, volume
              FROM listening_session

@@ -8,6 +8,18 @@ use crate::db::crud::get_is_show_key_bindings;
 
 
 pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, bg_color: Vec<u8>, progress_bar_color: Vec<u8>, username: &str) {
+    // player_info() only pushes the full 12 fields this function indexes into on a
+    // successful `Ok(Some(session))` read (see src/player/integrated/player_info.rs) -
+    // a transient sqlite read error (Ok(None)/Err path, only 4 fields) shouldn't be
+    // able to happen anymore now that get_listening_session has a busy_timeout, but
+    // indexing a caller-supplied Vec without checking its length first is fragile
+    // regardless of how rare that's supposed to be - skip this frame instead of
+    // panicking the whole render loop.
+    if player_info.len() < 12 {
+        log::error!("render_player: player_info has {} fields, need 12 - skipping this frame", player_info.len());
+        return;
+    }
+
     let block_width = area.width;
     let new_y = area.y + area.height.saturating_sub(9); // the line number where player start
     let block_height = 4; // number of line of the player (in lines)
