@@ -1,5 +1,6 @@
 use crate::App;
-use crate::app::{AppView, HomeRow};
+use crate::app::{AppView, HomeRow, UpdateUninstallStage};
+use crate::logic::update_uninstall::Action;
 use crate::api::libraries::get_library_perso_view_pod::Chapter;
 use ratatui::{
     buffer::Buffer,
@@ -34,7 +35,7 @@ impl Widget for &mut App {
             AppView::SettingsAccount => self.render_settings_account(area, buf),
             AppView::SettingsLibrary => self.render_settings_library(area, buf),
             AppView::SettingsAbout => {},
-            AppView::SettingsUpdateUninstall => {},
+            AppView::SettingsUpdateUninstall => self.render_settings_update_uninstall(area, buf),
             AppView::SettingsAutoplay => self.render_settings_autoplay(area, buf),
             AppView::SettingsPerItemSpeed => self.render_settings_per_item_speed(area, buf),
         }
@@ -379,6 +380,91 @@ impl App {
             .left_aligned()
             .wrap(Wrap { trim: true })
             .render(item_area, buf);
+    }
+
+    /// `AppView::SettingsUpdateUninstall` rendering
+    fn render_settings_update_uninstall(&mut self, area: Rect, buf: &mut Buffer) {
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(6),
+            Constraint::Length(1),
+            Constraint::Length(2),
+        ]).areas(area);
+
+        let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
+
+        let render_list_title = "Update and uninstall";
+        let options = vec!["Update now".to_string(), "Uninstall".to_string()];
+
+        let text_render_footer = match &self.update_uninstall_stage {
+            UpdateUninstallStage::Instructions => format!("h: back, l/→: select,\n {}.", Self::footer_trailer("home", false)),
+            UpdateUninstallStage::Confirm(_) => "[Y] Yes   [N] / Esc: No".to_string(),
+            UpdateUninstallStage::Password(_) => "Enter: continue   Esc: back".to_string(),
+            UpdateUninstallStage::Running(_) => "Working...".to_string(),
+            UpdateUninstallStage::Failed(_, _) => "Esc: back".to_string(),
+        };
+
+        App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
+        App::render_footer(footer_area, buf, &text_render_footer);
+        self.render_list(list_area, buf, render_list_title, &options, &mut self.list_state_settings_update_uninstall.clone(), None);
+        self.render_update_uninstall_content(item_area, buf);
+    }
+
+    // content pane for `render_settings_update_uninstall`, one branch per stage
+    fn render_update_uninstall_content(&self, area: Rect, buf: &mut Buffer) {
+        match &self.update_uninstall_stage {
+            UpdateUninstallStage::Instructions => {
+                let instructions = "\
+Select Update now or Uninstall and press Enter (l/\u{2192}) to run it right here - no need \
+to leave the app. Both may ask for your password.
+
+You can still do either manually instead:
+- If you built from source: git pull && cargo build --release
+- If you installed using the script: absotui --update / absotui --uninstall
+";
+                Paragraph::new(instructions)
+                    .wrap(Wrap { trim: true })
+                    .render(area, buf);
+            }
+            UpdateUninstallStage::Confirm(action) => {
+                let message = match action {
+                    Action::Update => "Update to the latest version now?\n\nThis downloads and installs it, and may ask for your password.\n\n[Y] Yes   [N] No",
+                    Action::Uninstall => "Uninstall Absotui?\n\nThis deletes the binary, config, launcher, and icon. May ask for your password.\n\n[Y] Yes   [N] No",
+                };
+                Paragraph::new(message)
+                    .wrap(Wrap { trim: true })
+                    .render(area, buf);
+            }
+            UpdateUninstallStage::Password(_) => {
+                let [label_area, input_area, _rest] = Layout::vertical([
+                    Constraint::Length(1),
+                    Constraint::Length(3),
+                    Constraint::Fill(1),
+                ]).areas(area);
+                Paragraph::new("Enter your password to continue:").render(label_area, buf);
+                (&self.update_uninstall_password).render(input_area, buf);
+            }
+            UpdateUninstallStage::Running(action) => {
+                let header = match action {
+                    Action::Update => "Updating... this may take a minute.",
+                    Action::Uninstall => "Uninstalling... this may take a minute.",
+                };
+                let mut lines = vec![header.to_string(), String::new()];
+                lines.extend(self.update_uninstall_log.iter().cloned());
+                Paragraph::new(lines.join("\n"))
+                    .wrap(Wrap { trim: true })
+                    .render(area, buf);
+            }
+            UpdateUninstallStage::Failed(_, message) => {
+                let mut lines = self.update_uninstall_log.clone();
+                lines.push(String::new());
+                lines.push(format!("Failed: {message}"));
+                Paragraph::new(lines.join("\n"))
+                    .wrap(Wrap { trim: true })
+                    .render(area, buf);
+            }
+        }
     }
 
     /// `AppView::SettingsPerItemSpeed` rendering

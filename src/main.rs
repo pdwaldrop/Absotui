@@ -30,6 +30,16 @@ use std::path::PathBuf;
 use crate::utils::clap::clap;
 use crate::utils::scroll_wheel::{disable_terminal_scroll_wheel, restore_terminal_scroll_wheel};
 use crate::logic::server_recovery::init_app_with_retry;
+use crate::app::UpdateUninstallStage;
+use crate::logic::update_uninstall::{Action, ProgressEvent};
+use std::os::unix::process::CommandExt;
+
+// Where a binary-method install/update always lands (see hello_absotui.sh's
+// dl_handle_compressed_binary/check_and_cleanup_binary_install) - deterministic
+// because Settings > Update and uninstall always forces the "download precompiled
+// binary" method and always cleans up a stale ~/.cargo/bin/absotui first, regardless
+// of how the currently-running binary was originally installed.
+const INSTALLED_BINARY_PATH: &str = "/usr/local/bin/absotui";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -159,6 +169,48 @@ async fn main() -> Result<()> {
             // requiring a manual refresh - the method itself no-ops unless enough time
             // has passed, so this is cheap to call every loop iteration.
             let _ = app.refresh_podcast_home_if_stale().await;
+
+            // Drain one pending Settings > Update and uninstall progress event, if any
+            // (non-blocking) - keeps that screen's log panel live without a dedicated
+            // blocking sub-loop, just reusing this same draw/poll cadence.
+            if let Some(event) = app.poll_update_uninstall_event() {
+                let running_action = match &app.update_uninstall_stage {
+                    UpdateUninstallStage::Running(a) => Some(*a),
+                    _ => None,
+                };
+                if let Some(action) = running_action {
+                    match event {
+                        ProgressEvent::Line(line) => app.update_uninstall_log.push(line),
+                        ProgressEvent::AuthFailed => {
+                            app.update_uninstall_stage = UpdateUninstallStage::Failed(action, "Incorrect password".to_string());
+                            app.update_uninstall_receiver = None;
+                        }
+                        ProgressEvent::Finished(Ok(())) => match action {
+                            Action::Update => {
+                                ratatui::restore();
+                                restore_terminal_scroll_wheel();
+                                // Replaces this process's image with the freshly-installed
+                                // binary - never returns on success, so the app just picks
+                                // up where its own `main()` starts fresh. Only reached at
+                                // all if exec() itself failed to launch.
+                                let exec_err = std::process::Command::new(INSTALLED_BINARY_PATH).exec();
+                                eprintln!("Update installed, but couldn't relaunch automatically: {exec_err}");
+                                eprintln!("Run absotui to start the new version.");
+                                std::process::exit(0);
+                            }
+                            Action::Uninstall => {
+                                ratatui::restore();
+                                restore_terminal_scroll_wheel();
+                                std::process::exit(0);
+                            }
+                        },
+                        ProgressEvent::Finished(Err(message)) => {
+                            app.update_uninstall_stage = UpdateUninstallStage::Failed(action, message);
+                            app.update_uninstall_receiver = None;
+                        }
+                    }
+                }
+            }
 
             // Checking if any key is pressed (waiting for events with a 200ms delay here)
             if crossterm::event::poll(Duration::from_millis(200))?

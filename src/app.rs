@@ -22,7 +22,8 @@ use color_eyre::Result;
 use log::warn;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
-    widgets::ListState,
+    style::{Color, Style},
+    widgets::{Block, Borders, ListState},
 };
 use crate::utils::pop_up_message::pop_message;
 use crate::utils::changelog::changelog;
@@ -33,6 +34,8 @@ use crate::logic::sync_session::sync_session_from_database::sync_session_from_da
 use crate::logic::sync_session::wait_prev_session_finished::wait_prev_session_finished;
 use crate::player::integrated::handle_key_player::{handle_key_player, seek_to_absolute_time};
 use crate::utils::check_update::check_update;
+use crate::logic::update_uninstall::{self, Action, ProgressEvent};
+use ratatui_textarea::TextArea;
 
 // A single row of the (book-mode) Home list, once the currently-playing book's chapter
 // list has been spliced in as extra rows. Kept in sync between rendering (tui.rs) and
@@ -55,6 +58,18 @@ pub enum AppView {
     SettingsUpdateUninstall,
     SettingsAutoplay,
     SettingsPerItemSpeed
+}
+
+// Sub-state for the AppView::SettingsUpdateUninstall screen. `Failed` is the only
+// rendered end-state - a successful update/uninstall replaces the running process
+// (exec into the new binary) or exits entirely (see main.rs), so there's nothing left
+// to render in this process either way on success.
+pub enum UpdateUninstallStage {
+    Instructions,
+    Confirm(Action),
+    Password(Action),
+    Running(Action),
+    Failed(Action, String),
 }
 
 pub struct App {
@@ -189,6 +204,10 @@ pub struct App {
     pub config: ConfigFile,
     pub changelog: String,
     pub update_msg: String,
+    pub update_uninstall_stage: UpdateUninstallStage,
+    pub update_uninstall_password: TextArea<'static>,
+    pub update_uninstall_log: Vec<String>,
+    pub update_uninstall_receiver: Option<tokio::sync::mpsc::UnboundedReceiver<ProgressEvent>>,
     pub podcast_home_last_refresh: std::time::Instant,
     // None if the terminal doesn't support any image protocol (Kitty/Sixel/iTerm2) -
     // queried once at startup via Picker::from_query_stdio().
@@ -805,6 +824,10 @@ impl App {
         config,
         changelog,
         update_msg,
+        update_uninstall_stage: UpdateUninstallStage::Instructions,
+        update_uninstall_password: TextArea::default(),
+        update_uninstall_log: Vec::new(),
+        update_uninstall_receiver: None,
         podcast_home_last_refresh: std::time::Instant::now(),
         image_picker,
         cover_protocol: None,
@@ -900,6 +923,73 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         return;
     }
 
+    // The Confirm/Password/Running/Failed stages of Settings > Update and uninstall
+    // own every key themselves (most importantly so free-text password typing can't
+    // be swallowed by the global single-letter bindings below, eg. player controls) -
+    // handle them here and return early. Only the passive `Instructions` stage (just
+    // a 2-item list + Enter, like every other Settings sub-screen) falls through to
+    // the normal dispatch further down.
+    if matches!(self.view_state, AppView::SettingsUpdateUninstall) {
+        match &self.update_uninstall_stage {
+            UpdateUninstallStage::Confirm(action) => {
+                let action = *action;
+                match key.code {
+                    KeyCode::Char('y') | KeyCode::Char('Y') => {
+                        let fg_color = self.config.colors.login_foreground_color.clone();
+                        let mut password_field = TextArea::default();
+                        password_field.set_mask_char('\u{2022}');
+                        password_field.set_block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .title("Password")
+                                .border_style(Style::default()
+                                    .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
+                        );
+                        self.update_uninstall_password = password_field;
+                        self.update_uninstall_stage = UpdateUninstallStage::Password(action);
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                        self.update_uninstall_stage = UpdateUninstallStage::Instructions;
+                    }
+                    _ => {}
+                }
+                return;
+            }
+            UpdateUninstallStage::Password(action) => {
+                let action = *action;
+                match key.code {
+                    KeyCode::Enter => {
+                        let password = self.update_uninstall_password.lines().join("\n");
+                        self.update_uninstall_password = TextArea::default();
+                        self.update_uninstall_log.clear();
+                        self.update_uninstall_receiver = Some(update_uninstall::spawn(action, password));
+                        self.update_uninstall_stage = UpdateUninstallStage::Running(action);
+                    }
+                    KeyCode::Esc => {
+                        self.update_uninstall_stage = UpdateUninstallStage::Confirm(action);
+                    }
+                    _ => {
+                        self.update_uninstall_password.input(key);
+                    }
+                }
+                return;
+            }
+            UpdateUninstallStage::Running(_) => {
+                // No interaction in v1 - the log keeps streaming in via main.rs's
+                // channel drain every loop iteration regardless of key input.
+                return;
+            }
+            UpdateUninstallStage::Failed(_, _) => {
+                if let KeyCode::Esc = key.code {
+                    self.update_uninstall_stage = UpdateUninstallStage::Instructions;
+                    self.update_uninstall_receiver = None;
+                    self.update_uninstall_log.clear();
+                }
+                return;
+            }
+            UpdateUninstallStage::Instructions => {}
+        }
+    }
 
     match key.code {
         // PLAYER //
@@ -1355,6 +1445,14 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         Some(1) => self.view_state = AppView::SettingsPerItemSpeed,
                         Some(2) => self.view_state = AppView::SettingsAutoplay,
                         Some(3) => self.view_state = AppView::SettingsAccount,
+                        Some(5) => self.view_state = AppView::SettingsUpdateUninstall,
+                        _ => {}
+                    }
+                }
+                AppView::SettingsUpdateUninstall => {
+                    match self.list_state_settings_update_uninstall.selected() {
+                        Some(0) => self.update_uninstall_stage = UpdateUninstallStage::Confirm(Action::Update),
+                        Some(1) => self.update_uninstall_stage = UpdateUninstallStage::Confirm(Action::Uninstall),
                         _ => {}
                     }
                 }
@@ -1384,8 +1482,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                     }
                 }
                 AppView::SettingsAbout => {
-                }
-                AppView::SettingsUpdateUninstall => {
                 }
                 AppView::Library => {
                     if self.is_podcast {
@@ -1800,6 +1896,13 @@ pub fn select_last(&mut self) {
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select(Some(1)),
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select(Some(1)),
     }
+}
+
+// Non-blocking drain of one pending update/uninstall progress event, if any - called
+// from main.rs's render loop every iteration so the log panel stays live without a
+// dedicated blocking sub-loop.
+pub fn poll_update_uninstall_event(&mut self) -> Option<ProgressEvent> {
+    self.update_uninstall_receiver.as_mut()?.try_recv().ok()
 }
 
 }

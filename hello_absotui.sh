@@ -713,7 +713,7 @@ dl_handle_compressed_binary() {
     local binary_name=$2
     local tmpdir=$(mktemp -d)
     echo "[INFO] Downloading the compressed binary from $final_url"
-    sudo curl -L "$final_url" -o "$tmpdir/$binary_name"
+    sudo curl -LsS "$final_url" -o "$tmpdir/$binary_name"
 
     check_shasum "$tmpdir/$binary_name" "$binary_name" "$(fetch_expected_checksum "$binary_name")" "dir"
 
