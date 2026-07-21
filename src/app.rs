@@ -1804,7 +1804,12 @@ pub fn select_next(&mut self) {
             } else {
                 self.list_state_settings.select_first();
             }}}
-        AppView::SettingsAccount => self.list_state_settings_account.select_next(),
+        AppView::SettingsAccount => { if let Some(selected) = self.list_state_settings_account.selected() {
+            if selected + 1  < self.all_usernames.len() {
+                self.list_state_settings_account.select_next();
+            } else {
+                self.list_state_settings_account.select_first();
+            }}}
         AppView::SettingsLibrary => { if let Some(selected) = self.list_state_settings_library.selected() {
             if selected + 1  < self.media_types.len() {
                 self.list_state_settings_library.select_next();
@@ -1863,34 +1868,27 @@ pub fn select_first(&mut self) {
 pub fn select_last(&mut self) {
     match self.view_state {
         AppView::Home => {
-            let last_index = self.build_home_rows().len() - 1;
-            self.list_state_cnt_list.select(Some(last_index));
+            self.list_state_cnt_list.select(self.build_home_rows().len().checked_sub(1));
         }
         AppView::Library => {
-            let last_index = self.ids_library.len() - 1;
-            self.list_state_library.select(Some(last_index));
-        }            
+            self.list_state_library.select(self.ids_library.len().checked_sub(1));
+        }
         AppView::SearchBook => {
-            let last_index = self.ids_search_book.len() - 1;
-            self.list_state_search_results.select(Some(last_index));
-        }            
+            self.list_state_search_results.select(self.ids_search_book.len().checked_sub(1));
+        }
         AppView::PodcastEpisode => {
             if self.is_from_search_pod {
-                let last_index = self.ids_pod_ep_search.len() - 1;
-                self.list_state_pod_ep.select(Some(last_index));
+                self.list_state_pod_ep.select(self.ids_pod_ep_search.len().checked_sub(1));
             } else {
-                let last_index = self.ids_pod_ep.len() - 1;
-                self.list_state_pod_ep.select(Some(last_index));
-            }}            
+                self.list_state_pod_ep.select(self.ids_pod_ep.len().checked_sub(1));
+            }}
         AppView::Settings => {
-            let last_index = self.settings.len() - 1;
-            self.list_state_settings.select(Some(last_index));
-        }            
+            self.list_state_settings.select(self.settings.len().checked_sub(1));
+        }
         AppView::SettingsAccount => self.list_state_settings_account.select_last(),
         AppView::SettingsLibrary => {
-            let last_index = self.media_types.len() - 1;
-            self.list_state_settings_library.select(Some(last_index));
-        }            
+            self.list_state_settings_library.select(self.media_types.len().checked_sub(1));
+        }
         AppView::SettingsAbout => self.list_state_settings_about.select_last(),
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_last(),
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select(Some(1)),
