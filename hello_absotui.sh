@@ -399,7 +399,7 @@ install_packages() {
         linux)
 	    DISTRO=${DISTRO:-$(get_distro)}
     	    case "$DISTRO" in
-                arch*) sudo pacman -S ${dep[@]};;
+                arch*) sudo pacman -S --noconfirm ${dep[@]};;
                 debian*) sudo apt install -y ${dep[@]};;
                 fedora*) sudo dnf install -y ${dep[@]};;
                 centos*) sudo yum install -y ${dep[@]};;
@@ -1010,21 +1010,7 @@ pull_latest_version() {
             echo "[INFO] Ignoring latest version.";;
         yes)
             if [[ "$OS" == "macOS" ]]; then
-                local answer2=
-                while :; do
-                    read -p "gsed package is needed to correctly perform the update. Please, check if you have it ('brew install gsed' to install it). Continue? (Y/n) : " answer
-                    if [[ $answer =~ (n|N) ]]; then answer=no; break; fi
-                    if [[ $answer == "" || $answer =~ (y|Y) ]]; then answer=yes; break; fi
-                done
-                case $answer2 in
-                    no)
-                        echo "[INFO] Update aborted"
-                        exit 0
-                        ;;
-                    yes)
-                        ;;
-
-                esac
+                echo "[INFO] gsed package is needed to correctly perform the update. Please, check if you have it ('brew install gsed' to install it)."
             fi
             # echo "[INFO] Pulling latest version..."
             # git fetch && git pull
