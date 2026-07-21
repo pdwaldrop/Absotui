@@ -1175,19 +1175,40 @@ impl App {
     // info about the podcast for `PodcastEpisode` (from search)
     fn render_info_pod_ep_search(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
+        // Same guard as render_info_pod_ep: a podcast with episodes but null
+        // title/author metadata (collect_titles_pod/collect_authors_pod_ep only push
+        // when media.metadata is present) leaves these empty even though the episode
+        // list itself isn't.
+        if self.titles_pod_search.is_empty() || self.authors_pod_ep_search.is_empty() {
+            log::error!("render_info_pod_ep_search: titles_pod_search or authors_pod_ep_search is empty. Cannot render episode info.");
+            Paragraph::new("Error: Podcast metadata missing.")
+                .left_aligned()
+                .render(area, buf);
+            return;
+        }
+
         let n = self.durations_pod_ep_search.len();
         let duplicated_titles_search = vec![self.titles_pod_search[0].clone(); n];
         let duplicated_authors_search = vec![self.authors_pod_ep_search[0].clone(); n];
         if let Some(selected) = list_state.selected() {
-
-            Paragraph::new(format!("[{}] - Author: {} - Episode: {} - Duration: {} ", 
-                    duplicated_titles_search[selected].trim(), 
-                    duplicated_authors_search[selected].trim(), 
-                    self.episodes_pod_ep_search[selected].trim(),
-                    self.durations_pod_ep_search[selected].trim(),
-            ))
-                .left_aligned()
-                .render(area, buf);
+            if selected < self.episodes_pod_ep_search.len()
+                && selected < self.durations_pod_ep_search.len()
+                && selected < duplicated_titles_search.len()
+                && selected < duplicated_authors_search.len() {
+                Paragraph::new(format!("[{}] - Author: {} - Episode: {} - Duration: {} ",
+                        duplicated_titles_search[selected].trim(),
+                        duplicated_authors_search[selected].trim(),
+                        self.episodes_pod_ep_search[selected].trim(),
+                        self.durations_pod_ep_search[selected].trim(),
+                ))
+                    .left_aligned()
+                    .render(area, buf);
+            } else {
+                log::error!("render_info_pod_ep_search: Index {selected} out of bounds for episode/duration/title/author vectors!");
+                Paragraph::new("Error: Episode data unavailable or index out of bounds.")
+                    .left_aligned()
+                    .render(area, buf);
+            }
         }
     }
 
@@ -1282,19 +1303,15 @@ impl App {
     // desc for settings
     fn render_desc_settings(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
-        match list_state.selected() {
-
-            Some(4) => {
-                Paragraph::new(self.changelog.clone())
-                    .scroll((self.scroll_offset, 0))
-                    .wrap(Wrap { trim: true })
-                    .render(area, buf);
-                }
-            // Update / Uninstall deliberately has no list-level preview here, same as
-            // every other item besides About - its Instructions stage (rendered once you
-            // actually enter the screen, see render_update_uninstall_content) already
-            // shows UPDATE_UNINSTALL_INSTRUCTIONS.
-            _ =>  {}
+        // Update / Uninstall deliberately has no list-level preview here, same as every
+        // other item besides About - its Instructions stage (rendered once you actually
+        // enter the screen, see render_update_uninstall_content) already shows
+        // UPDATE_UNINSTALL_INSTRUCTIONS.
+        if list_state.selected() == Some(4) {
+            Paragraph::new(self.changelog.clone())
+                .scroll((self.scroll_offset, 0))
+                .wrap(Wrap { trim: true })
+                .render(area, buf);
         }
     }
 
