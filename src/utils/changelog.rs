@@ -511,8 +511,7 @@ let changelog_31 = "Changelog Absotui v0.5.16-beta (21/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_32 = format!(
-    "Changelog Absotui v{VERSION} (21/07/2026) \n\
+let changelog_32 = "Changelog Absotui v0.5.17-beta (21/07/2026) \n\
          \n\
          Fixed:\n\
          - Settings > Update / Uninstall's fingerprint authentication could time out
@@ -523,10 +522,29 @@ let changelog_32 = format!(
            long wait doesn't look like it's stuck.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_33 = format!(
+    "Changelog Absotui v{VERSION} (21/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Settings > Update / Uninstall could hang indefinitely during sudo
+           authentication (fingerprint especially) even after you'd successfully
+           authenticated - it only detected that sudo was done by watching for the
+           pty to close, which isn't reliable (sudo's own privilege-separated
+           process can hold that open after sudo itself has already exited). Now
+           detects the moment sudo actually exits instead.
+         - Security: cover art caching could be tricked by a malicious or
+           compromised Audiobookshelf server (or a network man-in-the-middle on a
+           plain http:// connection) into writing files outside the app's cover
+           cache directory, since item IDs from the server were used directly as
+           filenames with no validation. IDs are now sanitized before use.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_33);
     changelog.push_str(&changelog_32);
     changelog.push_str(&changelog_31);
     changelog.push_str(&changelog_30);
