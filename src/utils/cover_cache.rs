@@ -24,8 +24,21 @@ fn covers_dir() -> PathBuf {
 /// Path a given item's cached cover would live at, regardless of whether it's been
 /// fetched yet - image format is auto-detected from the file's contents at load time,
 /// so no extension is needed.
+///
+/// `item_id` comes straight from the configured Audiobookshelf server's JSON responses,
+/// unvalidated - a malicious or compromised server (or a MITM on a plain `http://`
+/// connection) could hand back an id like `"../../../../home/user/.ssh/authorized_keys"`
+/// and have this app write that response's bytes there via `fs::write`. Real item ids
+/// are opaque UUIDs and never need anything beyond alphanumerics/hyphens/underscores, so
+/// stripping everything else both closes that off (the result can never contain `/`, `\`,
+/// or `.`, so it can't escape `covers_dir()` or reference `..`) and is a no-op for every
+/// legitimate id.
 pub fn cover_cache_path(item_id: &str) -> PathBuf {
-    covers_dir().join(item_id)
+    let safe_id: String = item_id
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+    covers_dir().join(safe_id)
 }
 
 /// Fetches an item's cover and writes it to the local cache, if not already cached.
@@ -75,4 +88,31 @@ pub async fn fetch_and_cache_episode_cover(token: String, episode_id: String, li
     std::fs::write(path, &picture.data)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legitimate_uuid_style_id_is_unchanged() {
+        let id = "a1b2c3d4-e5f6-4789-a0bc-def012345678";
+        assert_eq!(cover_cache_path(id).file_name().unwrap().to_str().unwrap(), id);
+    }
+
+    #[test]
+    fn path_traversal_id_cannot_escape_covers_dir() {
+        let malicious = "../../../../home/user/.ssh/authorized_keys";
+        let path = cover_cache_path(malicious);
+        assert!(path.starts_with(covers_dir()));
+        assert_eq!(path.parent().unwrap(), covers_dir());
+    }
+
+    #[test]
+    fn absolute_path_id_cannot_escape_covers_dir() {
+        let malicious = "/home/user/.ssh/authorized_keys";
+        let path = cover_cache_path(malicious);
+        assert!(path.starts_with(covers_dir()));
+        assert_eq!(path.parent().unwrap(), covers_dir());
+    }
 }
