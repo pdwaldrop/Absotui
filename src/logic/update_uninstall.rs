@@ -201,7 +201,7 @@ async fn negotiate(
         // Only wraps the machine-paced waiting below - once we're actually waiting on
         // the user to type something, there's no clock running (see the
         // `password_rx.recv()` branch further down), so a slow typist can't get cut off.
-        match timeout(chunk_timeout, read_until_idle_or_eof(pty, &mut buf, &mut partial, tx)).await {
+        match timeout(chunk_timeout, read_until_idle_or_eof(pty, child, &mut buf, &mut partial, tx)).await {
             Err(_) => {
                 let _ = child.start_kill();
                 return Err(format!("Timed out {phase}"));
@@ -210,10 +210,13 @@ async fn negotiate(
                 let _ = child.start_kill();
                 return Err(format!("Couldn't talk to sudo: {e}"));
             }
-            Ok(Ok(true)) => {
+            Ok(Ok(ReadOutcome::Eof)) => {
                 return child.wait().await.map_err(|e| format!("sudo process error: {e}"));
             }
-            Ok(Ok(false)) => {
+            Ok(Ok(ReadOutcome::ChildExited(status))) => {
+                return Ok(status);
+            }
+            Ok(Ok(ReadOutcome::Prompt)) => {
                 let _ = tx.send(ProgressEvent::NeedPassword);
                 match password_rx.recv().await {
                     Some(password) => {
@@ -234,40 +237,63 @@ async fn negotiate(
     }
 }
 
-// Reads from the pty until either the child's side closes (Ok(true)) or the current
-// unterminated line has gone quiet for a moment (Ok(false)) - the same way tools like
-// `expect` tell an info message apart from a real prompt waiting on input. An info
-// message (eg. "Place your finger on the fingerprint reader") is newline-terminated, so
-// a quiet spell right after one leaves `partial` empty and we just keep waiting - that's
-// what covers a fingerprint scan legitimately taking its time. A genuine prompt (eg.
-// "[sudo] password for pdwaldrop: ") is never newline-terminated, so a quiet spell with
-// something left in `partial` means it's actually waiting on us.
+enum ReadOutcome {
+    Eof,
+    ChildExited(std::process::ExitStatus),
+    Prompt,
+}
+
+// Reads from the pty until either the child's side closes (Eof), the current
+// unterminated line has gone quiet for a moment (Prompt) - the same way tools like
+// `expect` tell an info message apart from a real prompt waiting on input - or the
+// child process itself exits (ChildExited), raced against the read on every iteration.
+// That last case matters because pty EOF isn't a reliable signal that the child is
+// done: `sudo` privilege-separates into a monitor process, and if that monitor (or
+// something PAM/fprintd forks) inherits the pty's slave fd without closing its own
+// copy, the kernel never delivers EOF on the master side even after the `sudo` we're
+// actually tracking has already exited - confirmed live, `sudo -k -v` sitting
+// `<defunct>` in `ps` while this loop was still logging quiet spells waiting on data
+// that was never coming. An info message (eg. "Place your finger on the fingerprint
+// reader") is newline-terminated, so a quiet spell right after one leaves `partial`
+// empty and we just keep waiting - that's what covers a fingerprint scan legitimately
+// taking its time. A genuine prompt (eg. "[sudo] password for pdwaldrop: ") is never
+// newline-terminated, so a quiet spell with something left in `partial` means it's
+// actually waiting on us.
 async fn read_until_idle_or_eof(
     pty: &mut pty_process::Pty,
+    child: &mut tokio::process::Child,
     buf: &mut [u8],
     partial: &mut String,
     tx: &UnboundedSender<ProgressEvent>,
-) -> std::io::Result<bool> {
+) -> std::io::Result<ReadOutcome> {
     loop {
-        match timeout(Duration::from_millis(500), pty.read(buf)).await {
-            Ok(Ok(0)) => return Ok(true),
-            Ok(Ok(n)) => {
-                partial.push_str(&strip_ansi(&String::from_utf8_lossy(&buf[..n])));
-                while let Some(pos) = partial.find('\n') {
-                    let line: String = partial.drain(..=pos).collect();
-                    let line = line.trim_end_matches(['\r', '\n']);
-                    if !line.trim().is_empty() {
-                        let _ = tx.send(ProgressEvent::Line(line.to_string()));
-                    }
-                }
+        tokio::select! {
+            biased;
+            status = child.wait() => {
+                return Ok(ReadOutcome::ChildExited(status?));
             }
-            // EIO on Linux is how a pty master read() reports "the slave side closed" -
-            // there's no clean EOF-as-Ok(0) guarantee like a pipe.
-            Ok(Err(e)) if e.raw_os_error() == Some(5) => return Ok(true),
-            Ok(Err(e)) => return Err(e),
-            Err(_) => {
-                if !partial.trim().is_empty() {
-                    return Ok(false);
+            read_result = timeout(Duration::from_millis(500), pty.read(buf)) => {
+                match read_result {
+                    Ok(Ok(0)) => return Ok(ReadOutcome::Eof),
+                    Ok(Ok(n)) => {
+                        partial.push_str(&strip_ansi(&String::from_utf8_lossy(&buf[..n])));
+                        while let Some(pos) = partial.find('\n') {
+                            let line: String = partial.drain(..=pos).collect();
+                            let line = line.trim_end_matches(['\r', '\n']);
+                            if !line.trim().is_empty() {
+                                let _ = tx.send(ProgressEvent::Line(line.to_string()));
+                            }
+                        }
+                    }
+                    // EIO on Linux is how a pty master read() reports "the slave side closed" -
+                    // there's no clean EOF-as-Ok(0) guarantee like a pipe.
+                    Ok(Err(e)) if e.raw_os_error() == Some(5) => return Ok(ReadOutcome::Eof),
+                    Ok(Err(e)) => return Err(e),
+                    Err(_) => {
+                        if !partial.trim().is_empty() {
+                            return Ok(ReadOutcome::Prompt);
+                        }
+                    }
                 }
             }
         }
