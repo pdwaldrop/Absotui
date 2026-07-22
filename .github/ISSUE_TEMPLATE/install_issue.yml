@@ -51,7 +51,7 @@ body:
       options:
         - Easy installation (option 1, download the binary)
         - Easy installation (option 2, compilation)
-        - yay
+        - In-app updater (Settings > Update / Uninstall)
         - From source, local clone
         - Other (list in "Additional Notes" box)
     validations:

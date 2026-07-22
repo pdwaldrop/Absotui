@@ -39,10 +39,11 @@
  **Speed-Adjusted Time Display:** Toggle (`T` key) between real elapsed/remaining time and raw content time  
  **Accurate Sync:** Progress percentages stay correct even at non-1x playback speeds  
  **Recovers From a Down Server:** A clear retry/change-server screen instead of the app just closing when it can't reach Audiobookshelf  
- **Desktop Integration:** A custom app icon, its own taskbar/dock window icon (on supported terminals), and a window title that shows what's currently playing
+ **Desktop Integration:** A custom app icon, its own taskbar/dock window icon (on supported terminals), and a window title that shows what's currently playing  
+ **In-App Update / Uninstall:** Settings > Update / Uninstall runs the install script for you — authenticates the same way a real terminal would (fingerprint reader first, if configured, falling back to a password prompt), streams progress live, and relaunches itself on a successful update. `absotui --update`/`--uninstall` still work unchanged as a fallback.
 
 ## 🛠️ Roadmap  
-Recent work: a recovery screen when the Audiobookshelf server can't be reached, instead of the app just closing; fixed marking the currently-playing podcast episode as finished (it used to revert itself and keep playing); fixed login sometimes needing two attempts; fixed the installer silently dropping custom `config.toml` settings on update. See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding.
+Recent work: Settings > Update / Uninstall can now run entirely from inside the app, authenticating with a fingerprint reader when your system has one configured; a taskbar/dock window icon and a window title that shows what's currently playing; a recovery screen when the Audiobookshelf server can't be reached, instead of the app just closing. See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding.
 
 ## 🔮 Future features
 Here are some features that could be added in future releases:
@@ -61,7 +62,7 @@ At worst, you may experience **sync issues**, but there is **no risk** of data l
 
 ## 📝 Notes
 ### 🐛 **Issues**    
-For any issues, check first the [issues](https://github.com/pdwaldrop/Absotui/issues) here. Otherwise, open a new one. (Also worth checking the [original project's wiki](https://github.com/AlbanDAVID/Toutui/wiki/) for general usage help, since most of the underlying app hasn't changed yet.)
+For any issues, check first the [issues](https://github.com/pdwaldrop/Absotui/issues) here. Otherwise, open a new one. (The [original project's wiki](https://github.com/AlbanDAVID/Toutui/wiki/) can still be useful for general usage help too.)
 
 ### 🤝 **Contributing**  
 Do not hesitate to contribute to this project by submitting your code, ideas, or feedback. Please make sure to read the [contributing guidelines](CONTRIBUTING.md) first.
@@ -71,8 +72,14 @@ This project follows this [branching workflow](https://gist.github.com/digitaljh
 
 ### 🎨 **UI**
 Explore and share themes [here](https://github.com/AlbanDAVID/Toutui-theme).    
-The **font** and **emojis** may vary depending on the terminal you are using.    
-To ensure the best experience, it's recommended to use **Kitty** or **Alacritty** terminal.
+The **font** and **emojis** may vary depending on the terminal you are using.
+
+### 🖥️ Terminal compatibility
+Absotui works in any modern terminal, but a few features depend on what your specific terminal supports:
+- **Cover art** needs a terminal that speaks the Kitty graphics protocol, the iTerm2 image protocol, or Sixel (auto-detected at startup) — **Kitty**, **Ghostty**, and **WezTerm** are good choices here. Anything else still shows cover art, just at lower fidelity via a Unicode-block fallback instead of a real image.
+- **Taskbar/dock window icon and title** need a terminal that lets you set a custom app ID/window class per window — Kitty, Ghostty, Alacritty, WezTerm, and Foot all support this.
+
+**Works best overall:** **Kitty**, **Ghostty**, or **WezTerm** — full-fidelity cover art and desktop integration together.
 
 ### 🙏 Credits
 Absotui began as a fork of [Toutui](https://github.com/AlbanDAVID/Toutui) by [AlbanDAVID](https://github.com/AlbanDAVID), archived in December 2025 ("I'm not able to properly maintain this project anymore... please don't wait for any new releases and issue fixing."). Thanks to the original author for the foundation this project builds on. Toutui itself took its name from the French phrase "tout ouïe" ("all ears").

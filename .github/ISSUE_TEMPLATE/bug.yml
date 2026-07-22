@@ -77,8 +77,10 @@ body:
     attributes:
       label: On which terminal emulator are you running Absotui?
       options:
-        - Alacritty
         - Kitty
+        - Ghostty
+        - WezTerm
+        - Alacritty
         - GNOME Terminal
         - Konsole
         - Other
