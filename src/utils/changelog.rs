@@ -523,8 +523,7 @@ let changelog_32 = "Changelog Absotui v0.5.17-beta (21/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_33 = format!(
-    "Changelog Absotui v{VERSION} (21/07/2026) \n\
+let changelog_33 = "Changelog Absotui v0.5.18-beta (21/07/2026) \n\
          \n\
          Fixed:\n\
          - Settings > Update / Uninstall could hang indefinitely during sudo
@@ -540,10 +539,23 @@ let changelog_33 = format!(
            filenames with no validation. IDs are now sanitized before use.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_34 = format!(
+    "Changelog Absotui v{VERSION} (22/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Settings > Update / Uninstall could report a false \"Incorrect shasum\"
+           error that looked like a corrupted/tampered download, when it actually
+           meant the installer couldn't reach GitHub's API to find the latest
+           version (e.g. rate limiting) - it now reports that distinctly instead
+           of comparing against a blank expected value.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_34);
     changelog.push_str(&changelog_33);
     changelog.push_str(&changelog_32);
     changelog.push_str(&changelog_31);
