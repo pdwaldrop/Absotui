@@ -76,6 +76,16 @@ check_shasum() {
     local expected_sha256=$3
     local file_type=$4
 
+    if [[ -z "$expected_sha256" ]]; then
+        echo "[ERROR] Could not determine the expected shasum for \"$file_name\" from GitHub."
+        echo "This is not a checksum mismatch - the downloaded file was never actually compared."
+        echo "It usually means the request to GitHub's API for the latest release failed (rate limit or transient network issue) - wait a few minutes and try again."
+        if [[ "$file_type" == "dir" ]]; then
+            rm -rf "$tmpdir"
+        fi
+        exit 1
+    fi
+
     actual_sha256=$(shasum -a 256 "$tmpfile" | awk "{print \$1}")
 
     if [[ "$actual_sha256" != "$expected_sha256" ]]; then
