@@ -170,7 +170,13 @@ async fn finish_script(
     };
     let _ = pty.write_all(answers.as_bytes()).await;
 
-    let status = negotiate(pty, child, password_rx, tx, Duration::from_secs(180), "running the installer")
+    // hello_absotui.sh's curl calls are silent (-LsSf, no progress meter), so a real
+    // binary download produces no output at all until it finishes - this timeout is a
+    // hard ceiling on the whole phase, not an inactivity timeout, so it can't tell that
+    // apart from a genuine hang. 180s turned out too tight for a normal download over a
+    // home connection (confirmed live: killed a real update mid-download). Bumped well
+    // above what a slow-but-healthy download/extract/install should ever need.
+    let status = negotiate(pty, child, password_rx, tx, Duration::from_secs(1800), "running the installer")
         .await
         .map_err(UpdateError::Other)?;
     if status.success() {

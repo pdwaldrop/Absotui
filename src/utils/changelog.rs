@@ -540,8 +540,7 @@ let changelog_33 = "Changelog Absotui v0.5.18-beta (21/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_34 = format!(
-    "Changelog Absotui v{VERSION} (22/07/2026) \n\
+let changelog_34 = "Changelog Absotui v0.5.19-beta (22/07/2026) \n\
          \n\
          Fixed:\n\
          - Settings > Update / Uninstall could report a false \"Incorrect shasum\"
@@ -551,10 +550,22 @@ let changelog_34 = format!(
            of comparing against a blank expected value.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_35 = format!(
+    "Changelog Absotui v{VERSION} (22/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Settings > Update / Uninstall could time out and fail partway through a
+           normal binary download on a slower connection, reporting it the same as
+           a genuine hang. The download/install phase's time limit is now much more
+           generous.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_35);
     changelog.push_str(&changelog_34);
     changelog.push_str(&changelog_33);
     changelog.push_str(&changelog_32);
