@@ -511,7 +511,7 @@ impl App {
     // see the CLAUDE.md note on App::new() being the one place cross-cutting state
     // gets refreshed.
     if !is_podcast && get_is_auto_download(&username) == "1" {
-        sync_auto_downloads(username.clone(), token.clone(), server_address.clone(), _ids_cnt_list.clone(), _titles_cnt_list.clone(), auth_names_cnt_list.clone());
+        sync_auto_downloads(username.clone(), token.clone(), server_address.clone(), _ids_cnt_list.clone(), _titles_cnt_list.clone(), auth_names_cnt_list.clone(), config.downloads.auto_download_count);
     }
 
     // None if the terminal doesn't support any image protocol - cover images just won't

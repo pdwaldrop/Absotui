@@ -8,6 +8,7 @@ use std::path::PathBuf;
 pub struct ConfigFile {
     pub colors: Colors,
     pub player: Player,
+    pub downloads: Downloads,
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,6 +42,25 @@ pub struct Player {
     pub port: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct Downloads {
+    #[serde(default = "default_auto_download_count")]
+    pub auto_download_count: usize,
+}
+
+impl Default for Downloads {
+    fn default() -> Self {
+        Downloads { auto_download_count: default_auto_download_count() }
+    }
+}
+
+// Existing config.toml files predate Auto Download entirely, so the whole
+// `[downloads]` section is typically missing rather than just this field -
+// `load_config` falls back to this same default when the section itself is absent.
+fn default_auto_download_count() -> usize {
+    5
+}
+
 /// load config from `config.toml` file
 pub fn load_config() -> Result<ConfigFile> {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| { 
@@ -67,7 +87,8 @@ pub fn load_config() -> Result<ConfigFile> {
         .map_err(|e| Report::new(e))?;
     let player: Player = config.get("player")
         .map_err(|e| Report::new(e))?;
+    let downloads: Downloads = config.get("downloads").unwrap_or_default();
 
-    Ok(ConfigFile { colors, player })
+    Ok(ConfigFile { colors, player, downloads })
 }
 

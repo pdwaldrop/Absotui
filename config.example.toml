@@ -43,3 +43,10 @@ login_foreground_color = [180, 180, 180]
 player_background_color = [80, 80, 80]
 # Background color showing progress behind the title/chapter text in the player (optional, defaults to steel blue if omitted):
 progress_bar_color = [70, 130, 180]
+
+#### DOWNLOADS ####
+[downloads]
+# When Settings > Auto Download is turned on, this is how many books from the top of
+# Continue Listening (most recently played first) get kept downloaded for offline
+# playback. Anything beyond this count that was previously downloaded gets pruned.
+auto_download_count = 5

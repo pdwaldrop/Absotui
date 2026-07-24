@@ -531,11 +531,12 @@ impl App {
         let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
         let options = vec!["On".to_string(), "Off".to_string()];
         let current = if get_is_auto_download(&self.username) == "1" { "On" } else { "Off" };
+        let count = self.config.downloads.auto_download_count;
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
         self.render_list(list_area, buf, render_list_title, &options, &mut self.list_state_settings_auto_download.clone(), None);
-        Paragraph::new(format!("Currently: {current}\n\nWhen on, every book in Continue Listening is automatically downloaded for offline playback (press 'd' on Home to do this manually) - checked each time this list refreshes (opening the app, R, or switching libraries). Books that fall out of Continue Listening have their download removed automatically, so disk usage stays bounded to whatever's currently active rather than growing forever. Books are hours long, so turning this on can mean several hundred MB to a few GB downloading in the background the moment it's enabled or a new book becomes active. Podcasts aren't included."))
+        Paragraph::new(format!("Currently: {current}\n\nWhen on, the {count} most recently played books in Continue Listening are automatically downloaded for offline playback (press 'd' on Home to do this manually) - checked each time this list refreshes (opening the app, R, or switching libraries). Books that fall out of that top-{count} window have their download removed automatically, so disk usage stays bounded rather than growing forever. Change the count via `auto_download_count` under `[downloads]` in config.toml. Books are hours long, so turning this on can mean several hundred MB to a few GB downloading in the background the moment it's enabled or a new book becomes active. Podcasts aren't included."))
             .left_aligned()
             .wrap(Wrap { trim: true })
             .render(item_area, buf);

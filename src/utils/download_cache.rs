@@ -108,16 +108,19 @@ pub fn remove_download(username: &str, item_id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Settings > Auto Download: keeps the local download set mirroring whatever's
-/// currently in Continue Listening - downloads every book in `ids` that isn't already
-/// downloaded, and removes any existing download whose id has fallen out of `ids`
-/// (finished, or pushed out by newer activity), so disk usage stays bounded to
-/// "currently active" rather than growing forever. Runs in the background and is
-/// meant to be called once per Continue Listening refresh (see `App::new()`) -
-/// downloads happen one at a time rather than in parallel, so this doesn't try to
-/// saturate the connection with several hundred-MB-plus files at once.
-pub fn sync_auto_downloads(username: String, token: String, server_address: String, ids: Vec<String>, titles: Vec<String>, authors: Vec<String>) {
+/// Settings > Auto Download: keeps the local download set mirroring the `count` most
+/// recently played books in Continue Listening (`ids` is already server-ordered
+/// most-recent-first) - downloads any of them not already downloaded, and removes any
+/// existing download whose id has fallen out of that top-`count` window (finished,
+/// pushed out by newer activity, or the window shrank), so disk usage stays bounded
+/// rather than growing forever. Runs in the background and is meant to be called once
+/// per Continue Listening refresh (see `App::new()`) - downloads happen one at a time
+/// rather than in parallel, so this doesn't try to saturate the connection with
+/// several hundred-MB-plus files at once.
+pub fn sync_auto_downloads(username: String, token: String, server_address: String, ids: Vec<String>, titles: Vec<String>, authors: Vec<String>, count: usize) {
     tokio::spawn(async move {
+        let ids: Vec<String> = ids.into_iter().take(count).collect();
+
         if let Ok(existing) = list_downloaded_ids(&username) {
             for stale_id in existing.into_iter().filter(|id| !ids.contains(id)) {
                 if let Err(e) = remove_download(&username, &stale_id) {
