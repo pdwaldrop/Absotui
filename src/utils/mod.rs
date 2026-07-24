@@ -11,3 +11,4 @@ pub mod html_to_text;
 pub mod cover_cache;
 pub mod download_cache;
 pub mod scroll_wheel;
+pub mod format_size;

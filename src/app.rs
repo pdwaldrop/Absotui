@@ -1,4 +1,4 @@
-use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, collect_auth_names_cnt_list, collect_pub_year_cnt_list, collect_duration_cnt_list, collect_desc_cnt_list, collect_ids_cnt_list};
+use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, collect_auth_names_cnt_list, collect_pub_year_cnt_list, collect_duration_cnt_list, collect_size_cnt_list, collect_desc_cnt_list, collect_ids_cnt_list};
 use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list, collect_progress_pod_cnt_list, collect_published_at_pod_cnt_list, collect_embedded_cover_ino_pod_cnt_list};
 use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library};
 use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_pod_ep, collect_subtitles_pod_ep, collect_seasons_pod_ep, collect_episodes_pod_ep, collect_authors_pod_ep, collect_descs_pod_ep, collect_titles_pod, collect_durations_pod_ep};
@@ -105,6 +105,7 @@ pub struct App {
     pub auth_names_cnt_list: Vec<String>,
     pub pub_year_cnt_list: Vec<String>,
     pub duration_cnt_list: Vec<f64>,
+    pub size_cnt_list: Vec<i64>,
     pub desc_cnt_list: Vec<String>,
     pub _ids_cnt_list: Vec<String>,
     pub titles_library: Vec<String>,
@@ -436,6 +437,7 @@ impl App {
     let mut auth_names_cnt_list: Vec<String> = Vec::new();
     let mut pub_year_cnt_list: Vec<String> = Vec::new();
     let mut duration_cnt_list: Vec<f64> = Vec::new();
+    let mut size_cnt_list: Vec<i64> = Vec::new();
     let mut desc_cnt_list: Vec<String> = Vec::new();
     let mut _ids_cnt_list: Vec<String> = Vec::new();
     let mut ids_ep_cnt_list: Vec<String> = Vec::new();
@@ -477,6 +479,7 @@ impl App {
         auth_names_cnt_list = collect_auth_names_cnt_list(&continue_listening).await;
         pub_year_cnt_list = collect_pub_year_cnt_list(&continue_listening).await;
         duration_cnt_list = collect_duration_cnt_list(&continue_listening).await;
+        size_cnt_list = collect_size_cnt_list(&continue_listening).await;
         desc_cnt_list = collect_desc_cnt_list(&continue_listening).await;
         _ids_cnt_list = collect_ids_cnt_list(&continue_listening).await;
         for id in _ids_cnt_list.clone() {
@@ -743,6 +746,7 @@ impl App {
         auth_names_cnt_list,
         pub_year_cnt_list,
         duration_cnt_list,
+        size_cnt_list,
         desc_cnt_list,
         _ids_cnt_list,
         view_state,

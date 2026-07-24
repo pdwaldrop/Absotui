@@ -92,6 +92,30 @@ pub async fn collect_duration_cnt_list(continue_listening: &[Root]) -> Vec<f64> 
 
 }
 
+/// collect file size (bytes)
+pub async fn collect_size_cnt_list(continue_listening: &[Root]) -> Vec<i64> {
+
+    let mut size_cnt_list = vec![];
+
+    for library in continue_listening {
+        if let Some(entities) = &library.entities {
+            for entity in entities {
+                if let Some(media) = &entity.media {
+                    if let Some(size) = &media.size {
+                        size_cnt_list.push(*size);
+                    } else {
+                            size_cnt_list.push(0);
+                        }
+
+                }
+            }
+        }
+    }
+
+    size_cnt_list
+
+}
+
 /// collect description
 pub async fn collect_desc_cnt_list(continue_listening: &[Root]) -> Vec<String> {
     let mut desc_cnt_list = Vec::new(); 

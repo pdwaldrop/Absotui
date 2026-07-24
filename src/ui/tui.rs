@@ -13,6 +13,7 @@ use ratatui::{
     },
 };
 use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
+use crate::utils::format_size::format_sizes;
 use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc_running, get_is_per_item_speed, get_is_auto_download};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::config::load_config;
@@ -116,6 +117,7 @@ impl App {
                     self.auth_names_cnt_list = order.iter().map(|&i| self.auth_names_cnt_list[i].clone()).collect();
                     self.pub_year_cnt_list = order.iter().map(|&i| self.pub_year_cnt_list[i].clone()).collect();
                     self.duration_cnt_list = order.iter().map(|&i| self.duration_cnt_list[i]).collect();
+                    self.size_cnt_list = order.iter().map(|&i| self.size_cnt_list[i]).collect();
                     self.desc_cnt_list = order.iter().map(|&i| self.desc_cnt_list[i].clone()).collect();
                     self._ids_cnt_list = order.iter().map(|&i| self._ids_cnt_list[i].clone()).collect();
                     self.book_progress_cnt_list = order.iter().map(|&i| self.book_progress_cnt_list[i].clone()).collect();
@@ -948,6 +950,7 @@ impl App {
     // info about the book or podacst for `Home`
     fn render_info_home(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
         let duration_cnt_list_conv = convert_seconds(self.duration_cnt_list.clone());
+        let size_cnt_list_conv = format_sizes(self.size_cnt_list.clone());
 
         // Chapter rows don't have their own info to show - resolve back to the book they
         // belong to. Cursor position no longer maps 1:1 to a book index once chapter rows
@@ -974,10 +977,11 @@ impl App {
                     .left_aligned()
                     .render(area, buf);
                 } else {
-                    Paragraph::new(format!("Author: {} - Year: {} - Duration: {}\nProgress: {}%, {} {}", 
-                            self.auth_names_cnt_list[selected], 
-                            self.pub_year_cnt_list[selected], 
+                    Paragraph::new(format!("Author: {} - Year: {} - Duration: {} - Size: {}\nProgress: {}%, {} {}",
+                            self.auth_names_cnt_list[selected],
+                            self.pub_year_cnt_list[selected],
                             duration_cnt_list_conv[selected],
+                            size_cnt_list_conv[selected],
                             self.book_progress_cnt_list[selected][0], // percentage progression
                             convert_seconds_for_prg(self.duration_cnt_list[selected], self.book_progress_cnt_list_cur_time[selected][0]), // time left
                             self.book_progress_cnt_list[selected][1], // is finished
