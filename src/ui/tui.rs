@@ -13,7 +13,7 @@ use ratatui::{
     },
 };
 use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
-use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc_running, get_is_per_item_speed};
+use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc_running, get_is_per_item_speed, get_is_auto_download};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::config::load_config;
 use crate::utils::html_to_text::html_to_lines;
@@ -53,6 +53,7 @@ impl Widget for &mut App {
             AppView::SettingsUpdateUninstall => self.render_settings_update_uninstall(area, buf),
             AppView::SettingsAutoplay => self.render_settings_autoplay(area, buf),
             AppView::SettingsPerItemSpeed => self.render_settings_per_item_speed(area, buf),
+            AppView::SettingsAutoDownload => self.render_settings_auto_download(area, buf),
         }
     }
 }
@@ -513,6 +514,33 @@ impl App {
             .wrap(Wrap { trim: true })
             .render(item_area, buf);
     }
+
+    /// `AppView::SettingsAutoDownload` rendering
+    fn render_settings_auto_download(&mut self, area: Rect, buf: &mut Buffer) {
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(6),
+            Constraint::Length(1),
+            Constraint::Length(2),
+        ]).areas(area);
+
+        let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
+
+        let render_list_title = "Auto Download";
+        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
+        let options = vec!["On".to_string(), "Off".to_string()];
+        let current = if get_is_auto_download(&self.username) == "1" { "On" } else { "Off" };
+
+        App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
+        App::render_footer(footer_area, buf, &text_render_footer);
+        self.render_list(list_area, buf, render_list_title, &options, &mut self.list_state_settings_auto_download.clone(), None);
+        Paragraph::new(format!("Currently: {current}\n\nWhen on, every book in Continue Listening is automatically downloaded for offline playback (press 'd' on Home to do this manually) - checked each time this list refreshes (opening the app, R, or switching libraries). Books that fall out of Continue Listening have their download removed automatically, so disk usage stays bounded to whatever's currently active rather than growing forever. Books are hours long, so turning this on can mean several hundred MB to a few GB downloading in the background the moment it's enabled or a new book becomes active. Podcasts aren't included."))
+            .left_aligned()
+            .wrap(Wrap { trim: true })
+            .render(item_area, buf);
+    }
+
 
     /// `AppView::SearchBook` rendering
     fn render_search_book(&mut self, area: Rect, buf: &mut Buffer) {

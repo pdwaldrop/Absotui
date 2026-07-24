@@ -15,10 +15,10 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished, get_is_auto_download, update_is_auto_download};
 use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
-use crate::utils::download_cache::{is_downloaded, remove_download, download_book};
+use crate::utils::download_cache::{is_downloaded, remove_download, download_book, sync_auto_downloads};
 use color_eyre::Result;
 use log::{warn, error};
 use ratatui::{
@@ -58,7 +58,8 @@ pub enum AppView {
     SettingsAbout,
     SettingsUpdateUninstall,
     SettingsAutoplay,
-    SettingsPerItemSpeed
+    SettingsPerItemSpeed,
+    SettingsAutoDownload
 }
 
 // Sub-state for the AppView::SettingsUpdateUninstall screen. `Failed` is the only
@@ -99,6 +100,7 @@ pub struct App {
     pub list_state_settings_update_uninstall: ListState,
     pub list_state_settings_autoplay: ListState,
     pub list_state_settings_per_item_speed: ListState,
+    pub list_state_settings_auto_download: ListState,
     pub _titles_cnt_list: Vec<String>,
     pub auth_names_cnt_list: Vec<String>,
     pub pub_year_cnt_list: Vec<String>,
@@ -503,6 +505,15 @@ impl App {
                 }
             }}}
 
+    // Settings > Auto Download: keep the local download set mirroring Continue
+    // Listening. Hooked in here rather than a separate periodic task since `R` and
+    // every library switch already fully reconstruct `App` via this same function -
+    // see the CLAUDE.md note on App::new() being the one place cross-cutting state
+    // gets refreshed.
+    if !is_podcast && get_is_auto_download(&username) == "1" {
+        sync_auto_downloads(username.clone(), token.clone(), server_address.clone(), _ids_cnt_list.clone(), _titles_cnt_list.clone(), auth_names_cnt_list.clone());
+    }
+
     // None if the terminal doesn't support any image protocol - cover images just won't
     // be shown, falling back to text-only description panels everywhere.
     let image_picker = ratatui_image::picker::Picker::from_query_stdio().ok();
@@ -627,7 +638,7 @@ impl App {
     }
 }
     // init for `Settings`
-    let settings = vec!["Library".to_string(), "Per-Item Speed".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update / Uninstall".to_string()];
+    let settings = vec!["Library".to_string(), "Per-Item Speed".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update / Uninstall".to_string(), "Auto Download".to_string()];
 
     // init for `SettingsAccount`
     let mut all_usernames: Vec<String> = Vec::new();
@@ -707,6 +718,10 @@ impl App {
     let mut list_state_settings_per_item_speed = ListState::default();
     list_state_settings_per_item_speed.select(Some(0));
 
+    // Init ListState for `SettingsAutoDownload` list
+    let mut list_state_settings_auto_download = ListState::default();
+    list_state_settings_auto_download.select(Some(0));
+
     Ok(Self {
         database,
         id_selected_lib,
@@ -723,6 +738,7 @@ impl App {
         list_state_settings_update_uninstall,
         list_state_settings_autoplay,
         list_state_settings_per_item_speed,
+        list_state_settings_auto_download,
         _titles_cnt_list,
         auth_names_cnt_list,
         pub_year_cnt_list,
@@ -1280,6 +1296,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 AppView::SettingsUpdateUninstall => {self.view_state = AppView::Settings}
                 AppView::SettingsAutoplay => {self.view_state = AppView::Settings}
                 AppView::SettingsPerItemSpeed => {self.view_state = AppView::Settings}
+                AppView::SettingsAutoDownload => {self.view_state = AppView::Settings}
                 AppView::Settings => {self.view_state = AppView::Home}
                 AppView::PodcastEpisode => {
                     if self.is_from_search_pod {
@@ -1481,6 +1498,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         Some(2) => self.view_state = AppView::SettingsAutoplay,
                         Some(3) => self.view_state = AppView::SettingsAccount,
                         Some(5) => self.view_state = AppView::SettingsUpdateUninstall,
+                        Some(6) => self.view_state = AppView::SettingsAutoDownload,
                         _ => {}
                     }
                 }
@@ -1507,6 +1525,12 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                     if let Some(index) = self.list_state_settings_per_item_speed.selected() {
                         let value = if index == 0 { "1" } else { "0" };
                         let _ = update_is_per_item_speed(value, &self.username);
+                    }
+                }
+                AppView::SettingsAutoDownload => {
+                    if let Some(index) = self.list_state_settings_auto_download.selected() {
+                        let value = if index == 0 { "1" } else { "0" };
+                        let _ = update_is_auto_download(value, &self.username);
                     }
                 }
                 AppView::SettingsLibrary => {
@@ -1764,6 +1788,7 @@ fn toggle_view(&mut self) {
         AppView::SettingsUpdateUninstall => AppView::Home,
         AppView::SettingsAutoplay => AppView::Home,
         AppView::SettingsPerItemSpeed => AppView::Home,
+        AppView::SettingsAutoDownload => AppView::Home,
 
     };
 }
@@ -1865,6 +1890,12 @@ pub fn select_next(&mut self) {
             } else {
                 self.list_state_settings_per_item_speed.select_first();
             }}}
+        AppView::SettingsAutoDownload => { if let Some(selected) = self.list_state_settings_auto_download.selected() {
+            if selected + 1 < 2 {
+                self.list_state_settings_auto_download.select_next();
+            } else {
+                self.list_state_settings_auto_download.select_first();
+            }}}
     }
 }
 
@@ -1881,6 +1912,7 @@ pub fn select_previous(&mut self) {
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_previous(),
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select_previous(),
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select_previous(),
+        AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select_previous(),
     }
 }
 
@@ -1897,6 +1929,7 @@ pub fn select_first(&mut self) {
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_first(),
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select_first(),
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select_first(),
+        AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select_first(),
     }
 }
 
@@ -1928,6 +1961,7 @@ pub fn select_last(&mut self) {
         AppView::SettingsUpdateUninstall => self.list_state_settings_update_uninstall.select_last(),
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select(Some(1)),
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select(Some(1)),
+        AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select(Some(1)),
     }
 }
 

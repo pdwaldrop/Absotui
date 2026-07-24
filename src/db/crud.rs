@@ -213,6 +213,73 @@ pub fn get_is_podcast_autoplay(username: &str) -> String {
     }
 }
 
+// Update is_auto_download
+pub fn update_is_auto_download(value: &str, username: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "UPDATE users SET is_auto_download = ?1 WHERE username = ?2",
+            params![value, username],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_is_auto_download] {err_message}");
+    }
+
+    Ok(())
+}
+
+
+// get is_auto_download
+pub fn get_is_auto_download(username: &str) -> String {
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let conn = match Connection::open(db_path) {
+        Ok(c) => c,
+        Err(_) => return String::from("Error: unable open database"),
+    };
+
+    let mut stmt = match conn.prepare("SELECT is_auto_download FROM users WHERE username = ?1") {
+        Ok(s) => s,
+        Err(_) => return String::from("Error to prepare reqwest"),
+    };
+
+    match stmt.query_row(params![username], |row| row.get::<_, String>(0)) {
+        Ok(id) => id.clone(),
+        Err(_) => String::from("No db found"),
+    }
+}
+
 // Update is_vlc_running
 pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
 
@@ -640,6 +707,36 @@ pub fn delete_download(username: &str, id_item: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+// get every id_item currently downloaded for a user - used to prune downloads that
+// have fallen out of Continue Listening when Settings > Auto Download is on
+pub fn list_downloaded_ids(username: &str) -> Result<Vec<String>> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let conn = Connection::open(db_path)?;
+
+    let mut stmt = conn.prepare("SELECT id_item FROM downloads WHERE username = ?1")?;
+    let rows = stmt.query_map(params![username], |row| row.get::<_, String>(0))?;
+
+    let mut ids = Vec::new();
+    for row in rows {
+        ids.push(row?);
+    }
+    Ok(ids)
 }
 
 // get listening_session
@@ -1303,8 +1400,8 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
     let conn = Connection::open(db_path)?;
     for user in users {
         conn.execute(
-            "INSERT OR REPLACE INTO users (username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            "INSERT OR REPLACE INTO users (username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed, is_auto_download)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
             user.username,
             user.server_address,
@@ -1320,6 +1417,7 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
             user.is_speed_adjusted_time,
             user.is_podcast_autoplay,
             user.is_per_item_speed,
+            user.is_auto_download,
             ],
         )?;
     }
@@ -1499,7 +1597,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
     let conn = Connection::open(db_path)?;
 
     let mut stmt = conn.prepare(
-        "SELECT username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed
+        "SELECT username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed, is_auto_download
          FROM users WHERE is_default_usr = 1 LIMIT 1"
     )?;
 
@@ -1520,6 +1618,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
             is_speed_adjusted_time: row.get(11)?,
             is_podcast_autoplay: row.get(12)?,
             is_per_item_speed: row.get(13)?,
+            is_auto_download: row.get(14)?,
         })
     })?;
 
@@ -1542,6 +1641,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
                 result.push(user.is_speed_adjusted_time);
                 result.push(user.is_podcast_autoplay);
                 result.push(user.is_per_item_speed);
+                result.push(user.is_auto_download);
             }
             Err(e) => {
                 println!("Error occurred: {e}");
@@ -1592,7 +1692,8 @@ pub fn init_db() -> Result<()> {
                 is_show_key_bindings TEXT NOT NULL,
                 is_speed_adjusted_time TEXT NOT NULL DEFAULT '1',
                 is_podcast_autoplay TEXT NOT NULL DEFAULT '0',
-                is_per_item_speed TEXT NOT NULL DEFAULT '0'
+                is_per_item_speed TEXT NOT NULL DEFAULT '0',
+                is_auto_download TEXT NOT NULL DEFAULT '0'
             )",
         [],
     )?;
@@ -1617,6 +1718,14 @@ pub fn init_db() -> Result<()> {
     // opt into per book/podcast speeds via Settings.
     let _ = conn.execute(
         "ALTER TABLE users ADD COLUMN is_per_item_speed TEXT NOT NULL DEFAULT '0'",
+        [],
+    );
+
+    // Migration for databases created before `is_auto_download` existed. Defaults to
+    // off - existing users keep the current manual-download-only behavior unless they
+    // opt into automatically downloading Continue Listening books via Settings.
+    let _ = conn.execute(
+        "ALTER TABLE users ADD COLUMN is_auto_download TEXT NOT NULL DEFAULT '0'",
         [],
     );
 

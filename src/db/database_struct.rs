@@ -27,6 +27,7 @@ pub struct User {
     pub  is_speed_adjusted_time: String,
     pub  is_podcast_autoplay: String,
     pub  is_per_item_speed: String,
+    pub  is_auto_download: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -5,7 +5,7 @@ use log::{info, error};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use crate::api::library_items::play_lib_item_or_pod::post_start_playback_session_book;
 use crate::api::sessions::close_open_session::close_session_without_send_prg_data;
-use crate::db::crud::{insert_download, delete_download, get_download};
+use crate::db::crud::{insert_download, delete_download, get_download, list_downloaded_ids};
 
 fn downloads_dir() -> PathBuf {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -106,6 +106,37 @@ pub fn remove_download(username: &str, item_id: &str) -> Result<()> {
     }
     delete_download(username, item_id)?;
     Ok(())
+}
+
+/// Settings > Auto Download: keeps the local download set mirroring whatever's
+/// currently in Continue Listening - downloads every book in `ids` that isn't already
+/// downloaded, and removes any existing download whose id has fallen out of `ids`
+/// (finished, or pushed out by newer activity), so disk usage stays bounded to
+/// "currently active" rather than growing forever. Runs in the background and is
+/// meant to be called once per Continue Listening refresh (see `App::new()`) -
+/// downloads happen one at a time rather than in parallel, so this doesn't try to
+/// saturate the connection with several hundred-MB-plus files at once.
+pub fn sync_auto_downloads(username: String, token: String, server_address: String, ids: Vec<String>, titles: Vec<String>, authors: Vec<String>) {
+    tokio::spawn(async move {
+        if let Ok(existing) = list_downloaded_ids(&username) {
+            for stale_id in existing.into_iter().filter(|id| !ids.contains(id)) {
+                if let Err(e) = remove_download(&username, &stale_id) {
+                    error!("[sync_auto_downloads] failed to prune {stale_id}: {e}");
+                }
+            }
+        }
+
+        for (i, id) in ids.iter().enumerate() {
+            if is_downloaded(&username, id) {
+                continue;
+            }
+            let title = titles.get(i).cloned().unwrap_or_default();
+            let author = authors.get(i).cloned().unwrap_or_default();
+            if let Err(e) = download_book(token.clone(), id.clone(), title, author, username.clone(), server_address.clone()).await {
+                error!("[sync_auto_downloads] {id}: {e}");
+            }
+        }
+    });
 }
 
 #[cfg(test)]
