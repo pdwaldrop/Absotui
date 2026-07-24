@@ -84,7 +84,7 @@ impl App {
         let text_render_footer = if self.is_podcast {
             format!("{}, l/→: play, F: mark finished, {}\n B: toggle player ctrl, D: sort by age, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
         } else {
-            format!("{}, l/→: play, c: chapters, {}\n B: toggle player ctrl, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
+            format!("{}, l/→: play, c: chapters, d: download, {}\n B: toggle player ctrl, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
         };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
