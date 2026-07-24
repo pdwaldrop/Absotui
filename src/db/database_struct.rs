@@ -52,6 +52,14 @@ pub struct Others {
     pub login_err: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DownloadedItem {
+    pub file_path: String,
+    pub duration: String,
+    pub title: String,
+    pub author: String,
+}
+
 
 impl Database {
     pub async fn new() -> Result<Self> {

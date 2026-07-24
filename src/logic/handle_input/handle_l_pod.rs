@@ -98,6 +98,7 @@ pub async fn handle_l_pod(
                                     program_clone,
                                     username_clone,
                                     id_pod_clone,
+                                    None, // offline downloads are books-only for now, see download_cache.rs
                                     ).await {
                                         error!("[handle_l_pod][start_vlc] {e}");
                                     }

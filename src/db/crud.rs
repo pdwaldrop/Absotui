@@ -2,6 +2,7 @@ use rusqlite::{params, Connection, Result};
 use crate::db::database_struct::User;
 use crate::db::database_struct::ListeningSession;
 use crate::db::database_struct::Others;
+use crate::db::database_struct::DownloadedItem;
 use crate::utils::pop_up_message::pop_message;
 use std::io::stdout;
 use log::{info, error};
@@ -536,6 +537,106 @@ pub fn update_item_speed_rate(username: &str, id_item: &str, is_speed_rate_up: b
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_item_speed_rate] {err_message}");
+    }
+
+    Ok(())
+}
+
+// insert (or overwrite) a downloaded book's local file location and offline-playback
+// metadata for (username, id_item)
+pub fn insert_download(username: &str, id_item: &str, file_path: &str, duration: &str, title: &str, author: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+        conn.execute(
+            "INSERT OR REPLACE INTO downloads (username, id_item, file_path, duration, title, author) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![username, id_item, file_path, duration, title, author],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[insert_download] {err_message}");
+    }
+
+    Ok(())
+}
+
+// get a downloaded book's local file location and offline-playback metadata, if it's
+// been downloaded for (username, id_item)
+pub fn get_download(username: &str, id_item: &str) -> Option<DownloadedItem> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let conn = Connection::open(db_path).ok()?;
+
+    let mut stmt = conn.prepare("SELECT file_path, duration, title, author FROM downloads WHERE username = ?1 AND id_item = ?2").ok()?;
+
+    stmt.query_row(params![username, id_item], |row| {
+        Ok(DownloadedItem {
+            file_path: row.get(0)?,
+            duration: row.get(1)?,
+            title: row.get(2)?,
+            author: row.get(3)?,
+        })
+    }).ok()
+}
+
+// remove a book's download row (the local file itself is removed by the caller -
+// src/utils/download_cache.rs)
+pub fn delete_download(username: &str, id_item: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+        conn.execute(
+            "DELETE FROM downloads WHERE username = ?1 AND id_item = ?2",
+            params![username, id_item],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[delete_download] {err_message}");
     }
 
     Ok(())
@@ -1571,6 +1672,24 @@ pub fn init_db() -> Result<()> {
         "ALTER TABLE listening_session ADD COLUMN volume INTEGER NOT NULL DEFAULT 100",
         [],
     );
+
+    // Create table `downloads` if there is none - one row per (user, book) that's been
+    // downloaded for offline playback. `file_path` is the local audio file on disk;
+    // `duration`/`title`/`author` are snapshotted at download time so offline playback
+    // (server unreachable) doesn't need a network call just to render the player/sync
+    // progress locally.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS downloads (
+            username TEXT NOT NULL,
+            id_item TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            duration TEXT NOT NULL,
+            title TEXT NOT NULL,
+            author TEXT NOT NULL,
+            PRIMARY KEY (username, id_item)
+            )",
+        [],
+    )?;
 
     //Create table `others` if there is none
     conn.execute(

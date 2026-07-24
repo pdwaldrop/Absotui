@@ -18,14 +18,15 @@ use crate::config::{ConfigFile, load_config};
 use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished};
 use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
+use crate::utils::download_cache::{is_downloaded, remove_download, download_book};
 use color_eyre::Result;
-use log::warn;
+use log::{warn, error};
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
     style::{Color, Style},
     widgets::{Block, Borders, ListState},
 };
-use crate::utils::pop_up_message::pop_message;
+use crate::utils::pop_up_message::{pop_message, clear_message};
 use crate::utils::changelog::changelog;
 use crate::utils::encrypt_token::decrypt_token;
 use std::io::stdout;
@@ -1110,6 +1111,40 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             if let Some(id) = selected_ep_id
                 && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == id) {
                     self.list_state_cnt_list.select(Some(new_pos));
+            }
+        }
+
+        // Download (or remove the local copy of) the selected Continue Listening book
+        // for offline playback - see src/utils/download_cache.rs. Books only for now;
+        // podcasts have their own separate handle_l_pod*/collect_* code paths that
+        // this doesn't touch.
+        KeyCode::Char('d') if !self.is_podcast && matches!(self.view_state, AppView::Home) => {
+            let selected = self.list_state_cnt_list.selected().and_then(|selected| {
+                match self.build_home_rows().get(selected) {
+                    Some(HomeRow::Book(i)) => Some(*i),
+                    Some(HomeRow::Chapter { book_index, .. }) => Some(*book_index),
+                    None => None,
+                }
+            });
+
+            if let Some(i) = selected
+                && let Some(id) = self._ids_cnt_list.get(i).cloned() {
+                    let username = self.username.clone();
+                    if is_downloaded(&username, &id) {
+                        let _ = remove_download(&username, &id);
+                    } else if let Some(token) = self.token.clone() {
+                        let title = self._titles_cnt_list.get(i).cloned().unwrap_or_default();
+                        let author = self.auth_names_cnt_list.get(i).cloned().unwrap_or_default();
+                        let server_address = self.server_address.clone();
+                        tokio::spawn(async move {
+                            let mut stdout = stdout();
+                            let _ = pop_message(&mut stdout, 3, "Downloading for offline playback...");
+                            if let Err(e) = download_book(token, id.clone(), title, author, username, server_address).await {
+                                error!("[handle_key][download_book] {id}: {e}");
+                            }
+                            let _ = clear_message(&mut stdout, 3);
+                        });
+                    }
             }
         }
 

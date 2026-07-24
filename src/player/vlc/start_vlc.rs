@@ -38,9 +38,16 @@ pub async fn start_vlc(
     program: String,
     username: String,
     id_item: String,
+    local_file_path: Option<String>,
 ) -> io::Result<Output> {
 
     let speed_rate = resolve_speed_rate(username.as_str(), id_item.as_str());
+
+    // When a book has been downloaded for offline playback (see
+    // src/utils/download_cache.rs), point VLC straight at the local file instead of
+    // streaming from the server - works whether or not the server is actually
+    // reachable right now.
+    let source = local_file_path.unwrap_or_else(|| format!("{}{}?token={}", server_address, content_url, token.unwrap()));
 
     // Called from an un-awaited tokio::spawn task (see handle_l_book.rs and its
     // siblings) - a panic here (the old .expect()) would silently kill that task with
@@ -55,7 +62,7 @@ pub async fn start_vlc(
         .arg("rc")
         .arg("--rc-host")
         .arg(format!("{address}:{port}"))
-        .arg(format!("{}{}?token={}", server_address, content_url, token.unwrap()))
+        .arg(source)
         .arg("--rate")
         .arg(speed_rate)
         .arg("--meta-description")

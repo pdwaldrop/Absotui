@@ -245,7 +245,21 @@ impl App {
             }).collect()
         } else {
             home_rows.iter().map(|row| match row {
-                HomeRow::Book(i) => self._titles_cnt_list.get(*i).cloned().unwrap_or_default(),
+                HomeRow::Book(i) => {
+                    let title = self._titles_cnt_list.get(*i).cloned().unwrap_or_default();
+                    // Downloaded status is local-only state, not part of the fetched
+                    // list data - looked up directly here rather than threaded through
+                    // as another parallel array (see the parallel-arrays warning in
+                    // CLAUDE.md for why that'd be worth avoiding for something this
+                    // orthogonal to the server-fetched row data).
+                    let is_downloaded = self._ids_cnt_list.get(*i)
+                        .is_some_and(|id| crate::utils::download_cache::is_downloaded(&self.username, id));
+                    if is_downloaded {
+                        format!("{title} [offline]")
+                    } else {
+                        title
+                    }
+                }
                 HomeRow::Chapter { chapter, .. } => {
                     let title = chapter.title.clone().unwrap_or_default();
                     let label = if title.is_empty() {
@@ -499,7 +513,6 @@ impl App {
             .wrap(Wrap { trim: true })
             .render(item_area, buf);
     }
-
 
     /// `AppView::SearchBook` rendering
     fn render_search_book(&mut self, area: Rect, buf: &mut Buffer) {
