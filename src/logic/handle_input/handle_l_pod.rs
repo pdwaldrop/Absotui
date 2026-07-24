@@ -8,10 +8,11 @@ use crate::player::vlc::exec_nc::exec_nc;
 use crate::utils::pop_up_message::clear_message;
 use std::io::stdout;
 use log::{info, error};
-use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_is_podcast_autoplay};
+use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_is_podcast_autoplay, get_download};
 use crate::utils::vlc_tcp_stream::vlc_tcp_stream;
 use crate::player::vlc::quit_vlc::{pkill_vlc, quit_vlc};
 use crate::utils::convert_seconds::progress_time_diff;
+use crate::logic::handle_input::handle_l_pod_offline::handle_pod_episode_offline;
 
 
 // handle l for App::View PodcastEpisode //
@@ -45,7 +46,38 @@ pub async fn handle_l_pod(
         // id is id of the podcast episode and id_pod is the id of the podcast
         let Some(id) = ids_library_items.get(current_index) else { break 'episodes; };
 
-        if let Ok(info_item) = post_start_playback_session_pod(Some(token),id_pod, id, server_address.clone()).await {
+        // Checked up front so both branches below (online, and the offline fallback if
+        // the session-start call fails) know whether a local copy of this episode
+        // exists - see src/utils/download_cache.rs.
+        let downloaded = get_download(&username, id);
+
+        match post_start_playback_session_pod(Some(token), id_pod, id, server_address.clone()).await {
+        Err(e) => {
+            if let Some(downloaded) = downloaded {
+                info!("[handle_l_pod] Couldn't start an online playback session ({e}) - falling back to the downloaded copy of {id}");
+                handle_pod_episode_offline(
+                    id_pod.to_string(),
+                    id.clone(),
+                    downloaded,
+                    port.clone(),
+                    address_player.clone(),
+                    program.clone(),
+                    username.clone(),
+                    token.clone(),
+                    server_address.clone(),
+                ).await;
+            } else {
+                error!("[handle_l_pod] Failed to start playback session: {e}");
+                eprintln!("Failed to start playback session");
+            }
+            // Without this, wait_prev_session_finished's poll loop (blocking every
+            // future play attempt until this flips back to "1") never sees it happen -
+            // a single transient failure here would otherwise permanently wedge
+            // playback until the app is quit cleanly with `Q`.
+            let _ = update_is_loop_break("1", username.as_str());
+            break 'episodes;
+        }
+        Ok(info_item) => {
 
                             // converting current time
                             let mut current_time: u32 = info_item[0].parse::<f64>().unwrap().round() as u32;
@@ -80,6 +112,10 @@ pub async fn handle_l_pod(
                             let username_clone = username.clone();
                             let program_clone = program.clone();
                             let id_pod_clone = id_pod.to_string();
+                            // downloaded episode, if any - play from the local copy
+                            // instead of streaming, even though the server was
+                            // reachable enough to start this session
+                            let local_file_path = downloaded.map(|d| d.file_path);
 
                             // start_vlc is launched in a spawn to allow fetch_vlc_data to start at the same time
                             tokio::spawn(async move {
@@ -98,7 +134,7 @@ pub async fn handle_l_pod(
                                     program_clone,
                                     username_clone,
                                     id_pod_clone,
-                                    None, // offline downloads are books-only for now, see download_cache.rs
+                                    local_file_path,
                                     ).await {
                                         error!("[handle_l_pod][start_vlc] {e}");
                                     }
@@ -298,15 +334,7 @@ pub async fn handle_l_pod(
                                     }
                                 }
                             }
-                        } else {
-            error!("[handle_l_pod] Failed to start playback session");
-            eprintln!("Failed to start playback session");
-            // Without this, wait_prev_session_finished's poll loop (blocking every
-            // future play attempt until this flips back to "1") never sees it happen -
-            // a single transient failure here would otherwise permanently wedge
-            // playback until the app is quit cleanly with `Q`.
-            let _ = update_is_loop_break("1", username.as_str());
-            break 'episodes;
+                        }
         }
     }
 }

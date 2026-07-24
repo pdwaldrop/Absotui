@@ -18,7 +18,7 @@ use crate::config::{ConfigFile, load_config};
 use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished, get_is_auto_download, update_is_auto_download};
 use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
-use crate::utils::download_cache::{is_downloaded, remove_download, download_book, sync_auto_downloads};
+use crate::utils::download_cache::{is_downloaded, remove_download, download_book, download_episode, sync_auto_downloads, sync_auto_downloads_podcasts};
 use color_eyre::Result;
 use log::{warn, error};
 use ratatui::{
@@ -509,12 +509,20 @@ impl App {
             }}}
 
     // Settings > Auto Download: keep the local download set mirroring Continue
-    // Listening. Hooked in here rather than a separate periodic task since `R` and
-    // every library switch already fully reconstruct `App` via this same function -
-    // see the CLAUDE.md note on App::new() being the one place cross-cutting state
-    // gets refreshed.
-    if !is_podcast && get_is_auto_download(&username) == "1" {
-        sync_auto_downloads(username.clone(), token.clone(), server_address.clone(), _ids_cnt_list.clone(), _titles_cnt_list.clone(), auth_names_cnt_list.clone(), config.downloads.auto_download_count);
+    // Listening (books) or New & Unfinished (podcasts). Hooked in here rather than a
+    // separate periodic task since `R` and every library switch already fully
+    // reconstruct `App` via this same function - see the CLAUDE.md note on App::new()
+    // being the one place cross-cutting state gets refreshed. Podcasts get a second
+    // hook in refresh_podcast_home_if_stale, since that list can change every few
+    // seconds on its own (new episode arrives, one finishes and drops out) without a
+    // full App::new() - books don't need that, Continue Listening only changes on the
+    // refreshes already covered here.
+    if get_is_auto_download(&username) == "1" {
+        if is_podcast {
+            sync_auto_downloads_podcasts(username.clone(), token.clone(), server_address.clone(), _ids_cnt_list.clone(), ids_ep_cnt_list.clone(), _titles_cnt_list.clone(), titles_pod_cnt_list.clone());
+        } else {
+            sync_auto_downloads(username.clone(), token.clone(), server_address.clone(), _ids_cnt_list.clone(), _titles_cnt_list.clone(), auth_names_cnt_list.clone(), config.downloads.auto_download_count);
+        }
     }
 
     // None if the terminal doesn't support any image protocol - cover images just won't
@@ -901,6 +909,10 @@ impl App {
         self.episode_embedded_cover_ino_cnt_list = data.embedded_cover_ino;
         self.podcast_home_last_refresh = std::time::Instant::now();
 
+        if get_is_auto_download(&self.username) == "1" {
+            sync_auto_downloads_podcasts(self.username.clone(), token, self.server_address.clone(), self._ids_cnt_list.clone(), self.ids_ep_cnt_list.clone(), self._titles_cnt_list.clone(), self.titles_pod_cnt_list.clone());
+        }
+
         if let Some(id) = selected_ep_id
             && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == id) {
                 self.list_state_cnt_list.select(Some(new_pos));
@@ -1134,10 +1146,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             }
         }
 
-        // Download (or remove the local copy of) the selected Continue Listening book
-        // for offline playback - see src/utils/download_cache.rs. Books only for now;
-        // podcasts have their own separate handle_l_pod*/collect_* code paths that
-        // this doesn't touch.
+        // Download (or remove the local copy of) the selected book, or podcast episode,
+        // for offline playback - see src/utils/download_cache.rs.
         KeyCode::Char('d') if !self.is_podcast && matches!(self.view_state, AppView::Home) => {
             let selected = self.list_state_cnt_list.selected().and_then(|selected| {
                 match self.build_home_rows().get(selected) {
@@ -1164,6 +1174,29 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                             }
                             let _ = clear_message(&mut stdout, 3);
                         });
+                    }
+            }
+        }
+
+        KeyCode::Char('d') if self.is_podcast && matches!(self.view_state, AppView::Home) => {
+            if let Some(i) = self.list_state_cnt_list.selected()
+                && let Some(episode_id) = self.ids_ep_cnt_list.get(i).cloned() {
+                    let username = self.username.clone();
+                    if is_downloaded(&username, &episode_id) {
+                        let _ = remove_download(&username, &episode_id);
+                    } else if let Some(token) = self.token.clone()
+                        && let Some(podcast_id) = self._ids_cnt_list.get(i).cloned() {
+                            let title = self._titles_cnt_list.get(i).cloned().unwrap_or_default();
+                            let podcast_title = self.titles_pod_cnt_list.get(i).cloned().unwrap_or_default();
+                            let server_address = self.server_address.clone();
+                            tokio::spawn(async move {
+                                let mut stdout = stdout();
+                                let _ = pop_message(&mut stdout, 3, "Downloading for offline playback...");
+                                if let Err(e) = download_episode(token, podcast_id, episode_id.clone(), title, podcast_title, username, server_address).await {
+                                    error!("[handle_key][download_episode] {episode_id}: {e}");
+                                }
+                                let _ = clear_message(&mut stdout, 3);
+                            });
                     }
             }
         }

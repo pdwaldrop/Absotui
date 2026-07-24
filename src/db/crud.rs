@@ -609,9 +609,9 @@ pub fn update_item_speed_rate(username: &str, id_item: &str, is_speed_rate_up: b
     Ok(())
 }
 
-// insert (or overwrite) a downloaded book's local file location and offline-playback
-// metadata for (username, id_item)
-pub fn insert_download(username: &str, id_item: &str, file_path: &str, duration: &str, title: &str, author: &str) -> Result<()> {
+// insert (or overwrite) a downloaded book or podcast episode's local file location and
+// offline-playback metadata for (username, id_item). `kind` is "book" or "podcast".
+pub fn insert_download(username: &str, id_item: &str, file_path: &str, duration: &str, title: &str, author: &str, kind: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -631,8 +631,8 @@ pub fn insert_download(username: &str, id_item: &str, file_path: &str, duration:
 
     if let Ok(conn) = Connection::open(db_path) {
         conn.execute(
-            "INSERT OR REPLACE INTO downloads (username, id_item, file_path, duration, title, author) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![username, id_item, file_path, duration, title, author],
+            "INSERT OR REPLACE INTO downloads (username, id_item, file_path, duration, title, author, kind) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![username, id_item, file_path, duration, title, author, kind],
         )?;
     } else {
         let mut stdout = stdout();
@@ -709,9 +709,11 @@ pub fn delete_download(username: &str, id_item: &str) -> Result<()> {
     Ok(())
 }
 
-// get every id_item currently downloaded for a user - used to prune downloads that
-// have fallen out of Continue Listening when Settings > Auto Download is on
-pub fn list_downloaded_ids(username: &str) -> Result<Vec<String>> {
+// get every id_item currently downloaded for a user of a given kind ("book" or
+// "podcast") - used to prune downloads that have fallen out of Continue Listening /
+// New & Unfinished when Settings > Auto Download is on. Scoped to `kind` so pruning
+// one media type's stale downloads never touches the other's.
+pub fn list_downloaded_ids(username: &str, kind: &str) -> Result<Vec<String>> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -729,8 +731,8 @@ pub fn list_downloaded_ids(username: &str) -> Result<Vec<String>> {
 
     let conn = Connection::open(db_path)?;
 
-    let mut stmt = conn.prepare("SELECT id_item FROM downloads WHERE username = ?1")?;
-    let rows = stmt.query_map(params![username], |row| row.get::<_, String>(0))?;
+    let mut stmt = conn.prepare("SELECT id_item FROM downloads WHERE username = ?1 AND kind = ?2")?;
+    let rows = stmt.query_map(params![username, kind], |row| row.get::<_, String>(0))?;
 
     let mut ids = Vec::new();
     for row in rows {
@@ -1782,11 +1784,14 @@ pub fn init_db() -> Result<()> {
         [],
     );
 
-    // Create table `downloads` if there is none - one row per (user, book) that's been
-    // downloaded for offline playback. `file_path` is the local audio file on disk;
-    // `duration`/`title`/`author` are snapshotted at download time so offline playback
-    // (server unreachable) doesn't need a network call just to render the player/sync
-    // progress locally.
+    // Create table `downloads` if there is none - one row per (user, book or podcast
+    // episode) that's been downloaded for offline playback. `file_path` is the local
+    // audio file on disk; `duration`/`title`/`author` are snapshotted at download time
+    // so offline playback (server unreachable) doesn't need a network call just to
+    // render the player/sync progress locally. `kind` ("book" or "podcast") lets each
+    // media type's Auto Download sync prune only its own downloads - without it, an
+    // Auto Download sync for one media type would delete the other's downloads the
+    // moment its own current-list check doesn't recognize their ids.
     conn.execute(
         "CREATE TABLE IF NOT EXISTS downloads (
             username TEXT NOT NULL,
@@ -1795,10 +1800,18 @@ pub fn init_db() -> Result<()> {
             duration TEXT NOT NULL,
             title TEXT NOT NULL,
             author TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'book',
             PRIMARY KEY (username, id_item)
             )",
         [],
     )?;
+
+    // Migration for databases created before podcast Auto Download (and `kind`)
+    // existed. Every download made before this existed was a book.
+    let _ = conn.execute(
+        "ALTER TABLE downloads ADD COLUMN kind TEXT NOT NULL DEFAULT 'book'",
+        [],
+    );
 
     //Create table `others` if there is none
     conn.execute(

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use color_eyre::eyre::Result;
 use log::{info, error};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
-use crate::api::library_items::play_lib_item_or_pod::post_start_playback_session_book;
+use crate::api::library_items::play_lib_item_or_pod::{post_start_playback_session_book, post_start_playback_session_pod};
 use crate::api::sessions::close_open_session::close_session_without_send_prg_data;
 use crate::db::crud::{insert_download, delete_download, get_download, list_downloaded_ids};
 
@@ -93,13 +93,53 @@ pub async fn download_book(token: String, item_id: String, title: String, author
     let path = download_audio_path(&item_id, ext);
     std::fs::write(&path, &bytes)?;
 
-    insert_download(&username, &item_id, &path.to_string_lossy(), duration, &title, &author)?;
+    insert_download(&username, &item_id, &path.to_string_lossy(), duration, &title, &author, "book")?;
     info!("[download_book] downloaded {item_id} ({} bytes) to {path:?}", bytes.len());
 
     Ok(())
 }
 
-/// Removes a book's local download and its db row, if any.
+/// Downloads a podcast episode's audio file for offline playback, if not already
+/// downloaded - same approach as `download_book`, but a podcast episode's play-session
+/// endpoint needs both the parent podcast's id and the episode's own id (see
+/// `post_start_playback_session_pod`), and it's the episode id that's used as the
+/// dedupe/storage key (`item_id` below) - it's the one that's actually unique per row.
+pub async fn download_episode(token: String, podcast_id: String, episode_id: String, title: String, podcast_title: String, username: String, server_address: String) -> Result<()> {
+    if is_downloaded(&username, &episode_id) {
+        return Ok(());
+    }
+
+    let info_item = post_start_playback_session_pod(Some(&token), &podcast_id, &episode_id, server_address.clone()).await?;
+    // info_item: [current_time, content_url, duration, id_session, podcast_title, episode_title, author]
+    let content_url = &info_item[1];
+    let duration = &info_item[2];
+    let id_session = &info_item[3];
+
+    if let Err(e) = close_session_without_send_prg_data(Some(&token), id_session, server_address.clone()).await {
+        error!("[download_episode] failed to close transient session for {episode_id}: {e}");
+    }
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{server_address}{content_url}"))
+        .header(AUTHORIZATION, format!("Bearer {token}"))
+        .send()
+        .await?;
+
+    let ext = extension_from_content_type(response.headers().get(CONTENT_TYPE).and_then(|v| v.to_str().ok()));
+    let bytes = response.bytes().await?;
+
+    std::fs::create_dir_all(downloads_dir())?;
+    let path = download_audio_path(&episode_id, ext);
+    std::fs::write(&path, &bytes)?;
+
+    insert_download(&username, &episode_id, &path.to_string_lossy(), duration, &title, &podcast_title, "podcast")?;
+    info!("[download_episode] downloaded {episode_id} ({} bytes) to {path:?}", bytes.len());
+
+    Ok(())
+}
+
+/// Removes a book's or episode's local download and its db row, if any.
 pub fn remove_download(username: &str, item_id: &str) -> Result<()> {
     if let Some(downloaded) = get_download(username, item_id) {
         let _ = std::fs::remove_file(&downloaded.file_path);
@@ -121,7 +161,7 @@ pub fn sync_auto_downloads(username: String, token: String, server_address: Stri
     tokio::spawn(async move {
         let ids: Vec<String> = ids.into_iter().take(count).collect();
 
-        if let Ok(existing) = list_downloaded_ids(&username) {
+        if let Ok(existing) = list_downloaded_ids(&username, "book") {
             for stale_id in existing.into_iter().filter(|id| !ids.contains(id)) {
                 if let Err(e) = remove_download(&username, &stale_id) {
                     error!("[sync_auto_downloads] failed to prune {stale_id}: {e}");
@@ -137,6 +177,38 @@ pub fn sync_auto_downloads(username: String, token: String, server_address: Stri
             let author = authors.get(i).cloned().unwrap_or_default();
             if let Err(e) = download_book(token.clone(), id.clone(), title, author, username.clone(), server_address.clone()).await {
                 error!("[sync_auto_downloads] {id}: {e}");
+            }
+        }
+    });
+}
+
+/// Settings > Auto Download for podcasts: keeps the local download set mirroring
+/// *every* episode currently in "New & Unfinished" - unlike books, there's no top-N
+/// cap, since the New & Unfinished list is already naturally bounded (episodes drop
+/// out once finished or no longer new). `episode_ids`/`podcast_ids`/`titles`/
+/// `podcast_titles` are parallel arrays (same row = same episode, matching
+/// `App`'s `ids_ep_cnt_list`/`_ids_cnt_list`/`_titles_cnt_list`/`titles_pod_cnt_list`).
+/// Pruning and downloading both key off episode id, same as `sync_auto_downloads` keys
+/// off book id - scoped to `kind = "podcast"` so this can never prune a downloaded book.
+pub fn sync_auto_downloads_podcasts(username: String, token: String, server_address: String, podcast_ids: Vec<String>, episode_ids: Vec<String>, titles: Vec<String>, podcast_titles: Vec<String>) {
+    tokio::spawn(async move {
+        if let Ok(existing) = list_downloaded_ids(&username, "podcast") {
+            for stale_id in existing.into_iter().filter(|id| !episode_ids.contains(id)) {
+                if let Err(e) = remove_download(&username, &stale_id) {
+                    error!("[sync_auto_downloads_podcasts] failed to prune {stale_id}: {e}");
+                }
+            }
+        }
+
+        for (i, episode_id) in episode_ids.iter().enumerate() {
+            if is_downloaded(&username, episode_id) {
+                continue;
+            }
+            let Some(podcast_id) = podcast_ids.get(i).cloned() else { continue };
+            let title = titles.get(i).cloned().unwrap_or_default();
+            let podcast_title = podcast_titles.get(i).cloned().unwrap_or_default();
+            if let Err(e) = download_episode(token.clone(), podcast_id, episode_id.clone(), title, podcast_title, username.clone(), server_address.clone()).await {
+                error!("[sync_auto_downloads_podcasts] {episode_id}: {e}");
             }
         }
     });
