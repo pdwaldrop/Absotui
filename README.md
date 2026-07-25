@@ -20,30 +20,19 @@
 🎨 Explore and try various themes <a href="https://github.com/AlbanDAVID/Toutui-theme">here</a>.
 </div>
 
-## ✨ Foundation
+## ✨ Features
  **Cross-platform:** <img src=".github/tux.png" align="top" width="24" alt="Tux (Linux)"/>  Linux and <img src=".github/apple.png" align="top" width="24" alt="Apple (macOS)"/> macOS    
- **Lightweight & Fast:** A minimalist terminal user interface (TUI) written in Rust 🦀  
- **Supports Books & Podcasts:** Enjoy both audiobooks and podcasts  
- **Streaming or Offline:** Play directly, or download books and podcast episodes for offline playback  
- **Customizable Color Theme:** A config file lets you customize the color theme, including the progress indicator color
-
-## 🚀 Built in Absotui
- **Offline Playback:** Download any book or podcast episode (`d` on Home) for local playback — a download is preferred automatically over streaming once you have one, with a local-only fallback if the server's unreachable mid-session. Downloaded items are marked with a small ⬇ next to the title  
- **Auto Download:** Settings > Auto Download keeps your most recently played books (a configurable count) and every podcast episode in New & Unfinished downloaded automatically, pruning anything that falls out of those lists so disk usage stays bounded  
- **File Size at a Glance:** The Home info panel shows each item's file size, right after Duration  
- **Podcast Home, Reworked:** A unified "New & Unfinished" view merges Continue Listening and newest episodes, actively filtered by real finished status  
+ **Fast & Lightweight:** A minimalist terminal user interface (TUI) written in Rust 🦀  
+ **Books & Podcasts:** Full support for both, including a unified "New & Unfinished" podcast home view and instant mark-as-finished (`F`)  
  **Podcast Autoplay:** Automatically start the next unfinished episode when one finishes  
- **Mark Finished:** Instantly mark an episode finished (`F`) without waiting for it to play through — including the one currently playing  
- **At-a-Glance Progress:** Per-book progress bars and a now-playing marker, right in the Continue Listening list  
+ **Streaming or Offline:** Play directly, or download any book or podcast episode (`d`) for offline playback — a download is preferred automatically once you have one. Settings > Auto Download can keep your active listening downloaded automatically, and downloaded items are marked right in the list  
  **Cover Art:** Book and podcast episode cover art shown alongside the description (terminal permitting — Kitty/Sixel/iTerm2), preferring a podcast episode's own embedded artwork over the podcast's cover when the episode's file has one  
  **Chapter Navigation:** Browse a book's full chapter list inline in Continue Listening, with live per-chapter progress  
- **Per-Item Playback Speed:** Optionally (Settings > Per-Item Speed) let each book or podcast show remember its own playback speed instead of sharing one speed across everything  
- **Volume Indicator:** See where the player's volume sits at a glance, shown as a subtle underline in the player bar  
- **Speed-Adjusted Time Display:** Toggle (`T` key) between real elapsed/remaining time and raw content time  
- **Accurate Sync:** Progress percentages stay correct even at non-1x playback speeds  
- **Recovers From a Down Server:** A clear retry/change-server screen instead of the app just closing when it can't reach Audiobookshelf  
  **Desktop Integration:** A custom app icon, its own taskbar/dock window icon (on supported terminals), and a window title that shows what's currently playing  
- **In-App Update / Uninstall:** Settings > Update / Uninstall runs the install script for you — authenticates the same way a real terminal would (fingerprint reader first, if configured, falling back to a password prompt), streams progress live, and relaunches itself on a successful update. `absotui --update`/`--uninstall` still work unchanged as a fallback.
+ **In-App Update / Uninstall:** Settings > Update / Uninstall runs the install script for you — authenticates the same way a real terminal would (fingerprint reader first, if configured, falling back to a password prompt), streams progress live, and relaunches itself on a successful update. `absotui --update`/`--uninstall` still work unchanged as a fallback.  
+ **Customizable Color Theme:** A config file lets you customize the color theme, including the progress indicator color  
+ **Per-Item Playback Speed:** Optionally (Settings > Per-Item Speed) let each book or podcast show remember its own playback speed instead of sharing one speed across everything  
+ **Reliable Sync:** Per-item progress bars and a now-playing marker in the Continue Listening list, accurate progress percentages even at non-1x playback speed, and a clear retry/change-server screen instead of the app just closing if Audiobookshelf is unreachable
 
 ## 🛠️ Roadmap  
 Recent work: Offline playback for both books and podcast episodes, with an Auto Download setting to keep your active listening downloaded automatically; file size shown in the Home info panel. See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding.
