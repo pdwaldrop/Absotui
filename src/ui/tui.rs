@@ -239,26 +239,38 @@ impl App {
         // Podcasts: show "Episode Title | Podcast Title" in the list row, not just the
         // episode title alone - _titles_cnt_list is episode titles, titles_pod_cnt_list
         // is the parent podcast's own title.
+        // Downloaded status is local-only state, not part of the fetched list data -
+        // looked up directly here rather than threaded through as another parallel
+        // array (see the parallel-arrays warning in CLAUDE.md for why that'd be worth
+        // avoiding for something this orthogonal to the server-fetched row data).
+        //
+        // The marker is prefixed, not suffixed - a suffix on a long title gets cut off
+        // entirely by the truncation/ellipsis below (see MIN_TITLE_GAP and the scroll
+        // logic in render_list), since it never survives past the ellipsis on an
+        // unselected long row. A prefix is always visible.
+        const DOWNLOADED_MARKER: &str = "⬇ ";
         let display_titles: Vec<String> = if self.is_podcast {
             self._titles_cnt_list.iter().enumerate().map(|(i, ep_title)| {
-                match self.titles_pod_cnt_list.get(i) {
+                let title = match self.titles_pod_cnt_list.get(i) {
                     Some(pod_title) => format!("{ep_title} | {pod_title}"),
                     None => ep_title.clone(),
+                };
+                let is_downloaded = self.ids_ep_cnt_list.get(i)
+                    .is_some_and(|id| crate::utils::download_cache::is_downloaded(&self.username, id));
+                if is_downloaded {
+                    format!("{DOWNLOADED_MARKER}{title}")
+                } else {
+                    title
                 }
             }).collect()
         } else {
             home_rows.iter().map(|row| match row {
                 HomeRow::Book(i) => {
                     let title = self._titles_cnt_list.get(*i).cloned().unwrap_or_default();
-                    // Downloaded status is local-only state, not part of the fetched
-                    // list data - looked up directly here rather than threaded through
-                    // as another parallel array (see the parallel-arrays warning in
-                    // CLAUDE.md for why that'd be worth avoiding for something this
-                    // orthogonal to the server-fetched row data).
                     let is_downloaded = self._ids_cnt_list.get(*i)
                         .is_some_and(|id| crate::utils::download_cache::is_downloaded(&self.username, id));
                     if is_downloaded {
-                        format!("{title} [offline]")
+                        format!("{DOWNLOADED_MARKER}{title}")
                     } else {
                         title
                     }
