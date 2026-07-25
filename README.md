@@ -24,10 +24,13 @@
  **Cross-platform:** <img src=".github/tux.png" align="top" width="24" alt="Tux (Linux)"/>  Linux and <img src=".github/apple.png" align="top" width="24" alt="Apple (macOS)"/> macOS    
  **Lightweight & Fast:** A minimalist terminal user interface (TUI) written in Rust 🦀  
  **Supports Books & Podcasts:** Enjoy both audiobooks and podcasts  
- **Streaming Support:** Play directly without downloading  
+ **Streaming or Offline:** Play directly, or download books and podcast episodes for offline playback  
  **Customizable Color Theme:** A config file lets you customize the color theme, including the progress indicator color
 
 ## 🚀 Built in Absotui
+ **Offline Playback:** Download any book or podcast episode (`d` on Home) for local playback — a download is preferred automatically over streaming once you have one, with a local-only fallback if the server's unreachable mid-session. Downloaded items are marked with a small ⬇ next to the title  
+ **Auto Download:** Settings > Auto Download keeps your most recently played books (a configurable count) and every podcast episode in New & Unfinished downloaded automatically, pruning anything that falls out of those lists so disk usage stays bounded  
+ **File Size at a Glance:** The Home info panel shows each item's file size, right after Duration  
  **Podcast Home, Reworked:** A unified "New & Unfinished" view merges Continue Listening and newest episodes, actively filtered by real finished status  
  **Podcast Autoplay:** Automatically start the next unfinished episode when one finishes  
  **Mark Finished:** Instantly mark an episode finished (`F`) without waiting for it to play through — including the one currently playing  
@@ -43,14 +46,13 @@
  **In-App Update / Uninstall:** Settings > Update / Uninstall runs the install script for you — authenticates the same way a real terminal would (fingerprint reader first, if configured, falling back to a password prompt), streams progress live, and relaunches itself on a successful update. `absotui --update`/`--uninstall` still work unchanged as a fallback.
 
 ## 🛠️ Roadmap  
-Recent work: Settings > Update / Uninstall can now run entirely from inside the app, authenticating with a fingerprint reader when your system has one configured; a taskbar/dock window icon and a window title that shows what's currently playing; a recovery screen when the Audiobookshelf server can't be reached, instead of the app just closing. See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding.
+Recent work: Offline playback for both books and podcast episodes, with an Auto Download setting to keep your active listening downloaded automatically; file size shown in the Home info panel. See "Future features" below for what's being considered next, and [known bugs](known_bugs.md) for what's still outstanding.
 
 ## 🔮 Future features
 Here are some features that could be added in future releases:
 - Playlist/Collections view
 - Ability to add new podcasts from the app
 - Add stats
-- Offline mode
   
 ## ⚠️ Caution: Beta Version  
 This app is still in **heavy development and contains bugs**.  
@@ -129,6 +131,7 @@ In `~/.config/absotui` for Linux or `~/Library/Preferences` for macOS:
 - `config.toml` - Configuration file.
 - `absotui.log` - Log file.
 - `db.sqlite3` - SQLite database file.
+- `downloads/` - Books and podcast episodes downloaded for offline playback (only appears once you download something).
 
 In `~/.local/share/applications` for Linux:
 - `absotui.desktop` - Config file to launch Absotui from a launcher app.
@@ -182,3 +185,4 @@ After installation, you will have the following files in `~/.config/absotui`
 - `config.toml` - Configuration file.
 - `absotui.log` - Log file.
 - `db.sqlite3` - SQLite database file.
+- `downloads/` - Books and podcast episodes downloaded for offline playback (only appears once you download something).
