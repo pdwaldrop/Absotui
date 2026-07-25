@@ -551,8 +551,7 @@ let changelog_34 = "Changelog Absotui v0.5.19-beta (22/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_35 = format!(
-    "Changelog Absotui v{VERSION} (22/07/2026) \n\
+let changelog_35 = "Changelog Absotui v0.5.20-beta (22/07/2026) \n\
          \n\
          Fixed:\n\
          - Settings > Update / Uninstall could time out and fail partway through a
@@ -561,10 +560,36 @@ let changelog_35 = format!(
            generous.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_36 = format!(
+    "Changelog Absotui v{VERSION} (25/07/2026) \n\
+         \n\
+         Added:\n\
+         - Offline mode now covers podcasts, matching books: press `d` on a podcast
+           episode to download or remove it for local playback, and a downloaded
+           episode is preferred over streaming automatically.
+         - Settings > Auto Download now keeps podcasts' New & Unfinished episodes
+           downloaded too, alongside books.
+         - The number of books Auto Download keeps downloaded is now configurable
+           via `auto_download_count` under `[downloads]` in config.toml, instead of
+           always downloading everything in Continue Listening.
+         - The Home info panel now shows each item's file size, after Duration.
+         \n\
+         Fixed:\n\
+         - The `d` download/remove keybinding worked on Home but was never
+           advertised in the footer.
+         - Downloaded books and podcast episodes are now marked with a small ⬇
+           prefix on the title instead of a trailing \"[offline]\" suffix - a suffix
+           could get cut off entirely by title truncation on long rows. Podcast
+           episodes previously showed no downloaded indicator at all regardless of
+           this truncation issue; they now do.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_36);
     changelog.push_str(&changelog_35);
     changelog.push_str(&changelog_34);
     changelog.push_str(&changelog_33);
