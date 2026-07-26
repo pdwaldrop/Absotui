@@ -596,8 +596,7 @@ let changelog_37 = "Changelog Absotui v0.5.22-beta (25/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_38 = format!(
-    "Changelog Absotui v{VERSION} (26/07/2026) \n\
+let changelog_38 = "Changelog Absotui v0.5.23-beta (26/07/2026) \n\
          \n\
          Changed:\n\
          - Refreshed the app icon with a cleaner vector rework of the
@@ -610,10 +609,27 @@ let changelog_38 = format!(
            to type yourself, so it's now generated automatically.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_39 = format!(
+    "Changelog Absotui v{VERSION} (26/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install script now fails immediately with a clear message (e.g.
+           \"check df -h /tmp for free disk space\") instead of a confusing wall
+           of unrelated errors if it can't create a temp file/directory.
+         - It also no longer claims dependencies (e.g. VLC) installed
+           successfully when the package manager actually failed.
+         - Settings > Update could pop the password prompt multiple times
+           during a single update even though sudo only needed to authenticate
+           once - a package manager's own progress output was sometimes
+           mistaken for a password prompt. It's now recognized correctly.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_39);
     changelog.push_str(&changelog_38);
     changelog.push_str(&changelog_37);
     changelog.push_str(&changelog_36);
