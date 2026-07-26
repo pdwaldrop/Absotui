@@ -90,6 +90,26 @@ sha256_of() {
     fi
 }
 
+# `mktemp -d`'s failure was never checked at any of its call sites - a full
+# `/tmp` (or any other mktemp failure: permissions, no TMPDIR, etc.) made it
+# return nothing, silently turning every "$tmpdir/foo" path below it into
+# "/foo" for the rest of that function. That produced a wall of confusing,
+# unrelated-looking errors (permission denied writing to "/", "cannot stat"
+# on a root-level path, a misleading "could not determine shasum from
+# GitHub" for what was actually a local disk-space problem) instead of one
+# clear message pointing at the real cause - confirmed live on a Linux Mint
+# VM that had genuinely run out of disk space.
+make_tmp_dir() {
+    local dir
+    dir=$(mktemp -d)
+    if [[ -z "$dir" || ! -d "$dir" ]]; then
+        echo "[ERROR] Could not create a temporary directory (mktemp -d failed)." >&2
+        echo "This usually means \$TMPDIR/\$HOME/tmp is out of disk space, or isn't writable - check with \"df -h /tmp\" and try again." >&2
+        exit 1
+    fi
+    echo "$dir"
+}
+
 check_shasum() {
     local tmpfile=$1
     local file_name=$2
@@ -99,7 +119,7 @@ check_shasum() {
     if [[ -z "$expected_sha256" ]]; then
         echo "[ERROR] Could not determine the expected shasum for \"$file_name\" from GitHub."
         echo "This is not a checksum mismatch - the downloaded file was never actually compared."
-        echo "It usually means the request to GitHub's API for the latest release failed (rate limit or transient network issue) - wait a few minutes and try again."
+        echo "It usually means the request to GitHub's API for the latest release failed (rate limit or transient network issue - wait a few minutes and try again), or that a local temp file couldn't be created (check \"df -h /tmp\" for free disk space)."
         if [[ "$file_type" == "dir" ]]; then
             rm -rf "$tmpdir"
         fi
@@ -425,27 +445,39 @@ confirm_force_install_update() {
 install_packages() {
     local dep="$@"
     if (( ${#dep} == 0 )); then return; fi
+    # Each install command's exit status is captured (via `|| pkg_mgr_status=$?`,
+    # so `set -e` doesn't abort the whole script on a single package manager
+    # failure) instead of being ignored outright - this used to unconditionally
+    # print "installed successfully" even when e.g. apt genuinely failed to find
+    # a candidate for a package, silently leaving a real dependency (vlc,
+    # confirmed live on a Linux Mint VM) missing with no indication anything
+    # was wrong.
+    local pkg_mgr_status=0
     case $OS in
         linux)
 	    DISTRO=${DISTRO:-$(get_distro)}
     	    case "$DISTRO" in
-                arch*) sudo pacman -S --noconfirm ${dep[@]};;
-                debian*) sudo apt install -y ${dep[@]};;
-                fedora*) sudo dnf install -y ${dep[@]};;
-                centos*) sudo yum install -y ${dep[@]};;
-                opensuse*) sudo zypper install -y ${dep[@]};;
+                arch*) sudo pacman -S --noconfirm ${dep[@]} || pkg_mgr_status=$?;;
+                debian*) sudo apt install -y ${dep[@]} || pkg_mgr_status=$?;;
+                fedora*) sudo dnf install -y ${dep[@]} || pkg_mgr_status=$?;;
+                centos*) sudo yum install -y ${dep[@]} || pkg_mgr_status=$?;;
+                opensuse*) sudo zypper install -y ${dep[@]} || pkg_mgr_status=$?;;
                 *) install_from_source;;
     	    esac ;;
         macOS)
             if command -v brew >/dev/null 2>&1; then
-                brew install ${dep[@]}
+                brew install ${dep[@]} || pkg_mgr_status=$?
             else
                 install_brew
                 #echo "[ERROR] Please install \"brew\"."
                 #exit $EXIT_FAIL
                 fi ;;
         esac
-    echo "[INFO] Packages installed successfully."
+    if [[ $pkg_mgr_status -ne 0 ]]; then
+        echo "[WARNING] Your package manager reported a problem installing one or more dependencies (${dep[@]}) - see the error above. Absotui itself will still be installed, but anything needing a missing dependency (e.g. VLC for playback) won't work until you install it yourself."
+    else
+        echo "[INFO] Packages installed successfully."
+    fi
 }
 
 post_install_msg() {
@@ -476,7 +508,7 @@ install_config() {
     # config.
      # create temp directory
     local tmpdir
-    tmpdir=$(mktemp -d)
+    tmpdir=$(make_tmp_dir)
     # dl config.example.toml in temp directory
     curl -LsSf "$url_config_file" -o "$tmpdir/config.example.toml"
 
@@ -746,7 +778,8 @@ check_and_cleanup_binary_install() {
 dl_handle_compressed_binary() {
     local final_url=$1
     local binary_name=$2
-    local tmpdir=$(mktemp -d)
+    local tmpdir
+    tmpdir=$(make_tmp_dir)
     echo "[INFO] Downloading the compressed binary from $final_url"
     sudo curl -LsS "$final_url" -o "$tmpdir/$binary_name"
 
@@ -793,7 +826,7 @@ detect_terminal_launcher() {
 setup_launcher() {
     if [[ "$OS" == "linux" ]]; then
         local tmpdir
-        tmpdir=$(mktemp -d)
+        tmpdir=$(make_tmp_dir)
 
         detect_terminal_launcher
         if [[ -n "$absotui_term_exec" ]]; then
