@@ -585,8 +585,7 @@ let changelog_36 = "Changelog Absotui v0.5.21-beta (25/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_37 = format!(
-    "Changelog Absotui v{VERSION} (25/07/2026) \n\
+let changelog_37 = "Changelog Absotui v0.5.22-beta (25/07/2026) \n\
          \n\
          Fixed:\n\
          - The install/update script (hello_absotui.sh) failed on distros that
@@ -596,10 +595,26 @@ let changelog_37 = format!(
            `openssl` as a last resort.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_38 = format!(
+    "Changelog Absotui v{VERSION} (26/07/2026) \n\
+         \n\
+         Changed:\n\
+         - Refreshed the app icon with a cleaner vector rework of the
+           headphones-parrot-and-terminal design.
+         \n\
+         Fixed:\n\
+         - The install script no longer blocks on a \"provide a secret key\"
+           prompt during install/update - that key only encrypts your
+           Audiobookshelf login at rest locally and is never something you need
+           to type yourself, so it's now generated automatically.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_38);
     changelog.push_str(&changelog_37);
     changelog.push_str(&changelog_36);
     changelog.push_str(&changelog_35);
