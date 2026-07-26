@@ -561,8 +561,7 @@ let changelog_35 = "Changelog Absotui v0.5.20-beta (22/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_36 = format!(
-    "Changelog Absotui v{VERSION} (25/07/2026) \n\
+let changelog_36 = "Changelog Absotui v0.5.21-beta (25/07/2026) \n\
          \n\
          Added:\n\
          - Offline mode now covers podcasts, matching books: press `d` on a podcast
@@ -585,10 +584,23 @@ let changelog_36 = format!(
            this truncation issue; they now do.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_37 = format!(
+    "Changelog Absotui v{VERSION} (25/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install/update script (hello_absotui.sh) failed on distros that
+           don't ship `shasum` (e.g. Fedora's minimal/KDE spins) with \"shasum:
+           command not found\", even though the download itself was fine. It now
+           tries `sha256sum` (coreutils) first, falls back to `shasum`, and then
+           `openssl` as a last resort.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_37);
     changelog.push_str(&changelog_36);
     changelog.push_str(&changelog_35);
     changelog.push_str(&changelog_34);
