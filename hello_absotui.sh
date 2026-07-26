@@ -459,14 +459,19 @@ post_install_msg() {
 install_config() {
     mkdir -p "$CONFIG_DIR" 2>/dev/null || ( echo "[ERROR] Cannot create config directory \"${CONFIG_DIR}\""; exit $EXIT_CONFIG )
 
-    # .env
+    # .env - this key only encrypts the Audiobookshelf auth token at rest in the
+    # local sqlite db; the user never needs to know or type it anywhere else, so
+    # generate a strong random one silently instead of blocking install on a
+    # prompt for it (this used to `read -p` here, inherited unchanged from the
+    # original Toutui project - it also meant a fresh terminal install could hang
+    # indefinitely if ever driven non-interactively).
     local env="${CONFIG_DIR}/.env"
-    local prompt="Please provide a secret key to encrypt the token stored in the database ($env): "
-    local key=
-    until [[ -f "$env" && $(sed "s/ABSOTUI_SECRET_KEY=//g" "$env") != "" ]]; do
-        read -p "$prompt: " key
-        if ! [[ $key == "" ]]; then echo "ABSOTUI_SECRET_KEY=${key}" > "$env"; echo;fi
-    done
+    if ! [[ -f "$env" && $(sed "s/ABSOTUI_SECRET_KEY=//g" "$env") != "" ]]; then
+        local key
+        key=$(od -An -tx1 -N32 /dev/urandom | tr -d ' \n')
+        echo "ABSOTUI_SECRET_KEY=${key}" > "$env"
+        echo "[INFO] Generated a secret key to encrypt your stored Audiobookshelf login at $env"
+    fi
 
     # config.
      # create temp directory
