@@ -70,6 +70,26 @@ main() {
     esac
 }
 
+# `shasum` (Perl's Digest::SHA) isn't installed by default on every distro - e.g.
+# Fedora's minimal/KDE spins don't pull it in, while Debian/Ubuntu-based distros
+# (and macOS) do ship it, so it went unnoticed until a Fedora KDE VM install hit
+# "shasum: command not found". `sha256sum` (coreutils) is the more universal choice
+# on Linux, but macOS doesn't ship that - so try both, plus an `openssl` fallback
+# for anything with neither.
+sha256_of() {
+    local target=$1
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$target" | awk "{print \$1}"
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$target" | awk "{print \$1}"
+    elif command -v openssl >/dev/null 2>&1; then
+        openssl dgst -sha256 "$target" | awk "{print \$NF}"
+    else
+        echo "[ERROR] None of sha256sum, shasum, or openssl found - cannot verify checksums." >&2
+        exit 1
+    fi
+}
+
 check_shasum() {
     local tmpfile=$1
     local file_name=$2
@@ -86,7 +106,7 @@ check_shasum() {
         exit 1
     fi
 
-    actual_sha256=$(shasum -a 256 "$tmpfile" | awk "{print \$1}")
+    actual_sha256=$(sha256_of "$tmpfile")
 
     if [[ "$actual_sha256" != "$expected_sha256" ]]; then
         echo "[ERROR] Incorrect shasum for \"$file_name\""
