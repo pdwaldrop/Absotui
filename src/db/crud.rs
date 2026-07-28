@@ -3,6 +3,7 @@ use crate::db::database_struct::User;
 use crate::db::database_struct::ListeningSession;
 use crate::db::database_struct::Others;
 use crate::db::database_struct::DownloadedItem;
+use crate::db::database_struct::DownloadedTrack;
 use crate::utils::pop_up_message::pop_message;
 use std::io::stdout;
 use log::{info, error};
@@ -609,9 +610,14 @@ pub fn update_item_speed_rate(username: &str, id_item: &str, is_speed_rate_up: b
     Ok(())
 }
 
-// insert (or overwrite) a downloaded book or podcast episode's local file location and
+// insert (or overwrite) a downloaded book or podcast episode's local file location(s) and
 // offline-playback metadata for (username, id_item). `kind` is "book" or "podcast".
-pub fn insert_download(username: &str, id_item: &str, file_path: &str, duration: &str, title: &str, author: &str, kind: &str) -> Result<()> {
+// `tracks_json`/`chapters_json` are pre-serialized (see DownloadedTrack/AudioTrack) -
+// empty string for either is fine (a podcast episode has no chapters; `get_download`
+// falls back to synthesizing a single track from `file_path`/`duration` when
+// `tracks_json` is empty, so already-downloaded single-file books need no re-download).
+#[allow(clippy::too_many_arguments)]
+pub fn insert_download(username: &str, id_item: &str, file_path: &str, duration: &str, title: &str, author: &str, kind: &str, tracks_json: &str, chapters_json: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -631,8 +637,8 @@ pub fn insert_download(username: &str, id_item: &str, file_path: &str, duration:
 
     if let Ok(conn) = Connection::open(db_path) {
         conn.execute(
-            "INSERT OR REPLACE INTO downloads (username, id_item, file_path, duration, title, author, kind) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![username, id_item, file_path, duration, title, author, kind],
+            "INSERT OR REPLACE INTO downloads (username, id_item, file_path, duration, title, author, kind, tracks, chapters) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![username, id_item, file_path, duration, title, author, kind, tracks_json, chapters_json],
         )?;
     } else {
         let mut stdout = stdout();
@@ -643,7 +649,7 @@ pub fn insert_download(username: &str, id_item: &str, file_path: &str, duration:
     Ok(())
 }
 
-// get a downloaded book's local file location and offline-playback metadata, if it's
+// get a downloaded book's local file location(s) and offline-playback metadata, if it's
 // been downloaded for (username, id_item)
 pub fn get_download(username: &str, id_item: &str) -> Option<DownloadedItem> {
 
@@ -663,14 +669,34 @@ pub fn get_download(username: &str, id_item: &str) -> Option<DownloadedItem> {
 
     let conn = Connection::open(db_path).ok()?;
 
-    let mut stmt = conn.prepare("SELECT file_path, duration, title, author FROM downloads WHERE username = ?1 AND id_item = ?2").ok()?;
+    let mut stmt = conn.prepare("SELECT file_path, duration, title, author, tracks, chapters FROM downloads WHERE username = ?1 AND id_item = ?2").ok()?;
 
     stmt.query_row(params![username, id_item], |row| {
+        let file_path: String = row.get(0)?;
+        let duration: String = row.get(1)?;
+        let tracks_json: String = row.get(4)?;
+        let chapters: String = row.get(5)?;
+
+        // Rows written before `tracks` existed (or a podcast episode, which never
+        // gets one) have it empty - synthesize the single-file case from the legacy
+        // file_path/duration columns rather than requiring a re-download.
+        let tracks: Vec<DownloadedTrack> = if tracks_json.is_empty() {
+            vec![DownloadedTrack {
+                local_path: file_path.clone(),
+                duration: duration.parse::<f64>().unwrap_or(0.0),
+                start_offset: 0.0,
+            }]
+        } else {
+            serde_json::from_str(&tracks_json).unwrap_or_default()
+        };
+
         Ok(DownloadedItem {
-            file_path: row.get(0)?,
-            duration: row.get(1)?,
+            file_path,
+            duration,
             title: row.get(2)?,
             author: row.get(3)?,
+            tracks,
+            chapters,
         })
     }).ok()
 }
@@ -768,7 +794,7 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
         // player_tui.rs then has no valid session data to render.
         let _ = conn.busy_timeout(std::time::Duration::from_millis(500));
         let mut stmt = conn.prepare(
-            "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter, chapters, volume
+            "SELECT id_session, id_item, current_time_playback, duration, is_finished, id_pod, elapsed_time, title, author, is_playback, chapter, chapters, volume, pending_seek
              FROM listening_session
              LIMIT 1",
         )?;
@@ -790,6 +816,7 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
                 chapter: row.get(10)?,
                 chapters: row.get(11)?,
                 volume: row.get(12)?,
+                pending_seek: row.get(13)?,
             };
             return Ok(Some(session));
         }
@@ -879,6 +906,44 @@ pub fn update_chapter(value: &str, id_session: &str) -> Result<()> {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
         error!("[update_chapter] {err_message}");
+    }
+
+    Ok(())
+}
+
+// Update pending_seek (for `listening_session` table) - a book-wide seconds value
+// requested by the UI (chapter list jump, P/U next/prev chapter), consumed and cleared
+// by the playback loop that owns the running VLC process (see handle_l_book.rs), since
+// only it knows whether fulfilling it means seeking the current file or swapping to a
+// different one. Empty string means no pending request.
+pub fn update_pending_seek(value: &str, id_session: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "UPDATE listening_session SET pending_seek = ?1 WHERE id_session = ?2",
+            params![value, id_session],
+        )?;
+    } else {
+        let mut stdout = stdout();
+        let _ = pop_message(&mut stdout, 3, err_message);
+        error!("[update_pending_seek] {err_message}");
     }
 
     Ok(())
@@ -1761,7 +1826,8 @@ pub fn init_db() -> Result<()> {
             is_playback INTEGER NOT NULL DEFAULT 1,
             chapter TEXT NOT NULL,
             chapters TEXT NOT NULL DEFAULT '',
-            volume INTEGER NOT NULL DEFAULT 100
+            volume INTEGER NOT NULL DEFAULT 100,
+            pending_seek TEXT NOT NULL DEFAULT ''
             )",
         [],
     )?;
@@ -1784,6 +1850,13 @@ pub fn init_db() -> Result<()> {
         [],
     );
 
+    // Migration for databases created before `pending_seek` existed - see
+    // update_pending_seek's doc comment for what it's for.
+    let _ = conn.execute(
+        "ALTER TABLE listening_session ADD COLUMN pending_seek TEXT NOT NULL DEFAULT ''",
+        [],
+    );
+
     // Create table `downloads` if there is none - one row per (user, book or podcast
     // episode) that's been downloaded for offline playback. `file_path` is the local
     // audio file on disk; `duration`/`title`/`author` are snapshotted at download time
@@ -1801,6 +1874,8 @@ pub fn init_db() -> Result<()> {
             title TEXT NOT NULL,
             author TEXT NOT NULL,
             kind TEXT NOT NULL DEFAULT 'book',
+            tracks TEXT NOT NULL DEFAULT '',
+            chapters TEXT NOT NULL DEFAULT '',
             PRIMARY KEY (username, id_item)
             )",
         [],
@@ -1810,6 +1885,18 @@ pub fn init_db() -> Result<()> {
     // existed. Every download made before this existed was a book.
     let _ = conn.execute(
         "ALTER TABLE downloads ADD COLUMN kind TEXT NOT NULL DEFAULT 'book'",
+        [],
+    );
+
+    // Migration for databases created before multi-file book downloads existed - see
+    // DownloadedTrack. Existing rows keep working via get_download's fallback that
+    // synthesizes a single track from the legacy file_path/duration columns.
+    let _ = conn.execute(
+        "ALTER TABLE downloads ADD COLUMN tracks TEXT NOT NULL DEFAULT ''",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE downloads ADD COLUMN chapters TEXT NOT NULL DEFAULT ''",
         [],
     );
 

@@ -3,16 +3,63 @@ use crate::player::vlc::fetch_vlc_data::{fetch_vlc_data, fetch_vlc_is_playing};
 use crate::player::vlc::exec_nc::exec_nc;
 use crate::utils::pop_up_message::clear_message;
 use crate::api::me::update_media_progress::{update_media_progress_book, update_media_progress2_book};
-use crate::api::library_items::play_lib_item_or_pod::post_start_playback_session_book;
+use crate::api::library_items::play_lib_item_or_pod::{post_start_playback_session_book, AudioTrack, find_track_index};
 use crate::api::sessions::sync_open_session::sync_session;
 use crate::api::sessions::close_open_session::close_session_without_send_prg_data;
 use std::io::stdout;
 use log::{info, error};
-use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_download, get_listening_session};
+use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_download, get_listening_session, update_pending_seek};
 use crate::db::database_struct::DownloadedItem;
 use crate::utils::vlc_tcp_stream::vlc_tcp_stream;
-use crate::player::vlc::quit_vlc::pkill_vlc;
+use crate::player::vlc::quit_vlc::{pkill_vlc, quit_vlc};
+use crate::player::integrated::handle_key_player::seek_to_absolute_time;
 use crate::utils::convert_seconds::progress_time_diff;
+
+/// Launches VLC for one track and returns immediately, without waiting for it to
+/// finish. `start_vlc` shells out via `Command::output()`, which blocks until the
+/// child process itself exits - ie. for the length of the whole track - so every call
+/// site (the very first launch, and every later track switch/advance) must fire this
+/// from its own `tokio::spawn` rather than `.await`ing `start_vlc` inline, or whichever
+/// loop called it would hang until VLC quits instead of continuing to poll it.
+#[allow(clippy::too_many_arguments)]
+fn spawn_track_vlc(
+    log_ctx: &'static str,
+    relative_start: u32,
+    port: String,
+    address_player: String,
+    content_url: String,
+    token: Option<String>,
+    title: String,
+    subtitle: String,
+    author: String,
+    server_address: String,
+    program: String,
+    username: String,
+    id_item: String,
+    local_file_path: Option<String>,
+) {
+    tokio::spawn(async move {
+        // this info! is not the most reliable to know is VLC is really launched
+        info!("[{log_ctx}][start_vlc] VLC successfully launched");
+        if let Err(e) = start_vlc(
+            &relative_start.to_string(),
+            &port,
+            address_player,
+            &content_url,
+            token.as_ref(),
+            title,
+            subtitle,
+            author,
+            server_address,
+            program,
+            username,
+            id_item,
+            local_file_path,
+        ).await {
+            error!("[{log_ctx}][start_vlc] {e}");
+        }
+    });
+}
 
 pub async fn handle_l_book(
     token: Option<&String>,
@@ -28,7 +75,7 @@ pub async fn handle_l_book(
 
     // need to pkill VLC for macos users
     pkill_vlc();
-  
+
     if let Some(index) = selected
         && let Some(id) = ids_library_items.get(index)
             && let Some(token) = token {
@@ -70,6 +117,22 @@ pub async fn handle_l_book(
                     info!("[handle_l_book][post_start_playback_session_book] OK");
                     info!("[handle_l_book][post_start_playback_session_book] Item {id} started at {current_time}s");
 
+                    // A book split across separate per-chapter files (rather than a single
+                    // .m4b) gets one AudioTrack per file here - see find_track_index's doc
+                    // comment. A single-file book is simply the 1-track case and every
+                    // "is there a next track" check below naturally becomes a no-op.
+                    let tracks: Vec<AudioTrack> = serde_json::from_str(&info_item[8]).unwrap_or_default();
+                    let mut current_track_idx = if tracks.is_empty() { 0 } else { find_track_index(&tracks, f64::from(current_time)) };
+                    let mut track_base_offset: u32 = tracks.get(current_track_idx).map(|t| t.start_offset.round() as u32).unwrap_or(0);
+
+                    // If this book was downloaded for offline playback, prefer the local
+                    // copy of whichever track we're about to play even though the server is
+                    // reachable (existing "prefer-local playback" behavior) - matched by
+                    // track index, since a legacy single-file download only covers track 0.
+                    let local_tracks: Vec<String> = downloaded.as_ref()
+                        .map(|d| d.tracks.iter().map(|t| t.local_path.clone()).collect())
+                        .unwrap_or_default();
+
 
                     // insert variables in databse (`listening_session` table) for sync session when app is quit
                     let _ = insert_listening_session(
@@ -85,43 +148,29 @@ pub async fn handle_l_book(
                         String::new(), // chapter
                         info_item[7].clone(), // chapters (JSON array of {id, title, start, end})
                         );
-                        
-                    // clone otherwise, these variable will  be consumed and not available anymore
-                    // for use outside start_vlc spawn
-                    let token_clone = token.clone();
-                    let port_clone = port.clone();
-                    let info_item_clone = info_item.clone() ;
-                    let server_address_clone = server_address.clone() ;
-                    let address_player_clone = address_player.clone() ;
-                    let username_clone = username.clone();
-                    let id_clone = id.clone();
-                    // downloaded book, if any - play from the local copy instead of
-                    // streaming, even though the server was reachable enough to start
-                    // this session
-                    let local_file_path = downloaded.map(|d| d.file_path);
+
+                    // Relative to the starting track's own beginning, not the book-wide
+                    // resume position - VLC only ever has one file loaded at a time.
+                    let initial_relative_start = current_time.saturating_sub(track_base_offset);
+                    let initial_local_file_path = local_tracks.get(current_track_idx).cloned();
 
                     // start_vlc is launched in a spawn to allow fetch_vlc_data to start at the same time
-                    tokio::spawn(async move {
-                        // this info! is not the most reliable to know is VLC is really launched
-                        info!("[handle_l_book][start_vlc] VLC successfully launched");
-                        if let Err(e) = start_vlc(
-                            &info_item_clone[0], // current_time
-                            &port_clone, // player port
-                            address_player_clone, // player address
-                            &info_item_clone[1], // content url
-                            Some(&token_clone), //token
-                            info_item_clone[4].clone(), //title
-                            info_item_clone[5].clone(), // subtitle
-                            info_item_clone[6].clone(), //title
-                            server_address_clone.clone(), // server address
-                            program.clone(),
-                            username_clone,
-                            id_clone,
-                            local_file_path,
-                            ).await {
-                                error!("[handle_l_book][start_vlc] {e}");
-                            }
-                    });
+                    spawn_track_vlc(
+                        "handle_l_book",
+                        initial_relative_start,
+                        port.clone(),
+                        address_player.clone(),
+                        info_item[1].clone(), // content url (starting track)
+                        Some(token.clone()),
+                        info_item[4].clone(), // title
+                        info_item[5].clone(), // subtitle
+                        info_item[6].clone(), // author
+                        server_address.clone(),
+                        program.clone(),
+                        username.clone(),
+                        id.clone(),
+                        initial_local_file_path,
+                    );
 
 
                     if is_cvlc_term == "1" {
@@ -134,10 +183,10 @@ pub async fn handle_l_book(
                         });
                     }
 
-                    
+
 
                     // clear loading message (from app.rs) when vlc is launched
-                    let mut stdout = stdout(); 
+                    let mut stdout = stdout();
                     let _ = clear_message(&mut stdout, 3);
 
 
@@ -155,15 +204,68 @@ pub async fn handle_l_book(
 
                     let _ = update_is_vlc_running("1", username.as_str());
 
-                    let mut trigger = 1; 
+                    let mut trigger = 1;
 
                     loop {
+                        // A chapter jump ("c" list, or P/U) from the UI - only this loop
+                        // knows the real current_track_idx/track_base_offset, so it's the
+                        // sole place that decides whether fulfilling it is a same-file seek
+                        // or requires swapping VLC to a different file. See
+                        // update_pending_seek's doc comment.
+                        if let Ok(Some(session)) = get_listening_session()
+                            && !session.pending_seek.is_empty()
+                            && let Ok(target) = session.pending_seek.parse::<f64>() {
+                                let _ = update_pending_seek("", info_item[3].as_str());
+                                let target_track_idx = if tracks.is_empty() { 0 } else { find_track_index(&tracks, target) };
+                                let target_track_base = tracks.get(target_track_idx).map(|t| t.start_offset.round() as u32).unwrap_or(0);
+                                let relative_target = (target.round() as u32).saturating_sub(target_track_base);
+
+                                if target_track_idx == current_track_idx {
+                                    let _ = seek_to_absolute_time(&address_player, &port, relative_target);
+                                } else {
+                                    let _ = quit_vlc(&address_player, &port);
+                                    pkill_vlc();
+                                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                                    current_track_idx = target_track_idx;
+                                    track_base_offset = target_track_base;
+                                    let content_url = tracks.get(current_track_idx).map(|t| t.content_url.clone()).unwrap_or_default();
+                                    let local_file_path = local_tracks.get(current_track_idx).cloned();
+
+                                    spawn_track_vlc(
+                                        "handle_l_book",
+                                        relative_target,
+                                        port.clone(),
+                                        address_player.clone(),
+                                        content_url,
+                                        Some(token.clone()),
+                                        info_item[4].clone(),
+                                        info_item[5].clone(),
+                                        info_item[6].clone(),
+                                        server_address.clone(),
+                                        program.clone(),
+                                        username.clone(),
+                                        id.clone(),
+                                        local_file_path,
+                                    );
+                                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                                    last_current_time = 3;
+                                    progress_sync = 3;
+                                    trigger = 1;
+                                }
+                        }
+
                         match fetch_vlc_data(port.clone(), address_player.clone()).await {
                             Ok(Some(data_fetched_from_vlc)) => {
                                 // println!("Fetched data: {}", data_fetched_from_vlc.to_string());
+                                let book_wide_time = track_base_offset.saturating_add(data_fetched_from_vlc);
 
-                                // update current_time in database (`listening_session` table)
-                                let _ = update_current_time(data_fetched_from_vlc, info_item[3].as_str());
+                                // update current_time in database (`listening_session` table) -
+                                // book-wide, not just this file's own raw position, so
+                                // Continue Listening / resume reflect the real position
+                                // across a multi-file book.
+                                let _ = update_current_time(book_wide_time, info_item[3].as_str());
 
                                 // Important, sleep time to 1s minimum, otherwise connection to vlc player will not have time to connect
                                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -173,9 +275,9 @@ pub async fn handle_l_book(
                                 } else {
                                     let speed_rate_str = get_speed_rate(username.as_str());
                                     let speed_rate = speed_rate_str.parse::<f64>().unwrap_or(1.0);
-                                    let current_time_adjusted = f64::from(current_time) / speed_rate; 
-                                    let data_fetched_from_vlc_adjusted = f64::from(data_fetched_from_vlc) / speed_rate; 
-                                    let diff = progress_time_diff(data_fetched_from_vlc_adjusted, current_time_adjusted);
+                                    let current_time_adjusted = f64::from(current_time) / speed_rate;
+                                    let book_wide_time_adjusted = f64::from(book_wide_time) / speed_rate;
+                                    let diff = progress_time_diff(book_wide_time_adjusted, current_time_adjusted);
                                     // if > 20 means that new current_time is not take into account
                                     // so we need to temporarly, put 1 sec if it happens (not the
                                     // most accurate...)
@@ -205,13 +307,13 @@ pub async fn handle_l_book(
                                     Ok(true) => {
                                         // to sync progress in the server each 10 seconds
                                         if trigger == 10 {
-                                                let _ = sync_session(Some(token), &info_item[3],Some(data_fetched_from_vlc), progress_sync, server_address.clone()).await;
-                                                let _ = update_media_progress_book(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], server_address.clone()).await;
-                                             
+                                                let _ = sync_session(Some(token), &info_item[3],Some(book_wide_time), progress_sync, server_address.clone()).await;
+                                                let _ = update_media_progress_book(id, Some(token), Some(book_wide_time), &info_item[2], server_address.clone()).await;
+
                                                 // update elapsed_time in database (`listening_session` table)
                                                 let _ = update_elapsed_time(progress_sync, info_item[3].as_str());
 
-                                                current_time = data_fetched_from_vlc;
+                                                current_time = book_wide_time;
                                                 progress_sync = 0;
                                                 trigger = 0;
 
@@ -227,21 +329,62 @@ pub async fn handle_l_book(
                                     // during a playing (in this case we don't want to mark the
                                     // track as finished)
                                     Ok(false) => {
+                                        if current_track_idx + 1 < tracks.len() {
+                                            // End of this file, not the end of the book -
+                                            // advance to the next one within the same
+                                            // session instead of closing/marking finished.
+                                            info!("[handle_l_book][Finished] Track {current_track_idx} finished, advancing to track {}", current_track_idx + 1);
+                                            let _ = update_current_time(book_wide_time, info_item[3].as_str());
+
+                                            let _ = quit_vlc(&address_player, &port);
+                                            pkill_vlc();
+                                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                                            current_track_idx += 1;
+                                            track_base_offset = tracks[current_track_idx].start_offset.round() as u32;
+                                            let content_url = tracks[current_track_idx].content_url.clone();
+                                            let local_file_path = local_tracks.get(current_track_idx).cloned();
+
+                                            spawn_track_vlc(
+                                                "handle_l_book",
+                                                0,
+                                                port.clone(),
+                                                address_player.clone(),
+                                                content_url,
+                                                Some(token.clone()),
+                                                info_item[4].clone(),
+                                                info_item[5].clone(),
+                                                info_item[6].clone(),
+                                                server_address.clone(),
+                                                program.clone(),
+                                                username.clone(),
+                                                id.clone(),
+                                                local_file_path,
+                                            );
+                                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                                            current_time = book_wide_time;
+                                            last_current_time = 3;
+                                            progress_sync = 3;
+                                            trigger = 1;
+                                            continue;
+                                        }
+
                                         let is_finised = true;
                                         info!("[handle_l_book][Finished] Track finished");
 
                                         // update is_finished in database (`listening_session` table)
                                         let _ = update_is_finished("1", info_item[3].as_str());
-                                        
+
                                         let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
                                         info!("[handle_l_book][Finished] Session successfully closed");
-                                        let _ = update_media_progress2_book(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], is_finised, server_address).await;
+                                        let _ = update_media_progress2_book(id, Some(token), Some(book_wide_time), &info_item[2], is_finised, server_address).await;
                                         info!("[handle_l_book][Finished] VLC stopped");
-                                        info!("[handle_l_book][Finished] Item {id} closed at {data_fetched_from_vlc}s");
+                                        info!("[handle_l_book][Finished] Item {id} closed at {book_wide_time}s");
                                         let _ = update_is_loop_break("1", username.as_str());
 
                                         let _ = update_is_vlc_running("0", username.as_str());
-                                        break; 
+                                        break;
                                     },
                                     // `Err` means :  VLC is close (because if VLC is not playing
                                     // anymore an error is send by `fetch_vlc_is_playing`).
@@ -255,12 +398,12 @@ pub async fn handle_l_book(
                                         info!("[handle_l_book][Quit] Session successfully closed");
                                         // send one last time media progress (bug to retrieve media
                                         // progress otherwise)
-                                        let _ = update_media_progress_book(id, Some(token), Some(data_fetched_from_vlc), &info_item[2], server_address).await;
+                                        let _ = update_media_progress_book(id, Some(token), Some(book_wide_time), &info_item[2], server_address).await;
                                         info!("[handle_l_book][Quit] VLC closed");
-                                        info!("[handle_l_book][Quit] Item {id} closed at {data_fetched_from_vlc}s");
+                                        info!("[handle_l_book][Quit] Item {id} closed at {book_wide_time}s");
                                         //eprintln!("Error fetching play status: {}", e);
                                         let _ = update_is_loop_break("1", username.as_str());
-                                        break; 
+                                        break;
                                     }
                                 }
 
@@ -302,6 +445,11 @@ pub async fn handle_l_book(
 /// result ignored either way) happens when playback stops, in case connectivity
 /// returned by then. Deliberately doesn't retry or queue that push - a fuller
 /// offline-sync subsystem is out of scope for this first pass.
+///
+/// Sequences through `downloaded.tracks` exactly like the online loop above sequences
+/// through the server's `AudioTrack`s (same book-wide-time accounting, same
+/// pending_seek handling for chapter jumps) - a book downloaded as several per-chapter
+/// files plays and navigates the same offline as online, not just its first file.
 async fn handle_l_book_offline(
     id: String,
     downloaded: DownloadedItem,
@@ -334,40 +482,40 @@ async fn handle_l_book_offline(
         downloaded.author.clone(),
         true,
         String::new(),
-        String::new(),
+        downloaded.chapters.clone(),
     );
 
-    let port_clone = port.clone();
-    let address_player_clone = address_player.clone();
-    let username_clone = username.clone();
-    let id_clone = id.clone();
-    let local_file_path = downloaded.file_path.clone();
+    let mut current_track_idx = if downloaded.tracks.is_empty() { 0 } else {
+        downloaded.tracks.iter()
+            .position(|t| f64::from(current_time) < t.start_offset + t.duration)
+            .unwrap_or(downloaded.tracks.len().saturating_sub(1))
+    };
+    let mut track_base_offset: u32 = downloaded.tracks.get(current_track_idx).map(|t| t.start_offset.round() as u32).unwrap_or(0);
+
     let title = downloaded.title.clone();
     let author = downloaded.author.clone();
-    let current_time_str = current_time.to_string();
 
-    tokio::spawn(async move {
-        info!("[handle_l_book_offline][start_vlc] VLC launched against local file (offline)");
-        // content_url/token/server_address are unused whenever local_file_path is
-        // Some - see start_vlc's `source` resolution.
-        if let Err(e) = start_vlc(
-            &current_time_str,
-            &port_clone,
-            address_player_clone,
-            &String::new(),
-            None,
-            title.clone(),
-            title,
-            author,
-            String::new(),
-            program,
-            username_clone,
-            id_clone,
-            Some(local_file_path),
-        ).await {
-            error!("[handle_l_book_offline][start_vlc] {e}");
-        }
-    });
+    let initial_relative_start = current_time.saturating_sub(track_base_offset);
+    let initial_local_file_path = downloaded.tracks.get(current_track_idx).map(|t| t.local_path.clone());
+
+    // content_url/token/server_address are unused whenever local_file_path is Some -
+    // see start_vlc's `source` resolution.
+    spawn_track_vlc(
+        "handle_l_book_offline",
+        initial_relative_start,
+        port.clone(),
+        address_player.clone(),
+        String::new(),
+        None,
+        title.clone(),
+        title.clone(),
+        author.clone(),
+        String::new(),
+        program.clone(),
+        username.clone(),
+        id.clone(),
+        initial_local_file_path,
+    );
 
     let mut stdout = stdout();
     let _ = clear_message(&mut stdout, 3);
@@ -377,9 +525,55 @@ async fn handle_l_book_offline(
     let _ = update_is_vlc_running("1", username.as_str());
 
     loop {
+        // Same pending_seek mechanism as the online loop (handle_l_book) - see
+        // update_pending_seek's doc comment.
+        if let Ok(Some(session)) = get_listening_session()
+            && !session.pending_seek.is_empty()
+            && let Ok(target) = session.pending_seek.parse::<f64>() {
+                let _ = update_pending_seek("", id_session.as_str());
+                let target_track_idx = if downloaded.tracks.is_empty() { 0 } else {
+                    downloaded.tracks.iter()
+                        .position(|t| target < t.start_offset + t.duration)
+                        .unwrap_or(downloaded.tracks.len().saturating_sub(1))
+                };
+                let target_track_base = downloaded.tracks.get(target_track_idx).map(|t| t.start_offset.round() as u32).unwrap_or(0);
+                let relative_target = (target.round() as u32).saturating_sub(target_track_base);
+
+                if target_track_idx == current_track_idx {
+                    let _ = seek_to_absolute_time(&address_player, &port, relative_target);
+                } else {
+                    let _ = quit_vlc(&address_player, &port);
+                    pkill_vlc();
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                    current_track_idx = target_track_idx;
+                    track_base_offset = target_track_base;
+                    let local_file_path = downloaded.tracks.get(current_track_idx).map(|t| t.local_path.clone());
+
+                    spawn_track_vlc(
+                        "handle_l_book_offline",
+                        relative_target,
+                        port.clone(),
+                        address_player.clone(),
+                        String::new(),
+                        None,
+                        title.clone(),
+                        title.clone(),
+                        author.clone(),
+                        String::new(),
+                        program.clone(),
+                        username.clone(),
+                        id.clone(),
+                        local_file_path,
+                    );
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                }
+        }
+
         match fetch_vlc_data(port.clone(), address_player.clone()).await {
             Ok(Some(data_fetched_from_vlc)) => {
-                let _ = update_current_time(data_fetched_from_vlc, id_session.as_str());
+                let book_wide_time = track_base_offset.saturating_add(data_fetched_from_vlc);
+                let _ = update_current_time(book_wide_time, id_session.as_str());
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
                 match vlc_tcp_stream(address_player.as_str(), port.as_str(), "chapter") {
@@ -391,21 +585,55 @@ async fn handle_l_book_offline(
 
                 match fetch_vlc_is_playing(port.clone(), address_player.clone()).await {
                     Ok(true) => {
-                        current_time = data_fetched_from_vlc;
+                        current_time = book_wide_time;
                     }
                     Ok(false) => {
+                        if current_track_idx + 1 < downloaded.tracks.len() {
+                            info!("[handle_l_book_offline][Finished] Track {current_track_idx} finished, advancing to track {}", current_track_idx + 1);
+                            let _ = update_current_time(book_wide_time, id_session.as_str());
+
+                            let _ = quit_vlc(&address_player, &port);
+                            pkill_vlc();
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                            current_track_idx += 1;
+                            track_base_offset = downloaded.tracks[current_track_idx].start_offset.round() as u32;
+                            let local_file_path = downloaded.tracks.get(current_track_idx).map(|t| t.local_path.clone());
+
+                            spawn_track_vlc(
+                                "handle_l_book_offline",
+                                0,
+                                port.clone(),
+                                address_player.clone(),
+                                String::new(),
+                                None,
+                                title.clone(),
+                                title.clone(),
+                                author.clone(),
+                                String::new(),
+                                program.clone(),
+                                username.clone(),
+                                id.clone(),
+                                local_file_path,
+                            );
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                            current_time = book_wide_time;
+                            continue;
+                        }
+
                         info!("[handle_l_book_offline][Finished] Track finished");
                         let _ = update_is_finished("1", id_session.as_str());
                         // Best-effort only - ignored whether the server is back or not.
-                        let _ = update_media_progress2_book(&id, Some(&token), Some(data_fetched_from_vlc), &downloaded.duration, true, server_address.clone()).await;
+                        let _ = update_media_progress2_book(&id, Some(&token), Some(book_wide_time), &downloaded.duration, true, server_address.clone()).await;
                         let _ = update_is_loop_break("1", username.as_str());
                         let _ = update_is_vlc_running("0", username.as_str());
                         break;
                     }
                     Err(_) => {
                         let _ = update_is_vlc_running("0", username.as_str());
-                        info!("[handle_l_book_offline][Quit] Item {id} closed at {data_fetched_from_vlc}s");
-                        let _ = update_media_progress_book(&id, Some(&token), Some(data_fetched_from_vlc), &downloaded.duration, server_address.clone()).await;
+                        info!("[handle_l_book_offline][Quit] Item {id} closed at {book_wide_time}s");
+                        let _ = update_media_progress_book(&id, Some(&token), Some(book_wide_time), &downloaded.duration, server_address.clone()).await;
                         let _ = update_is_loop_break("1", username.as_str());
                         break;
                     }
@@ -427,4 +655,3 @@ async fn handle_l_book_offline(
         }
     }
 }
-

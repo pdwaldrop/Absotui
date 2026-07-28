@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use color_eyre::eyre::Result;
 use log::{info, error};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
-use crate::api::library_items::play_lib_item_or_pod::{post_start_playback_session_book, post_start_playback_session_pod};
+use crate::api::library_items::play_lib_item_or_pod::{post_start_playback_session_book, post_start_playback_session_pod, AudioTrack};
 use crate::api::sessions::close_open_session::close_session_without_send_prg_data;
 use crate::db::crud::{insert_download, delete_download, get_download, list_downloaded_ids};
+use crate::db::database_struct::DownloadedTrack;
 
 fn downloads_dir() -> PathBuf {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -53,15 +54,18 @@ fn extension_from_content_type(content_type: Option<&str>) -> &'static str {
 }
 
 pub fn is_downloaded(username: &str, item_id: &str) -> bool {
-    get_download(username, item_id).is_some_and(|d| std::path::Path::new(&d.file_path).exists())
+    get_download(username, item_id)
+        .is_some_and(|d| !d.tracks.is_empty() && d.tracks.iter().all(|t| std::path::Path::new(&t.local_path).exists()))
 }
 
-/// Downloads a book's audio file for offline playback, if not already downloaded.
-/// Meant to be run in a background task, same as `cover_cache::fetch_and_cache_cover`.
+/// Downloads every audio file backing a book for offline playback, if not already
+/// downloaded - a book uploaded as separate per-chapter files gets one local file per
+/// server-side track, not just the first. Meant to be run in a background task, same
+/// as `cover_cache::fetch_and_cache_cover`.
 ///
-/// There's no lighter-weight endpoint to resolve a book's direct-play URL than
-/// actually starting a playback session (that's how `handle_l_book` itself gets
-/// `content_url`), so this opens one purely to read `content_url`/`duration` off the
+/// There's no lighter-weight endpoint to resolve a book's direct-play URL(s) than
+/// actually starting a playback session (that's how `handle_l_book` itself gets them),
+/// so this opens one purely to read `audioTracks`/`duration`/`chapters` off the
 /// response and immediately closes it again - the server never sees a real listen out
 /// of this.
 pub async fn download_book(token: String, item_id: String, title: String, author: String, username: String, server_address: String) -> Result<()> {
@@ -70,31 +74,53 @@ pub async fn download_book(token: String, item_id: String, title: String, author
     }
 
     let info_item = post_start_playback_session_book(Some(&token), &item_id, server_address.clone()).await?;
-    // info_item: [current_time, content_url, duration, id_session, title, subtitle, author, chapters_json]
-    let content_url = &info_item[1];
+    // info_item: [current_time, content_url, duration, id_session, title, subtitle, author, chapters_json, tracks_json]
     let duration = &info_item[2];
     let id_session = &info_item[3];
+    let chapters_json = &info_item[7];
+    let tracks: Vec<AudioTrack> = serde_json::from_str(&info_item[8]).unwrap_or_default();
 
     if let Err(e) = close_session_without_send_prg_data(Some(&token), id_session, server_address.clone()).await {
         error!("[download_book] failed to close transient session for {item_id}: {e}");
     }
 
     let client = reqwest::Client::new();
-    let response = client
-        .get(format!("{server_address}{content_url}"))
-        .header(AUTHORIZATION, format!("Bearer {token}"))
-        .send()
-        .await?;
-
-    let ext = extension_from_content_type(response.headers().get(CONTENT_TYPE).and_then(|v| v.to_str().ok()));
-    let bytes = response.bytes().await?;
-
     std::fs::create_dir_all(downloads_dir())?;
-    let path = download_audio_path(&item_id, ext);
-    std::fs::write(&path, &bytes)?;
 
-    insert_download(&username, &item_id, &path.to_string_lossy(), duration, &title, &author, "book")?;
-    info!("[download_book] downloaded {item_id} ({} bytes) to {path:?}", bytes.len());
+    // One at a time, same as every other download in this file - a multi-hundred-MB
+    // audiobook already saturates the connection without also parallelizing per-file.
+    let mut downloaded_tracks = Vec::with_capacity(tracks.len());
+    let mut total_bytes: usize = 0;
+    for (idx, track) in tracks.iter().enumerate() {
+        let response = client
+            .get(format!("{server_address}{}", track.content_url))
+            .header(AUTHORIZATION, format!("Bearer {token}"))
+            .send()
+            .await?;
+
+        let ext = extension_from_content_type(response.headers().get(CONTENT_TYPE).and_then(|v| v.to_str().ok()));
+        let bytes = response.bytes().await?;
+        total_bytes += bytes.len();
+
+        // Per-track filename (item_id_index) - a single-file book still gets exactly
+        // one file, named "{item_id}_0".
+        let path = download_audio_path(&format!("{item_id}_{idx}"), ext);
+        std::fs::write(&path, &bytes)?;
+
+        downloaded_tracks.push(DownloadedTrack {
+            local_path: path.to_string_lossy().into_owned(),
+            duration: track.duration,
+            start_offset: track.start_offset,
+        });
+    }
+
+    // Legacy `file_path` column - kept pointing at track 0's local file so any other
+    // code still reading it directly degrades gracefully; `tracks` is authoritative.
+    let file_path = downloaded_tracks.first().map(|t| t.local_path.clone()).unwrap_or_default();
+    let tracks_json = serde_json::to_string(&downloaded_tracks).unwrap_or_default();
+
+    insert_download(&username, &item_id, &file_path, duration, &title, &author, "book", &tracks_json, chapters_json)?;
+    info!("[download_book] downloaded {item_id} ({} file(s), {total_bytes} bytes)", downloaded_tracks.len());
 
     Ok(())
 }
@@ -133,7 +159,7 @@ pub async fn download_episode(token: String, podcast_id: String, episode_id: Str
     let path = download_audio_path(&episode_id, ext);
     std::fs::write(&path, &bytes)?;
 
-    insert_download(&username, &episode_id, &path.to_string_lossy(), duration, &title, &podcast_title, "podcast")?;
+    insert_download(&username, &episode_id, &path.to_string_lossy(), duration, &title, &podcast_title, "podcast", "", "")?;
     info!("[download_episode] downloaded {episode_id} ({} bytes) to {path:?}", bytes.len());
 
     Ok(())
