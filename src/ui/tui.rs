@@ -64,13 +64,13 @@ impl Widget for &mut App {
 impl App {
     /// `AppView::Home` rendering
     fn render_home(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let text_render_footer = if self.is_podcast {
+            format!("{}, l/→: play, F: finished, d: download, '/': search, {}\n B: play keys, D: sort by age, {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
+        } else {
+            format!("{}, l/→: play, c: chapters, d: download, '/': search, {}\n B: play keys, {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
+        };
+
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
 
@@ -79,12 +79,6 @@ impl App {
             format!("New & Unfinished [{items_number} items]")
         } else {
             format!("Continue Listening [{items_number} items]")
-        };
-
-        let text_render_footer = if self.is_podcast {
-            format!("{}, l/→: play, F: mark finished, d: download, {}\n B: toggle player ctrl, D: sort by age, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
-        } else {
-            format!("{}, l/→: play, c: chapters, d: download, {}\n B: toggle player ctrl, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
         };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
@@ -297,24 +291,18 @@ impl App {
 
     /// `AppView::Library` rendering
     fn render_library(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let _text_render_footer = if self.is_podcast {
+            format!("{}, l/→: episodes, '/': search, {}\n B: play keys, {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+        } else {
+            format!("{}, l/→: play, '/': search, {}\n B: play keys, {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+        };
+
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
 
         let items_number = self.titles_library.len();
         let render_list_title = format!("Library [{items_number} items]");
-
-        let _text_render_footer = if self.is_podcast {
-            format!("{}, l/→: episodes, {}\n B: toggle player ctrl, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
-        } else {
-            format!("{}, l/→: play, {}\n B: toggle player ctrl, '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
-        };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &_text_render_footer);
@@ -327,18 +315,6 @@ impl App {
 
     /// `AppView::Settings` rendering
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
-
-        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
-
-        let render_list_title = "Settings";
-
         let _text_render_footer = if self.list_state_settings.selected() == Some(4) {
             // for `About` section
             format!("{}, Scroll what's new: J(↓) K(↑) H(⇡),\n {}.", Self::FOOTER_MOVE, Self::footer_trailer("home", false))
@@ -349,6 +325,12 @@ impl App {
             format!("{}, l/→: see options,\n {}.", Self::FOOTER_MOVE, Self::footer_trailer("home", false))
         };
 
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
+
+        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
+
+        let render_list_title = "Settings";
+
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &_text_render_footer);
         self.render_list(list_area, buf, render_list_title, &self.settings.clone(), &mut self.list_state_settings.clone(), None);
@@ -358,18 +340,12 @@ impl App {
 
     /// `AppView::SettingsAccount` rendering
     fn render_settings_account(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let text_render_footer = format!("h: back, l/→: remove saved user,\n {}.", Self::footer_trailer("home", false));
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, _item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let render_list_title = "Settings account";
-        let text_render_footer = format!("h: back, l/→: remove saved user,\n {}.", Self::footer_trailer("home", false));
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
@@ -379,20 +355,13 @@ impl App {
 
     /// `AppView::SettingsLibrary` rendering
     fn render_settings_library(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let text_render_footer = format!("h: back, l/→: change library,\n {}.", Self::footer_trailer("home", false));
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let items_number = self.libraries_names.len();
         let render_list_title = format!("Settings Library [{items_number} items]");
-
-        let text_render_footer = format!("h: back, l/→: change library,\n {}.", Self::footer_trailer("home", false));
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
@@ -402,18 +371,12 @@ impl App {
 
     /// `AppView::SettingsAutoplay` rendering
     fn render_settings_autoplay(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let render_list_title = "Podcast Autoplay";
-        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
         let options = vec!["On".to_string(), "Off".to_string()];
         let current = if get_is_podcast_autoplay(&self.username) == "1" { "On" } else { "Off" };
 
@@ -428,19 +391,6 @@ impl App {
 
     /// `AppView::SettingsUpdateUninstall` rendering
     fn render_settings_update_uninstall(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
-
-        let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
-
-        let render_list_title = "Update / Uninstall";
-        let options = vec!["Update now".to_string(), "Uninstall".to_string()];
-
         let text_render_footer = match &self.update_uninstall_stage {
             UpdateUninstallStage::Instructions => format!("h: back, l/→: select,\n {}.", Self::footer_trailer("home", false)),
             UpdateUninstallStage::Confirm(_) => "[Y] Yes   [N] / Esc: No".to_string(),
@@ -448,6 +398,13 @@ impl App {
             UpdateUninstallStage::Running(_) => "Working...".to_string(),
             UpdateUninstallStage::Failed(_, _) => "Esc: back".to_string(),
         };
+
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+
+        let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
+
+        let render_list_title = "Update / Uninstall";
+        let options = vec!["Update now".to_string(), "Uninstall".to_string()];
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
@@ -505,18 +462,12 @@ impl App {
 
     /// `AppView::SettingsPerItemSpeed` rendering
     fn render_settings_per_item_speed(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let render_list_title = "Per-Item Speed";
-        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
         let options = vec!["On".to_string(), "Off".to_string()];
         let current = if get_is_per_item_speed(&self.username) == "1" { "On" } else { "Off" };
 
@@ -531,18 +482,12 @@ impl App {
 
     /// `AppView::SettingsAutoDownload` rendering
     fn render_settings_auto_download(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
         let render_list_title = "Auto Download";
-        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
         let options = vec!["On".to_string(), "Off".to_string()];
         let current = if get_is_auto_download(&self.username) == "1" { "On" } else { "Off" };
         let count = self.config.downloads.auto_download_count;
@@ -559,22 +504,17 @@ impl App {
 
     /// `AppView::SearchBook` rendering
     fn render_search_book(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let _text_render_footer = if self.is_podcast {
+            format!("{}, l/→: episodes, '/': search, {}\n {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+        } else {
+            format!("{}, l/→: play, '/': search, {}\n {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+        };
+
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
 
         let render_list_title = "Search result";
-        let _text_render_footer = if self.is_podcast {
-            format!("{}, l/→: episodes, {}\n '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
-        } else {
-            format!("{}, l/→: play, {}\n '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
-        };
 
 
         if self.search_mode
@@ -729,18 +669,11 @@ impl App {
 
     /// `AppView::PodcastEpisode`
     fn render_pod_ep(&mut self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(6),
-            Constraint::Length(1),
-            Constraint::Length(2),
-        ]).areas(area);
+        let text_render_footer = format!("{}, l/→: play, h: back, '/': search, {}\n {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC);
+
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
-
-
-        let text_render_footer = format!("{}, l/→: play, h: back, {}\n '/': search, {}", Self::FOOTER_MOVE, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC);
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
@@ -798,14 +731,36 @@ impl App {
     fn render_footer(area: Rect, buf: &mut Buffer, text_render_footer: &str) {
         Paragraph::new(text_render_footer)
             .centered()
+            .wrap(Wrap { trim: true })
             .render(area, buf);
+    }
+
+    /// The standard header/main/player/refresh/footer vertical split, with the footer
+    /// sized to however many rows its (wrapped) text actually needs at this width -
+    /// a fixed-height footer silently drops whichever of its lines don't fit once
+    /// wrapping kicks in on a narrow terminal (confirmed live: shrinking the window
+    /// until line 1 wrapped made line 2 disappear entirely, since a 2-row area has
+    /// nowhere left to put it once line 1 alone consumes both rows).
+    fn standard_layout(area: Rect, footer_text: &str) -> [Rect; 5] {
+        let footer_height = Paragraph::new(footer_text)
+            .wrap(Wrap { trim: true })
+            .line_count(area.width)
+            .max(1) as u16;
+        Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(6),
+            Constraint::Length(1),
+            Constraint::Length(footer_height),
+        ]).areas(area)
     }
 
     // Shared footer key-hint fragments, kept in one place so wording can't drift
     // between screens the way it used to (top/bot vs top/bottom, arrows vs
     // spelled-out words, "Settings" capitalized in some footers but not others).
     const FOOTER_MOVE: &str = "j/↓, k/↑: move";
-    const FOOTER_SCROLL_DESC: &str = "Scroll desc: J(↓) K(↑) H(⇡), g/G: top/bot";
+    const FOOTER_LIST_JUMP: &str = "g/G: top/bot";
+    const FOOTER_SCROLL_DESC: &str = "J/K/H: scroll desc";
 
     // The trailing "Tab: X, R: refresh, [S: settings,] Q/Esc: quit" every footer ends
     // with - `tab_target` differs (Home's Tab goes to Library, everywhere else's Tab
