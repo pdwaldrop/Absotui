@@ -18,7 +18,7 @@ use std::io::stdout;
 use crate::utils::pop_up_message::{clear_message, pop_message};
 use crate::utils::logs::setup_logs;
 use log::info;
-use crate::db::crud::{update_is_vlc_launched_first_time, get_is_vlc_launched_first_time, get_is_vlc_running, get_auth_in_progress};
+use crate::db::crud::{update_is_vlc_launched_first_time, get_is_vlc_launched_first_time, get_is_vlc_running, update_is_vlc_running, get_auth_in_progress};
 use ratatui::{
     style::{Color, Style},
     widgets::Block
@@ -106,10 +106,19 @@ async fn main() -> Result<()> {
         if let Some(var_username) = _database.default_usr.first() {
             username = var_username.clone();
         }
-        // init is_vlc_launched_first_time 
+        // init is_vlc_launched_first_time
         let _ = update_is_vlc_launched_first_time("1", username.as_str());
         let value = get_is_vlc_launched_first_time(username.as_str());
         info!("[main][is_vlc_launched_first_time] {value}");
+
+        // A fresh process can never have inherited a live playback task from a
+        // previous run (those only exist as tokio tasks within the process that
+        // spawned them - see handle_l_book.rs et al) - so if this is still "1" here,
+        // it's leftover from a previous crash/kill that never got to reset it, and
+        // would otherwise make the render loop show a frozen player overlay for a
+        // session nothing is actually backing (confirmed live: it doesn't advance,
+        // and there's no real VLC process behind it).
+        let _ = update_is_vlc_running("0", username.as_str());
 
         let mut terminal = ratatui::init();
         disable_terminal_scroll_wheel();

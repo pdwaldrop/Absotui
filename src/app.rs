@@ -15,7 +15,7 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, update_is_vlc_running, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished, get_is_auto_download, update_is_auto_download};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished, get_is_auto_download, update_is_auto_download};
 use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
 use crate::utils::download_cache::{is_downloaded, remove_download, download_book, download_episode, sync_auto_downloads, sync_auto_downloads_podcasts};
@@ -31,7 +31,7 @@ use crate::utils::changelog::changelog;
 use crate::utils::encrypt_token::decrypt_token;
 use std::io::stdout;
 use crate::player::vlc::quit_vlc::{quit_vlc, pkill_vlc};
-use crate::logic::sync_session::sync_session_from_database::sync_session_from_database;
+use crate::logic::sync_session::sync_session_from_database::{sync_session_from_database, quit_app};
 use crate::logic::sync_session::wait_prev_session_finished::wait_prev_session_finished;
 use crate::player::integrated::handle_key_player::{handle_key_player, seek_to_absolute_time};
 use crate::utils::check_update::check_update;
@@ -1276,25 +1276,25 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
         KeyCode::Char('Q') | KeyCode::Esc => {
 
-            // display message 
+            // display message
             let message_quit = "Exiting the application and syncing data, please hold on.";
             let mut stdout = stdout();
             let _ = pop_message(&mut stdout, 3, message_quit);
 
-            // close and sync session before close the app
-            let token = self.token.clone();  
+            // close and sync session before close the app - if a playback task is
+            // still actively watching a session, quit_app defers the actual close/sync
+            // to it instead of racing it (see quit_app's doc comment)
+            let token = self.token.clone();
             let server_address = self.server_address.clone();
             let username = self.username.clone();
             let player_address = self.config.player.address.clone();
             let port = self.config.player.port.clone();
-            let _ = update_is_vlc_running("0", username.as_str());
-
 
             tokio::spawn(async move {
-                let () = sync_session_from_database(token, server_address, username, true, "Q", player_address, port).await;
+                quit_app(token, server_address, username, player_address, port).await;
             });
 
-        }        
+        }
 
         KeyCode::Char('j') | KeyCode::Down => {
             self.select_next();
@@ -1462,7 +1462,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 token.clone(), 
                                 server_address.clone(), 
                                 username.clone(), 
-                                false, 
                                 "l", 
                                 address_player.clone(), 
                                 port.clone()).await;
@@ -1508,7 +1507,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 token.clone(), 
                                 server_address.clone(), 
                                 username.clone(), 
-                                false, 
                                 "l", 
                                 address_player.clone(), 
                                 port.clone()).await;
@@ -1615,7 +1613,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     token.clone(), 
                                     server_address.clone(), 
                                     username.clone(), 
-                                    false, 
                                     "l", 
                                     address_player.clone(), 
                                     port.clone()).await;
@@ -1672,7 +1669,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     token.clone(), 
                                     server_address.clone(), 
                                     username.clone(), 
-                                    false, 
                                     "l", 
                                     address_player.clone(), 
                                     port.clone()).await;
@@ -1728,7 +1724,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                         token.clone(), 
                                         server_address.clone(), 
                                         username.clone(), 
-                                        false, 
                                         "l", 
                                         address_player.clone(), 
                                         port.clone()).await;
@@ -1781,7 +1776,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                         token.clone(), 
                                         server_address.clone(), 
                                         username.clone(), 
-                                        false, 
                                         "l", 
                                         address_player.clone(), 
                                         port.clone()).await;

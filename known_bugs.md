@@ -14,9 +14,9 @@ No major bug for the moment 🙏
 `bug_id: 86384e` 
 **Sync**: Rarely and especially if you open VLC to listen X, close VLC and quickly open VLC again to listen Y: the progress of X is set to 0 seconds.  
 `bug_id: 06e548` 
-**Terminal broken**: The terminal is broken after the app is quit.  
+**Terminal broken**: The terminal is broken after the app is quit. Fixed 2026-07-28: found while investigating `fc695f` below - the old `Q`-quit path (`sync_session_from_database`'s `app_quit` branch) could return without ever calling `clean_exit()` in a couple of edge cases (an sqlite read error fetching the listening session, or no session found while the `is_vlc_launched_first_time` flag wasn't `"1"`), silently hanging the app on `Q` with the terminal still in raw mode/alternate screen - a user who assumed it had frozen and killed the terminal window instead would be left with exactly this symptom. Rewritten (`quit_app` in `sync_session_from_database.rs`) so `clean_exit()` is always called exactly once no matter what happened before it. The main quit race was verified live (see `fc695f`); this specific sqlite-error edge case was fixed at the code level (the same guarantee removes the hang) but wasn't independently forced/re-verified live the way `2eb9e3`'s retry logic was.  
 `bug_id: 6ac5d8` 
-**Data loss if app crash or disgracefully quit**: If app crash, the last session is not closed.  
+**Data loss if app crash or disgracefully quit**: If app crash, the last session is not closed. Note (2026-07-28): a related but distinct symptom was found and fixed while investigating the quit path - `is_vlc_running` was never reset on startup, so a crash/kill left the app booting straight into a frozen "now playing" overlay (confirmed live: stale 3-day-old progress numbers, no real VLC process behind it) until the user next pressed play. `main.rs` now resets it on every startup. The underlying issue this bug is actually about - the crashed session itself isn't closed server-side until the next track is played - is unchanged, still open.  
 `bug_id: bf10cd` 
 **Launch a new media**: Have to close manually VLC to close and sync a session.  
 `bug_id: 3f729c` 
@@ -24,11 +24,11 @@ No major bug for the moment 🙏
 `bug_id: dd9a649`
 **Listening Session:** Sometimes, the session (that you can see in `yourserveraddress/audiobookshelf/config/sessions`) does not close correctly, especially if you open VLC, quit it quickly, and start another book.  
 `bug_id: e0b61c`
-**VLC:** `VLC` continue to run after the app is quit.  
+**VLC:** `VLC` continue to run after the app is quit. Fixed 2026-07-28: found alongside `fc695f` below - the `Q` quit path called `quit_vlc()` (VLC's RC "shutdown" command) but, unlike every other place in the codebase that quits VLC, never paired it with a `pkill_vlc()` fallback, so a shutdown command that didn't land (closed connection, VLC busy) left VLC running with nothing to kill it. Added the same `pkill_vlc()` fallback used everywhere else. Verified live: VLC process and its port 1234 listener both confirmed fully gone within ~1s of pressing `Q` mid-playback.  
 `bug_id: fc695f`
-**Listening session:** The session (that you can see in `yourserveraddress/audiobookshelf/config/sessions`) does not close when the app is quit.  
+**Listening session:** The session (that you can see in `yourserveraddress/audiobookshelf/config/sessions`) does not close when the app is quit. Fixed 2026-07-28: root cause was a race between pressing `Q` and the already-running playback loop's own VLC-quit detection (`handle_l_book.rs`/`handle_l_pod_home.rs`/`handle_l_pod.rs`) - both independently called the close-session API for the same session, and `Q`'s unconditional `process::exit(0)` could kill the loop task mid-cleanup before its own close/sync calls (or the trailing progress push) finished. Fixed by having `Q` (`quit_app` in `sync_session_from_database.rs`) defer to the already-running loop task instead of racing it: it just makes VLC die and waits for that task's own completion signal (`is_loop_break`, the same flag `wait_prev_session_finished` already waits on before a new track starts) before exiting, only closing the session itself when nothing else is watching it. Verified live via tmux: captured the pre-fix race (two separate "Session successfully closed" log lines ~250ms apart, and the loop task's own trailing "VLC closed"/"Item closed" lines never printing, cut off by exit) and confirmed post-fix the sequence is single-owner, with exit only happening after the loop task's full cleanup completes.  
 `bug_id: 40f48d`
-**Cursor:** When you quit the app, terminal cursor disappear.  
+**Cursor:** When you quit the app, terminal cursor disappear. Fixed 2026-07-28: same root cause and fix as `06e548` above - `clean_exit()` (which shows the cursor again) could previously be skipped entirely on `Q` in the same edge cases.  
 `bug_id: fe4116`
 **cvlc macOS:** `cvlc` option is not available for now in macOS.  
 `bug_id: a49eza` **(likely stale)**
