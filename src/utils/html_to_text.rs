@@ -4,9 +4,14 @@ use ratatui::text::{Line, Span};
 /// Converts a description/subtitle string that may contain HTML markup (as sent by
 /// Audiobookshelf for some libraries/podcasts) into styled lines: `<b>`/`<strong>` and
 /// `<i>`/`<em>` become real bold/italic spans, `<br>`/`<p>`/`<li>` become line breaks
-/// (with `<li>` prefixed by a bullet), and every other tag is just dropped. Unclosed tags
-/// degrade gracefully - worst case a style "leaks" to the end of the text - rather than
-/// panicking, since real-world descriptions occasionally have sloppy markup.
+/// (with `<li>` prefixed by a bullet), and every other tag is just dropped. A literal
+/// `\n` in the source (plenty of descriptions are plain text, not HTML, and still rely
+/// on real newlines to separate a numbered list) breaks the line the same way `<br>`
+/// does - a run of several in a row (`\n\n`) collapses to one blank separator line via
+/// the same path a closing `<p>`/`<div>` uses, since an empty `text` buffer flushes to
+/// an empty `Line`. Unclosed tags degrade gracefully - worst case a style "leaks" to
+/// the end of the text - rather than panicking, since real-world descriptions
+/// occasionally have sloppy markup.
 pub fn html_to_lines(input: &str) -> Vec<Line<'static>> {
     let mut lines: Vec<Line<'static>> = Vec::new();
     let mut spans: Vec<Span<'static>> = Vec::new();
@@ -18,6 +23,11 @@ pub fn html_to_lines(input: &str) -> Vec<Line<'static>> {
     let mut i = 0;
     while i < chars.len() {
         let c = chars[i];
+        if c == '\n' {
+            flush_line(&mut text, &mut spans, &mut lines, bold, italic);
+            i += 1;
+            continue;
+        }
         if c != '<' {
             text.push(c);
             i += 1;
@@ -147,6 +157,26 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert_eq!(lines[0].to_string(), "one");
         assert_eq!(lines[1].to_string(), "two");
+    }
+
+    #[test]
+    fn literal_newline_breaks_the_line_like_br() {
+        // Plenty of Audiobookshelf descriptions are plain text (no HTML) and rely on
+        // real newlines to separate a numbered list of chapters/episodes.
+        let lines = html_to_lines("Intro.\n1. First\n2. Second");
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].to_string(), "Intro.");
+        assert_eq!(lines[1].to_string(), "1. First");
+        assert_eq!(lines[2].to_string(), "2. Second");
+    }
+
+    #[test]
+    fn double_newline_collapses_to_one_blank_separator_line() {
+        let lines = html_to_lines("Intro.\n\n1. First");
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].to_string(), "Intro.");
+        assert_eq!(lines[1].to_string(), "");
+        assert_eq!(lines[2].to_string(), "1. First");
     }
 
     #[test]
