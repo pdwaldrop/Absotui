@@ -610,8 +610,7 @@ let changelog_38 = "Changelog Absotui v0.5.23-beta (26/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_39 = format!(
-    "Changelog Absotui v{VERSION} (26/07/2026) \n\
+let changelog_39 = "Changelog Absotui v0.5.24-beta (26/07/2026) \n\
          \n\
          Fixed:\n\
          - The install script now fails immediately with a clear message (e.g.
@@ -625,10 +624,39 @@ let changelog_39 = format!(
            mistaken for a password prompt. It's now recognized correctly.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_40 = format!(
+    "Changelog Absotui v{VERSION} (28/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Audiobooks uploaded as separate files per chapter (rather than one
+           .m4b) only ever played the first file - chapters past the first
+           couldn't be reached, progress showed against just that one file's
+           duration instead of the whole book, and downloading for offline use
+           silently saved only the first file while marking the book fully
+           downloaded. Playback now sequences through every file automatically,
+           chapter jumps (and P/U) work across file boundaries, resuming picks
+           the correct file and offset, and downloads fetch every file.
+         - Book/podcast descriptions written as plain text (no HTML) still
+           relied on real newlines to separate a numbered list of
+           chapters/episodes - these rendered as one run-on block instead of
+           one item per line.
+         - Shrinking the terminal enough to wrap the footer's key-hint text
+           could make an entire line of hints disappear instead of wrapping -
+           the footer now sizes itself to however many rows its (wrapped) text
+           actually needs.
+         \n\
+         Changed:\n\
+         - Reworded a couple of footer key hints for clarity (\"B: play keys\"
+           instead of \"B: toggle player ctrl\") and fixed one that mislabeled a
+           list-jump shortcut as a description-scroll shortcut.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_40);
     changelog.push_str(&changelog_39);
     changelog.push_str(&changelog_38);
     changelog.push_str(&changelog_37);
