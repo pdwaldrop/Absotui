@@ -1,8 +1,20 @@
 use std::io::{self, Write};
 use std::net::TcpStream;
-use crate::db::crud::{get_listening_session, update_is_playback, update_speed_rate, get_speed_rate, update_volume_up, update_volume_down, get_is_per_item_speed, get_item_speed_rate, set_item_speed_rate, update_item_speed_rate};
+use crate::db::crud::{get_listening_session, update_is_playback, update_speed_rate, get_speed_rate, update_volume_up, update_volume_down, get_is_per_item_speed, get_item_speed_rate, set_item_speed_rate, update_item_speed_rate, update_pending_seek};
+use crate::api::libraries::get_library_perso_view_pod::Chapter;
 use std::thread;
 use std::time::Duration;
+
+// Index of the chapter containing book-wide `time` (seconds) - same rule as
+// find_current_chapter (player_info.rs), just returning a position rather than a
+// reference so callers can index the previous/next chapter.
+fn current_chapter_idx(chapters: &[Chapter], time: f64) -> Option<usize> {
+    chapters.iter().position(|c| {
+        let start = c.start.unwrap_or(0.0);
+        let end = c.end.unwrap_or(f64::MAX);
+        time >= start && time < end
+    })
+}
 
 pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut bool, username: &str) -> io::Result<()> {
     let mut stream = TcpStream::connect(format!("{address}:{port}"))?;
@@ -60,23 +72,30 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
             }
             writeln!(stream, "play")?;
         }
-        // next chapter
+        // next chapter - resolved from Absotui's own chapters[] data (via pending_seek,
+        // see update_pending_seek's doc comment) rather than VLC's native chapter_n,
+        // since a book split across several files has no chapters embedded in any one
+        // file for VLC to jump between.
         "P" => {
-            writeln!(stream, "pause")?;
-            writeln!(stream, "chapter_n")?;
-            if cfg!(target_os = "macos") {
-            thread::sleep(Duration::from_millis(500));
+            if let Ok(Some(session)) = get_listening_session() {
+                let chapters: Vec<Chapter> = serde_json::from_str(&session.chapters).unwrap_or_default();
+                if let Some(idx) = current_chapter_idx(&chapters, f64::from(session.current_time))
+                    && let Some(start) = chapters.get(idx + 1).and_then(|c| c.start) {
+                        let _ = update_pending_seek(&(start.ceil() as u32).to_string(), &session.id_session);
+                }
             }
-            writeln!(stream, "play")?;
         }
-        // previous chapter
+        // previous chapter - see "P" above.
         "U" => {
-            writeln!(stream, "pause")?;
-            writeln!(stream, "chapter_p")?;
-            if cfg!(target_os = "macos") {
-            thread::sleep(Duration::from_millis(500));
+            if let Ok(Some(session)) = get_listening_session() {
+                let chapters: Vec<Chapter> = serde_json::from_str(&session.chapters).unwrap_or_default();
+                if let Some(idx) = current_chapter_idx(&chapters, f64::from(session.current_time)) {
+                    let target = if idx == 0 { chapters.first() } else { chapters.get(idx - 1) };
+                    if let Some(start) = target.and_then(|c| c.start) {
+                        let _ = update_pending_seek(&(start.ceil() as u32).to_string(), &session.id_session);
+                    }
+                }
             }
-            writeln!(stream, "play")?;
         }
         // volume up
         "o" => {

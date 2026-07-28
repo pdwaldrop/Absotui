@@ -264,7 +264,18 @@ enum ReadOutcome {
 // empty and we just keep waiting - that's what covers a fingerprint scan legitimately
 // taking its time. A genuine prompt (eg. "[sudo] password for pdwaldrop: ") is never
 // newline-terminated, so a quiet spell with something left in `partial` means it's
-// actually waiting on us.
+// actually waiting on us - except `partial` non-empty isn't unique to prompts:
+// dpkg only shows its `\r`-updating "Progress: [ XX%] [###...]" trigger meter when
+// it thinks stdout is a real terminal, which it does here since everything runs
+// through a pty for sudo/fingerprint interactivity - a slow trigger (icon cache,
+// man-db, etc. - installing something like vlc pulls in plenty) can leave `partial`
+// non-empty with no newline for over 500ms, same shape as a real prompt. Confirmed
+// live: this popped the password field mid-`apt install` on two separate VMs where
+// a dependency was actually being installed, well after sudo had already been
+// authenticated once - the user re-entering a password there did nothing but get
+// echoed into dpkg's output, read as a false "NeedPassword" for every such lull.
+// `looks_like_password_prompt` narrows "quiet + unterminated" down to text that
+// actually resembles one, so idle non-prompt output like this no longer qualifies.
 async fn read_until_idle_or_eof(
     pty: &mut pty_process::Pty,
     child: &mut tokio::process::Child,
@@ -296,7 +307,7 @@ async fn read_until_idle_or_eof(
                     Ok(Err(e)) if e.raw_os_error() == Some(5) => return Ok(ReadOutcome::Eof),
                     Ok(Err(e)) => return Err(e),
                     Err(_) => {
-                        if !partial.trim().is_empty() {
+                        if looks_like_password_prompt(partial) {
                             return Ok(ReadOutcome::Prompt);
                         }
                     }
@@ -304,6 +315,16 @@ async fn read_until_idle_or_eof(
             }
         }
     }
+}
+
+// Real sudo/PAM password prompts (English or otherwise) consistently end in a
+// colon, e.g. "[sudo] password for pdwaldrop: " or a bare "Password: " - unlike
+// dpkg's "Progress: [ XX%] [###...]" trigger meter, which ends in a percentage/
+// bracket and never contains "password". Requiring both narrows the idle-quiet
+// heuristic above back down to things that are actually asking for a password.
+fn looks_like_password_prompt(text: &str) -> bool {
+    let trimmed = text.trim_end();
+    trimmed.to_lowercase().contains("password") && trimmed.ends_with(':')
 }
 
 // hello_absotui.sh's own output is plain multi-line `echo`, except the changelog
@@ -328,4 +349,27 @@ fn strip_ansi(input: &str) -> String {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn real_sudo_prompt_is_recognized() {
+        assert!(looks_like_password_prompt("[sudo] password for pdwaldrop: "));
+        assert!(looks_like_password_prompt("Password: "));
+    }
+
+    #[test]
+    fn dpkg_trigger_progress_meter_is_not_mistaken_for_a_prompt() {
+        // strip_ansi already removed the `\r`s by the time this reaches `partial` -
+        // this is what's left buffered mid-trigger, with no "password" in sight.
+        assert!(!looks_like_password_prompt("Progress: [ 45%] [#######################............]"));
+    }
+
+    #[test]
+    fn unrelated_idle_output_is_not_mistaken_for_a_prompt() {
+        assert!(!looks_like_password_prompt("Reading package lists... 50%"));
+    }
 }

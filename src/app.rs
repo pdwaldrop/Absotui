@@ -15,7 +15,7 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished, get_is_auto_download, update_is_auto_download};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished, get_is_auto_download, update_is_auto_download, update_pending_seek};
 use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
 use crate::utils::download_cache::{is_downloaded, remove_download, download_book, download_episode, sync_auto_downloads, sync_auto_downloads_podcasts};
@@ -33,7 +33,7 @@ use std::io::stdout;
 use crate::player::vlc::quit_vlc::{quit_vlc, pkill_vlc};
 use crate::logic::sync_session::sync_session_from_database::{sync_session_from_database, quit_app};
 use crate::logic::sync_session::wait_prev_session_finished::wait_prev_session_finished;
-use crate::player::integrated::handle_key_player::{handle_key_player, seek_to_absolute_time};
+use crate::player::integrated::handle_key_player::handle_key_player;
 use crate::utils::check_update::check_update;
 use crate::logic::update_uninstall::{self, Action, ProgressEvent};
 use ratatui_textarea::TextArea;
@@ -1347,22 +1347,23 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         }        
         KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
             // If the chapter list is expanded under the currently-playing book, the
-            // cursor may be sitting on a chapter row rather than a book row - seek the
-            // already-running VLC session directly to that chapter's start instead of
-            // restarting playback entirely.
+            // cursor may be sitting on a chapter row rather than a book row - request a
+            // jump to that chapter's start instead of restarting playback entirely.
+            // Routed through pending_seek rather than seeking the running VLC directly:
+            // for a book split across several files, the target chapter may live in a
+            // different file than whatever's currently loaded, and only the playback
+            // loop that owns that VLC process (handle_l_book) knows which - see
+            // update_pending_seek's doc comment.
             if matches!(self.view_state, AppView::Home) && !self.is_podcast
                 && let Some(selected) = self.list_state_cnt_list.selected()
-                && let Some(HomeRow::Chapter { chapter, .. }) = self.build_home_rows().get(selected) {
+                && let Some(HomeRow::Chapter { chapter, .. }) = self.build_home_rows().get(selected)
+                && let Ok(Some(session)) = get_listening_session() {
                     // Round up, not down: chapter boundaries are fractional (e.g.
                     // 9836.105873), and seeking to the truncated whole second would land
                     // just before the real boundary - long enough for one polling tick to
                     // still classify it as the previous chapter and flash the wrong marker.
                     let start = chapter.start.unwrap_or(0.0).ceil() as u32;
-                    let port = self.config.player.port.clone();
-                    let address_player = self.config.player.address.clone();
-                    tokio::spawn(async move {
-                        let _ = seek_to_absolute_time(&address_player, &port, start);
-                    });
+                    let _ = update_pending_seek(&start.to_string(), &session.id_session);
                     return;
             }
 

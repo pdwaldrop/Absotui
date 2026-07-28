@@ -26,7 +26,7 @@ fn resolve_speed_rate(username: &str, id_item: &str) -> String {
 }
 
 pub async fn start_vlc(
-    current_time: &String,
+    current_time: &str,
     port: &str,
     address: String,
     content_url: &String,
@@ -49,29 +49,48 @@ pub async fn start_vlc(
     // reachable right now.
     let source = local_file_path.unwrap_or_else(|| format!("{}{}?token={}", server_address, content_url, token.unwrap()));
 
+    // Own copies of the borrowed params so the blocking closure below can be
+    // 'static, as spawn_blocking requires.
+    let current_time = current_time.to_string();
+    let port = port.to_string();
+
     // Called from an un-awaited tokio::spawn task (see handle_l_book.rs and its
     // siblings) - a panic here (the old .expect()) would silently kill that task with
     // no user-visible error if `program` (vlc/cvlc) is missing or misconfigured. The
     // polling loop that checks is_vlc_running does eventually notice and clean up the
     // session either way, but logging the actual cause here beats a silent no-op.
-    Command::new(&program)
-        .arg("-I") // for macos
-        .arg("dummy") // for macos
-        .arg(format!("--start-time={current_time}"))
-        .arg("--extraintf")
-        .arg("rc")
-        .arg("--rc-host")
-        .arg(format!("{address}:{port}"))
-        .arg(source)
-        .arg("--rate")
-        .arg(speed_rate)
-        .arg("--meta-description")
-        .arg(author)
-        .arg("--meta-title")
-        .arg(subtitle)
-        .arg("--meta-artist")
-        .arg(title)
-        .output()
-        .inspect_err(|e| error!("[start_vlc] Failed to execute {program}: {e}"))
+    //
+    // VLC is a long-running process - `Command::output()` blocks the calling thread
+    // until the child itself exits, ie. for the length of the whole track, not just
+    // until it launches. Left inline, that blocking call can starve whichever tokio
+    // worker thread happens to run it, stalling *other* tasks pinned to that same
+    // thread (confirmed live: a sibling task's plain `tokio::time::sleep` never woke
+    // up again while this ran directly inside a spawned async task, mid-playback,
+    // when switching a multi-file book to a different chapter's file).
+    // `spawn_blocking` moves it onto tokio's separate blocking-task thread pool
+    // instead, which doesn't participate in polling/timers for anything else.
+    tokio::task::spawn_blocking(move || {
+        Command::new(&program)
+            .arg("-I") // for macos
+            .arg("dummy") // for macos
+            .arg(format!("--start-time={current_time}"))
+            .arg("--extraintf")
+            .arg("rc")
+            .arg("--rc-host")
+            .arg(format!("{address}:{port}"))
+            .arg(source)
+            .arg("--rate")
+            .arg(speed_rate)
+            .arg("--meta-description")
+            .arg(author)
+            .arg("--meta-title")
+            .arg(subtitle)
+            .arg("--meta-artist")
+            .arg(title)
+            .output()
+            .inspect_err(|e| error!("[start_vlc] Failed to execute {program}: {e}"))
+    })
+    .await
+    .unwrap_or_else(|e| Err(io::Error::other(format!("start_vlc blocking task panicked: {e}"))))
 }
 

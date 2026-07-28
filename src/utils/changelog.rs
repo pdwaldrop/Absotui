@@ -551,8 +551,7 @@ let changelog_34 = "Changelog Absotui v0.5.19-beta (22/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_35 = format!(
-    "Changelog Absotui v{VERSION} (22/07/2026) \n\
+let changelog_35 = "Changelog Absotui v0.5.20-beta (22/07/2026) \n\
          \n\
          Fixed:\n\
          - Settings > Update / Uninstall could time out and fail partway through a
@@ -561,10 +560,107 @@ let changelog_35 = format!(
            generous.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_36 = "Changelog Absotui v0.5.21-beta (25/07/2026) \n\
+         \n\
+         Added:\n\
+         - Offline mode now covers podcasts, matching books: press `d` on a podcast
+           episode to download or remove it for local playback, and a downloaded
+           episode is preferred over streaming automatically.
+         - Settings > Auto Download now keeps podcasts' New & Unfinished episodes
+           downloaded too, alongside books.
+         - The number of books Auto Download keeps downloaded is now configurable
+           via `auto_download_count` under `[downloads]` in config.toml, instead of
+           always downloading everything in Continue Listening.
+         - The Home info panel now shows each item's file size, after Duration.
+         \n\
+         Fixed:\n\
+         - The `d` download/remove keybinding worked on Home but was never
+           advertised in the footer.
+         - Downloaded books and podcast episodes are now marked with a small ⬇
+           prefix on the title instead of a trailing \"[offline]\" suffix - a suffix
+           could get cut off entirely by title truncation on long rows. Podcast
+           episodes previously showed no downloaded indicator at all regardless of
+           this truncation issue; they now do.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
+let changelog_37 = "Changelog Absotui v0.5.22-beta (25/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install/update script (hello_absotui.sh) failed on distros that
+           don't ship `shasum` (e.g. Fedora's minimal/KDE spins) with \"shasum:
+           command not found\", even though the download itself was fine. It now
+           tries `sha256sum` (coreutils) first, falls back to `shasum`, and then
+           `openssl` as a last resort.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
+let changelog_38 = "Changelog Absotui v0.5.23-beta (26/07/2026) \n\
+         \n\
+         Changed:\n\
+         - Refreshed the app icon with a cleaner vector rework of the
+           headphones-parrot-and-terminal design.
+         \n\
+         Fixed:\n\
+         - The install script no longer blocks on a \"provide a secret key\"
+           prompt during install/update - that key only encrypts your
+           Audiobookshelf login at rest locally and is never something you need
+           to type yourself, so it's now generated automatically.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
+let changelog_39 = "Changelog Absotui v0.5.24-beta (26/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install script now fails immediately with a clear message (e.g.
+           \"check df -h /tmp for free disk space\") instead of a confusing wall
+           of unrelated errors if it can't create a temp file/directory.
+         - It also no longer claims dependencies (e.g. VLC) installed
+           successfully when the package manager actually failed.
+         - Settings > Update could pop the password prompt multiple times
+           during a single update even though sudo only needed to authenticate
+           once - a package manager's own progress output was sometimes
+           mistaken for a password prompt. It's now recognized correctly.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
+let changelog_40 = format!(
+    "Changelog Absotui v{VERSION} (28/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Audiobooks uploaded as separate files per chapter (rather than one
+           .m4b) only ever played the first file - chapters past the first
+           couldn't be reached, progress showed against just that one file's
+           duration instead of the whole book, and downloading for offline use
+           silently saved only the first file while marking the book fully
+           downloaded. Playback now sequences through every file automatically,
+           chapter jumps (and P/U) work across file boundaries, resuming picks
+           the correct file and offset, and downloads fetch every file.
+         - Book/podcast descriptions written as plain text (no HTML) still
+           relied on real newlines to separate a numbered list of
+           chapters/episodes - these rendered as one run-on block instead of
+           one item per line.
+         - Shrinking the terminal enough to wrap the footer's key-hint text
+           could make an entire line of hints disappear instead of wrapping -
+           the footer now sizes itself to however many rows its (wrapped) text
+           actually needs.
+         \n\
+         Changed:\n\
+         - Reworded a couple of footer key hints for clarity (\"B: play keys\"
+           instead of \"B: toggle player ctrl\") and fixed one that mislabeled a
+           list-jump shortcut as a description-scroll shortcut.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_40);
+    changelog.push_str(&changelog_39);
+    changelog.push_str(&changelog_38);
+    changelog.push_str(&changelog_37);
+    changelog.push_str(&changelog_36);
     changelog.push_str(&changelog_35);
     changelog.push_str(&changelog_34);
     changelog.push_str(&changelog_33);

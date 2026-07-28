@@ -47,6 +47,7 @@ pub struct ListeningSession {
     pub chapter: String,
     pub chapters: String,
     pub volume: i32,
+    pub pending_seek: String,
 }
 
 pub struct Others {
@@ -59,6 +60,18 @@ pub struct DownloadedItem {
     pub duration: String,
     pub title: String,
     pub author: String,
+    pub tracks: Vec<DownloadedTrack>,
+    pub chapters: String,
+}
+
+/// One locally-saved audio file backing a downloaded book - mirrors `AudioTrack`
+/// (src/api/library_items/play_lib_item_or_pod.rs) but pointing at a file on disk
+/// instead of a server URL. A single-file book's download is simply the 1-entry case.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DownloadedTrack {
+    pub local_path: String,
+    pub duration: f64,
+    pub start_offset: f64,
 }
 
 
@@ -117,6 +130,7 @@ impl Database {
             chapter: String::new(),
             chapters: String::new(),
             volume: 100,
+            pending_seek: String::new(),
         };
 
         let others = Others {
