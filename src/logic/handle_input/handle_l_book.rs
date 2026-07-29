@@ -206,6 +206,15 @@ pub async fn handle_l_book(
 
                     let mut trigger = 1;
 
+                    // Stays false until fetch_vlc_data first returns a real position -
+                    // guards the Ok(None)/Err(e) cleanup arms below from syncing
+                    // `current_time` (still whatever it was at session start) when VLC
+                    // was launched and quit before ever reporting anything real: for a
+                    // book with no prior progress that's 0, and re-sending it as the
+                    // "closed at" position reads as progress being wiped rather than
+                    // "nothing was actually observed to sync."
+                    let mut got_real_data = false;
+
                     loop {
                         // A chapter jump ("c" list, or P/U) from the UI - only this loop
                         // knows the real current_track_idx/track_base_offset, so it's the
@@ -258,6 +267,7 @@ pub async fn handle_l_book(
 
                         match fetch_vlc_data(port.clone(), address_player.clone()).await {
                             Ok(Some(data_fetched_from_vlc)) => {
+                                got_real_data = true;
                                 // println!("Fetched data: {}", data_fetched_from_vlc.to_string());
                                 let book_wide_time = track_base_offset.saturating_add(data_fetched_from_vlc);
 
@@ -416,9 +426,13 @@ pub async fn handle_l_book(
                                 info!("[handle_l_book][None]");
                                 let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
                                 info!("[handle_l_book][None] Session successfully closed");
-                                let _ = update_media_progress_book(id, Some(token), Some(current_time), &info_item[2], server_address.clone()).await;
-                                info!("[handle_l_book][None] VLC closed");
-                                info!("[handle_l_book][None] Item {id} closed at {current_time}s");
+                                if got_real_data {
+                                    let _ = update_media_progress_book(id, Some(token), Some(current_time), &info_item[2], server_address.clone()).await;
+                                    info!("[handle_l_book][None] VLC closed");
+                                    info!("[handle_l_book][None] Item {id} closed at {current_time}s");
+                                } else {
+                                    info!("[handle_l_book][None] VLC closed - no real playback data was ever fetched, skipping progress sync");
+                                }
 
                                 let _ = update_is_loop_break("1", username.as_str());
                                 break; // Exit if no data available
@@ -426,6 +440,10 @@ pub async fn handle_l_book(
                             Err(e) => {
                                 error!("[handle_l_book][Err(e)]{e}");
                                 let _ = update_is_vlc_running("0", username.as_str());
+                                let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                                if got_real_data {
+                                    let _ = update_media_progress_book(id, Some(token), Some(current_time), &info_item[2], server_address.clone()).await;
+                                }
                                 let _ = update_is_loop_break("1", username.as_str());
                                 break; // Exit on error
                             }
@@ -524,6 +542,9 @@ async fn handle_l_book_offline(
 
     let _ = update_is_vlc_running("1", username.as_str());
 
+    // See the online loop's got_real_data comment above.
+    let mut got_real_data = false;
+
     loop {
         // Same pending_seek mechanism as the online loop (handle_l_book) - see
         // update_pending_seek's doc comment.
@@ -572,6 +593,7 @@ async fn handle_l_book_offline(
 
         match fetch_vlc_data(port.clone(), address_player.clone()).await {
             Ok(Some(data_fetched_from_vlc)) => {
+                got_real_data = true;
                 let book_wide_time = track_base_offset.saturating_add(data_fetched_from_vlc);
                 let _ = update_current_time(book_wide_time, id_session.as_str());
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -641,14 +663,21 @@ async fn handle_l_book_offline(
             }
             Ok(None) => {
                 let _ = update_is_vlc_running("0", username.as_str());
-                info!("[handle_l_book_offline][None] Item {id} closed at {current_time}s");
-                let _ = update_media_progress_book(&id, Some(&token), Some(current_time), &downloaded.duration, server_address.clone()).await;
+                if got_real_data {
+                    info!("[handle_l_book_offline][None] Item {id} closed at {current_time}s");
+                    let _ = update_media_progress_book(&id, Some(&token), Some(current_time), &downloaded.duration, server_address.clone()).await;
+                } else {
+                    info!("[handle_l_book_offline][None] Item {id}: no real playback data was ever fetched, skipping progress sync");
+                }
                 let _ = update_is_loop_break("1", username.as_str());
                 break;
             }
             Err(e) => {
                 error!("[handle_l_book_offline][Err(e)]{e}");
                 let _ = update_is_vlc_running("0", username.as_str());
+                if got_real_data {
+                    let _ = update_media_progress_book(&id, Some(&token), Some(current_time), &downloaded.duration, server_address.clone()).await;
+                }
                 let _ = update_is_loop_break("1", username.as_str());
                 break;
             }

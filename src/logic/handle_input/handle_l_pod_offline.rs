@@ -92,9 +92,13 @@ pub async fn handle_pod_episode_offline(
 
     let _ = update_is_vlc_running("1", username.as_str());
 
+    // See handle_l_book.rs's got_real_data comment - same reasoning applies here.
+    let mut got_real_data = false;
+
     loop {
         match fetch_vlc_data(port.clone(), address_player.clone()).await {
             Ok(Some(data_fetched_from_vlc)) => {
+                got_real_data = true;
                 let _ = update_current_time(data_fetched_from_vlc, id_session.as_str());
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
@@ -129,14 +133,21 @@ pub async fn handle_pod_episode_offline(
             }
             Ok(None) => {
                 let _ = update_is_vlc_running("0", username.as_str());
-                info!("[handle_pod_episode_offline][None] Item {episode_id} closed at {current_time}s");
-                let _ = update_media_progress_pod(&podcast_id, Some(&token), Some(current_time), &downloaded.duration, &episode_id, server_address.clone()).await;
+                if got_real_data {
+                    info!("[handle_pod_episode_offline][None] Item {episode_id} closed at {current_time}s");
+                    let _ = update_media_progress_pod(&podcast_id, Some(&token), Some(current_time), &downloaded.duration, &episode_id, server_address.clone()).await;
+                } else {
+                    info!("[handle_pod_episode_offline][None] Item {episode_id}: no real playback data was ever fetched, skipping progress sync");
+                }
                 let _ = update_is_loop_break("1", username.as_str());
                 break;
             }
             Err(e) => {
                 error!("[handle_pod_episode_offline][Err(e)]{e}");
                 let _ = update_is_vlc_running("0", username.as_str());
+                if got_real_data {
+                    let _ = update_media_progress_pod(&podcast_id, Some(&token), Some(current_time), &downloaded.duration, &episode_id, server_address.clone()).await;
+                }
                 let _ = update_is_loop_break("1", username.as_str());
                 break;
             }

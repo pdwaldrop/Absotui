@@ -1451,21 +1451,23 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                             // before open a new session, wait to close and sync previous
                             // session
-                            wait_prev_session_finished(username.clone()); 
+                            let was_first_launch = wait_prev_session_finished(username.clone());
 
                             // pop message
                             let mut stdout = stdout();
                             let _ = pop_message(&mut stdout, 3, message);
 
-                            // in case where the app has been disgrafully closed (crash, kill)
-                            // the last listening session is closed when app is restarted
-                            let () = sync_session_from_database(
-                                token.clone(), 
-                                server_address.clone(), 
-                                username.clone(), 
-                                "l", 
-                                address_player.clone(), 
-                                port.clone()).await;
+                            // Only needed the very first track played since the app
+                            // started - see wait_prev_session_finished's doc comment.
+                            if was_first_launch {
+                                let () = sync_session_from_database(
+                                    token.clone(),
+                                    server_address.clone(),
+                                    username.clone(),
+                                    "l",
+                                    address_player.clone(),
+                                    port.clone()).await;
+                            }
 
                             // start the track
                             handle_l_pod_home(
@@ -1496,21 +1498,23 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                             // before open a new session, wait to close and sync previous
                             // session
-                            wait_prev_session_finished(username.clone()); 
+                            let was_first_launch = wait_prev_session_finished(username.clone());
 
                             // pop message
                             let mut stdout = stdout();
                             let _ = pop_message(&mut stdout, 3, message);
 
-                            // in case where the app has been disgrafully closed (crash, kill)
-                            // the last listening session is closed when app is restarted
-                            let () = sync_session_from_database(
-                                token.clone(), 
-                                server_address.clone(), 
-                                username.clone(), 
-                                "l", 
-                                address_player.clone(), 
-                                port.clone()).await;
+                            // Only needed the very first track played since the app
+                            // started - see wait_prev_session_finished's doc comment.
+                            if was_first_launch {
+                                let () = sync_session_from_database(
+                                    token.clone(),
+                                    server_address.clone(),
+                                    username.clone(),
+                                    "l",
+                                    address_player.clone(),
+                                    port.clone()).await;
+                            }
 
                             // start the track
                             handle_l_book(
@@ -1602,26 +1606,28 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                 // before open a new session, wait to close and sync previous
                                 // session
-                                wait_prev_session_finished(username.clone()); 
+                                let was_first_launch = wait_prev_session_finished(username.clone());
 
                                 // pop message
                                 let mut stdout = stdout();
                                 let _ = pop_message(&mut stdout, 3, message);
 
-                                // in case where the app has been disgrafully closed (crash, kill)
-                                // the last listening session is closed when app is restarted
-                                let () = sync_session_from_database(
-                                    token.clone(), 
-                                    server_address.clone(), 
-                                    username.clone(), 
-                                    "l", 
-                                    address_player.clone(), 
-                                    port.clone()).await;
+                                // Only needed the very first track played since the app
+                                // started - see wait_prev_session_finished's doc comment.
+                                if was_first_launch {
+                                    let () = sync_session_from_database(
+                                        token.clone(),
+                                        server_address.clone(),
+                                        username.clone(),
+                                        "l",
+                                        address_player.clone(),
+                                        port.clone()).await;
+                                }
 
                                 // start the track
                                 handle_l_book(
-                                    token.as_ref(), 
-                                    ids_library, 
+                                    token.as_ref(),
+                                    ids_library,
                                     selected_library, 
                                     port, 
                                     address_player,
@@ -1658,26 +1664,28 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                 // before open a new session, wait to close and sync previous
                                 // session
-                                wait_prev_session_finished(username.clone()); 
+                                let was_first_launch = wait_prev_session_finished(username.clone());
 
                                 // pop message
                                 let mut stdout = stdout();
                                 let _ = pop_message(&mut stdout, 3, message);
 
-                                // in case where the app has been disgrafully closed (crash, kill)
-                                // the last listening session is closed when app is restarted
-                                let () = sync_session_from_database(
-                                    token.clone(), 
-                                    server_address.clone(), 
-                                    username.clone(), 
-                                    "l", 
-                                    address_player.clone(), 
-                                    port.clone()).await;
+                                // Only needed the very first track played since the app
+                                // started - see wait_prev_session_finished's doc comment.
+                                if was_first_launch {
+                                    let () = sync_session_from_database(
+                                        token.clone(),
+                                        server_address.clone(),
+                                        username.clone(),
+                                        "l",
+                                        address_player.clone(),
+                                        port.clone()).await;
+                                }
 
                                 // start the track
                                 handle_l_book(
-                                    token.as_ref(), 
-                                    ids_search_book, 
+                                    token.as_ref(),
+                                    ids_search_book,
                                     selected_search_book, 
                                     port, 
                                     address_player,
@@ -1713,26 +1721,29 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                     // before open a new session, wait to close and sync previous
                                     // session
-                                    wait_prev_session_finished(username.clone()); 
+                                    let was_first_launch = wait_prev_session_finished(username.clone());
 
                                     // pop message
                                     let mut stdout = stdout();
                                     let _ = pop_message(&mut stdout, 3, message);
 
-                                    // in case where the app has been disgrafully closed (crash, kill)
-                                    // the last listening session is closed when app is restarted
-                                    let () = sync_session_from_database(
-                                        token.clone(), 
-                                        server_address.clone(), 
-                                        username.clone(), 
-                                        "l", 
-                                        address_player.clone(), 
-                                        port.clone()).await;
+                                    // Only needed the very first track played since the
+                                    // app started - see wait_prev_session_finished's doc
+                                    // comment.
+                                    if was_first_launch {
+                                        let () = sync_session_from_database(
+                                            token.clone(),
+                                            server_address.clone(),
+                                            username.clone(),
+                                            "l",
+                                            address_player.clone(),
+                                            port.clone()).await;
+                                    }
 
                                     // start the track
                                     handle_l_pod(
-                                        token.as_ref(), 
-                                        &all_ids_pod_ep_search_clone[index], 
+                                        token.as_ref(),
+                                        &all_ids_pod_ep_search_clone[index],
                                         selected_pod_ep, 
                                         port, 
                                         address_player,
@@ -1765,26 +1776,29 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                                     // before open a new session, wait to close and sync previous
                                     // session
-                                    wait_prev_session_finished(username.clone()); 
+                                    let was_first_launch = wait_prev_session_finished(username.clone());
 
                                     // pop message
                                     let mut stdout = stdout();
                                     let _ = pop_message(&mut stdout, 3, message);
 
-                                    // in case where the app has been disgrafully closed (crash, kill)
-                                    // the last listening session is closed when app is restarted
-                                    let () = sync_session_from_database(
-                                        token.clone(), 
-                                        server_address.clone(), 
-                                        username.clone(), 
-                                        "l", 
-                                        address_player.clone(), 
-                                        port.clone()).await;
+                                    // Only needed the very first track played since the
+                                    // app started - see wait_prev_session_finished's doc
+                                    // comment.
+                                    if was_first_launch {
+                                        let () = sync_session_from_database(
+                                            token.clone(),
+                                            server_address.clone(),
+                                            username.clone(),
+                                            "l",
+                                            address_player.clone(),
+                                            port.clone()).await;
+                                    }
 
                                     // start the track
                                     handle_l_pod(
-                                        token.as_ref(), 
-                                        &all_ids_pod_ep_clone[index], 
+                                        token.as_ref(),
+                                        &all_ids_pod_ep_clone[index],
                                         selected_pod_ep, 
                                         port, 
                                         address_player,

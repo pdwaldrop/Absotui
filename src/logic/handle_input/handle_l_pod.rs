@@ -171,10 +171,20 @@ pub async fn handle_l_pod(
 
                             let mut trigger = 1;
 
+                            // Stays false until fetch_vlc_data first returns a real
+                            // position - guards the Ok(None)/Err(e) cleanup arms below
+                            // from syncing `current_time` (still whatever it was at
+                            // session start) when VLC was launched and quit before ever
+                            // reporting anything real: for an episode with no prior
+                            // progress that's 0, and re-sending it as the "closed at"
+                            // position reads as progress being wiped rather than
+                            // "nothing was actually observed to sync."
+                            let mut got_real_data = false;
 
                             loop {
                                 match fetch_vlc_data(port.clone(), address_player.clone()).await {
                                     Ok(Some(data_fetched_from_vlc)) => {
+                                        got_real_data = true;
                                         // println!("Fetched data: {}", data_fetched_from_vlc.to_string());
 
                                         // update current_time in database (`listening_session` table)
@@ -319,9 +329,13 @@ pub async fn handle_l_pod(
                                         info!("[handle_l_pod][None]");
                                         let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
                                         info!("[handle_l_pod][None] Session successfully closed");
-                                        let _ = update_media_progress_pod(id_pod, Some(token), Some(current_time), &info_item[2], id, server_address.clone()).await;
-                                        info!("[handle_l_pod][None] VLC closed");
-                                        info!("[handle_l_pod][None] Item {id_pod} closed at {current_time}s");
+                                        if got_real_data {
+                                            let _ = update_media_progress_pod(id_pod, Some(token), Some(current_time), &info_item[2], id, server_address.clone()).await;
+                                            info!("[handle_l_pod][None] VLC closed");
+                                            info!("[handle_l_pod][None] Item {id_pod} closed at {current_time}s");
+                                        } else {
+                                            info!("[handle_l_pod][None] VLC closed - no real playback data was ever fetched, skipping progress sync");
+                                        }
 
                                         let _ = update_is_loop_break("1", username.as_str());
                                         break 'episodes; // Exit if no data available
@@ -329,6 +343,10 @@ pub async fn handle_l_pod(
                                     Err(e) => {
                                         error!("[handle_l_pod][Err(e)]{e}");
                                         let _ = update_is_vlc_running("0", username.as_str());
+                                        let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                                        if got_real_data {
+                                            let _ = update_media_progress_pod(id_pod, Some(token), Some(current_time), &info_item[2], id, server_address.clone()).await;
+                                        }
                                         let _ = update_is_loop_break("1", username.as_str());
                                         break 'episodes; // Exit on error
                                     }
