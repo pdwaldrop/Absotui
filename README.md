@@ -97,6 +97,7 @@ In `~/.config/absotui` (Linux) or `~/Library/Preferences` (macOS) — the defaul
 - `config.toml` — configuration file
 - `absotui.log` — log file
 - `db.sqlite3` — SQLite database file
+- `covers/` — on-disk cache of cover art (populated automatically as covers load)
 - `downloads/` — books and podcast episodes downloaded for offline playback (only appears once you download something)
 
 In `~/.local/share/applications` (Linux):
@@ -105,7 +106,9 @@ In `~/.local/share/applications` (Linux):
 <details>
 <summary><h3>🔧 Install from source</h3></summary>
 
-**Requirements:** `Rust`, `Netcat`, `VLC`
+**Requirements:** `Rust`, `VLC`
+
+<sub>Optional: the `cvlc_term` config setting (off by default) opens a terminal to control `cvlc` directly, which additionally needs the `kitty` terminal installed.</sub>
 
 Note: `main` might be unstable — prefer `git clone --branch stable --single-branch https://github.com/pdwaldrop/Absotui` if you want the last stable release.
 
@@ -139,7 +142,7 @@ cd target/release
 ./absotui
 ```
 
-Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sqlite3`, `downloads/`), all under `~/.config/absotui`.
+Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sqlite3`, `covers/`, `downloads/`), all under `~/.config/absotui`.
 
 </details>
 
