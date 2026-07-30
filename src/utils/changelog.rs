@@ -625,8 +625,7 @@ let changelog_39 = "Changelog Absotui v0.5.24-beta (26/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_40 = format!(
-    "Changelog Absotui v{VERSION} (28/07/2026) \n\
+let changelog_40 = "Changelog Absotui v0.5.25-beta (28/07/2026) \n\
          \n\
          Fixed:\n\
          - Audiobooks uploaded as separate files per chapter (rather than one
@@ -652,10 +651,39 @@ let changelog_40 = format!(
            list-jump shortcut as a description-scroll shortcut.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_41 = format!(
+    "Changelog Absotui v{VERSION} (29/07/2026) \n\
+         \n\
+         Fixed:\n\
+         - Quitting with Q while something was playing could leave the
+           listening session still open on the Audiobookshelf server, and
+           could leave VLC running in the background after the app had
+           exited. Quitting now shuts VLC down reliably and waits for the
+           playback task's own cleanup to finish before exiting.
+         - In some cases Q could fail to quit at all, leaving the app hanging
+           with the terminal stuck in a broken state and the cursor hidden.
+         - Starting or quitting a track very quickly - before playback had
+           actually reported a position - could sync that item's progress as
+           0 seconds, appearing to wipe your place in it.
+         - Switching from one title to another closed the outgoing item's
+           listening session twice on the server instead of once.
+         - If the app crashed or was killed, the session it left open stayed
+           open and unsynced until you next played something. It's now closed
+           and synced automatically at startup instead.
+         - After a crash, the app could start up showing a frozen \"now
+           playing\" player for a session that was no longer running.
+         - Network requests had no timeout, so a server that accepted a
+           connection but never answered could block playback indefinitely
+           with no way out but restarting the app. All requests are now
+           bounded (large downloads still run as long as they need to).
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_41);
     changelog.push_str(&changelog_40);
     changelog.push_str(&changelog_39);
     changelog.push_str(&changelog_38);
