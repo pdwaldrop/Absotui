@@ -25,6 +25,7 @@ pub async fn sync_session_from_database(token: Option<String>, server_address: S
             match handle_key {
                 "Q" => info!("[handle_key (Q)][Quit] Session successfully closed"),
                 "l" => info!("[handle_key (l)] Session successfully closed"),
+                "startup" => info!("[startup] Closed a listening session left open by a previous crash/kill"),
                 _ => {}
             }
 
@@ -55,6 +56,7 @@ pub async fn sync_session_from_database(token: Option<String>, server_address: S
                     match handle_key {
                         "Q" => info!("[handle_key (Q)][book][Quit] Item {} closed at {:?}s (not finished)", session.id_item, session.current_time),
                         "l" => info!("[handle_key (l)] Item {} closed at {:?}s (not finished)", session.id_item, session.current_time),
+                        "startup" => info!("[startup] Item {} synced at {:?}s (not finished)", session.id_item, session.current_time),
                         _ => {}
                     }
                 }
@@ -89,6 +91,7 @@ pub async fn sync_session_from_database(token: Option<String>, server_address: S
                     match handle_key {
                         "Q" => info!("[handle_key (Q)][podcast][Quit] Item {} closed at {:?}s", session.id_pod, session.current_time),
                         "l" => info!("[handle_key (l)] Item {} closed at {:?}s", session.id_pod, session.current_time),
+                        "startup" => info!("[startup] Item {} synced at {:?}s", session.id_pod, session.current_time),
                         _ => {}
                     }
                 }

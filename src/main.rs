@@ -30,6 +30,7 @@ use std::path::PathBuf;
 use crate::utils::clap::clap;
 use crate::utils::scroll_wheel::{disable_terminal_scroll_wheel, restore_terminal_scroll_wheel};
 use crate::logic::server_recovery::init_app_with_retry;
+use crate::logic::sync_session::sync_session_from_database::sync_session_from_database;
 use crate::app::UpdateUninstallStage;
 use crate::logic::update_uninstall::{Action, ProgressEvent};
 use std::os::unix::process::CommandExt;
@@ -127,6 +128,34 @@ async fn main() -> Result<()> {
         let Some(mut app) = init_app_with_retry(&mut terminal, false).await? else {
             unreachable!("allow_cancel=false never returns Cancel");
         };
+
+        // If the app was killed or crashed mid-playback, the session it left open is
+        // still open server-side (visible under /audiobookshelf/config/sessions) and
+        // its last position never got synced - every normal exit path closes its own
+        // session, so anything still sitting in `listening_session` here is debris from
+        // an abnormal one. Closing it now rather than deferring to whenever the user
+        // next presses play means the position isn't left dangling for an arbitrarily
+        // long time (see known_bugs.md `bug_id: 6ac5d8`).
+        //
+        // Deliberately after `init_app_with_retry` rather than before: that's the point
+        // the server is known reachable, so this doesn't burn its one attempt against a
+        // server that's down. A no-op when there's no leftover row, and it leaves the
+        // row itself in place - offline resume reads it back for the local position.
+        let leftover_token = app.token.clone();
+        let leftover_server = app.server_address.clone();
+        let leftover_username = app.username.clone();
+        let leftover_addr = app.config.player.address.clone();
+        let leftover_port = app.config.player.port.clone();
+        tokio::spawn(async move {
+            sync_session_from_database(
+                leftover_token,
+                leftover_server,
+                leftover_username,
+                "startup",
+                leftover_addr,
+                leftover_port,
+            ).await;
+        });
 
         // Absotui has no window of its own - the terminal's title is whatever the
         // running program sets it to (or just "absotui", the binary name, if nothing

@@ -3,19 +3,19 @@ use log::info;
 use crate::utils::pop_up_message::{pop_message, clear_message};
 use std::io::stdout;
 
-// Returns whether this was the first track played since the app started (ie.
-// `is_vlc_launched_first_time` was still "1" when this ran) - the caller uses this to
-// decide whether a defensive close of whatever's left in `listening_session` is
-// actually needed afterward. That row can only be stale-and-never-closed if the app
-// was previously killed/crashed outside any of its normal exit paths (Q, natural
-// end-of-track, VLC-quit detection) - which all close the session themselves before
-// returning - and that can only be true the very first time a track is played in a
-// fresh process, since every normal exit after that already closed the row it left
-// behind. Confirmed live (2026-07-28): running the defensive close unconditionally on
-// every track switch closed the session twice - once from the previous track's own
-// natural-quit-detection loop, once from here - a harmless-looking but real double
-// close, and the concrete root cause behind bug_id dd9a649.
-pub fn wait_prev_session_finished(username: String) -> bool {
+// Blocks until the previously-running playback task (if any) has finished its own
+// close/sync and released the playback slot, so a new track can't start while the old
+// one is still tearing down.
+//
+// Callers deliberately do NOT follow this with a defensive close of whatever's left in
+// `listening_session`. Every normal exit path (Q, natural end-of-track, VLC-quit
+// detection) closes its own session before returning, so the only way that row can be
+// stale-and-never-closed is an abnormal exit (crash/kill) - and `main.rs` now closes
+// that case once at startup instead. Running it here as well closed the session twice
+// on every track switch (confirmed live 2026-07-28: once from the previous track's own
+// quit-detection loop, once from the caller) - the concrete root cause behind bug_id
+// dd9a649.
+pub fn wait_prev_session_finished(username: String) {
 
     // pop message
     let message = "Syncing your last listening session. Please wait...";
@@ -52,5 +52,4 @@ pub fn wait_prev_session_finished(username: String) -> bool {
         // clear pop up message
         let _ = clear_message(&mut stdout, 3);
 
-        was_first_launch
 }
