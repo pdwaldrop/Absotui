@@ -10,7 +10,7 @@ use crate::api::libraries::get_library_perso_view::get_continue_listening;
 use crate::api::libraries::get_library_perso_view_pod::{get_new_and_unfinished_pod, Chapter};
 use crate::api::libraries::get_all_books::get_all_books;
 use crate::api::libraries::get_all_libraries::get_all_libraries;
-use crate::api::library_items::get_pod_ep::get_pod_ep;
+use crate::api::library_items::get_pod_ep::{get_pod_ep, Root as GetPodEpRoot};
 use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
@@ -20,6 +20,8 @@ use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
 use crate::utils::download_cache::{is_downloaded, remove_download, download_book, download_episode, sync_auto_downloads, sync_auto_downloads_podcasts};
 use color_eyre::Result;
+use futures::stream::{self, StreamExt};
+use crate::utils::http_client::MAX_CONCURRENT_REQUESTS;
 use log::{warn, error};
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
@@ -482,8 +484,26 @@ impl App {
         size_cnt_list = collect_size_cnt_list(&continue_listening).await;
         desc_cnt_list = collect_desc_cnt_list(&continue_listening).await;
         _ids_cnt_list = collect_ids_cnt_list(&continue_listening).await;
+        // Same per-item fan-out as the podcast paths (see bug_id 3f729c): one progress
+        // lookup per Continue Listening book, concurrent instead of sequential.
+        // `buffered` keeps request order, so each result still lands at the index its
+        // book occupies in `_ids_cnt_list` / the two `book_progress_*` arrays beside it.
+        let mut book_progress_futures = Vec::with_capacity(_ids_cnt_list.len());
         for id in _ids_cnt_list.clone() {
-            match get_book_progress(&token, &id, server_address.clone()).await {
+            let token = token.clone();
+            let server_address = server_address.clone();
+            book_progress_futures.push(async move {
+                let res = get_book_progress(&token, &id, server_address).await;
+                (id, res)
+            });
+        }
+        let book_progress_results: Vec<_> = stream::iter(book_progress_futures)
+            .buffered(MAX_CONCURRENT_REQUESTS)
+            .collect()
+            .await;
+
+        for (id, result) in book_progress_results {
+            match result {
                 Ok(val) => {
                     let mut values: Vec<String> = Vec::new();
                     let mut values_f64: Vec<f64> = Vec::new();
@@ -626,8 +646,29 @@ impl App {
     let durations_pod_ep: Vec<String> = Vec::new();
 
     if is_podcast {
-    for id_library in &ids_library
-    {let podcast_episode = get_pod_ep(&token, server_address.clone(), id_library.as_str()).await?;
+    // One full episode-list fetch per podcast in the library - the single biggest
+    // chunk of startup time (measured 9.8s of a 17.5s App::new over 22 podcasts,
+    // ~450ms each, strictly sequential). Issued concurrently instead, capped so a
+    // large library doesn't open an unbounded number of connections at once.
+    //
+    // `buffered` (NOT `buffer_unordered`) matters: the nine `all_*_pod_ep` arrays
+    // below are parallel arrays indexed by the podcast's position in `ids_library`,
+    // so results have to come back in request order or every one of them silently
+    // desyncs against the others (see CLAUDE.md). The `collect_*` calls stay
+    // sequential - they're pure in-memory transforms, no I/O, so there's nothing to
+    // gain from parallelizing them and doing so would reintroduce the ordering risk.
+    let episode_lists: Vec<Result<GetPodEpRoot>> = stream::iter(ids_library.iter().map(|id_library| {
+        let token = token.clone();
+        let server_address = server_address.clone();
+        let id_library = id_library.clone();
+        async move { get_pod_ep(&token, server_address, id_library.as_str()).await }
+    }))
+    .buffered(MAX_CONCURRENT_REQUESTS)
+    .collect()
+    .await;
+
+    for podcast_episode in episode_lists
+    {let podcast_episode = podcast_episode?;
         let title = collect_titles_pod_ep(&podcast_episode).await;
         all_titles_pod_ep.push(title);
         let id = collect_ids_pod_ep(&podcast_episode).await;

@@ -5,7 +5,9 @@ use color_eyre::eyre::{Result, Report};
 use serde::Deserialize;
 use serde::Serialize;
 use log::{info, warn};
-use crate::api::me::get_media_progress::get_episode_progress;
+use crate::api::me::get_media_progress::{get_episode_progress, Root as Progress};
+use crate::utils::http_client::MAX_CONCURRENT_REQUESTS;
+use futures::stream::{self, StreamExt};
 
 /// Get a `PersonalizedView`'s Personalized View  for podcast(allow to have continue linstening)
 /// <https://api.audiobookshelf.org/#get-a-library-39-s-personalized-view>
@@ -209,21 +211,46 @@ pub async fn get_new_and_unfinished_pod(token: &str, server_address: String, id_
     // which counts as "unfinished", not excluded. The percent/current_time from this
     // same call is stashed on the entity for display, so we don't need a second round
     // of API calls just to show progress.
-    let mut unfinished_entities = Vec::new();
-    for mut entity in entities {
+    // One progress lookup per entity, issued concurrently rather than one-at-a-time -
+    // this loop was ~230ms per episode serially and is a meaningful share of startup
+    // (see bug_id 3f729c). `buffered` keeps results in request order so each progress
+    // record still lines up with the entity it belongs to; `buffer_unordered` would
+    // pair progress against the wrong episode. The filtering/logging below stays
+    // sequential and unchanged, so ordering and log output are identical to before.
+    // Each future owns everything it needs and is built up front, so the stream holds
+    // no borrow of the `&str` token param. Capturing that borrow instead (even
+    // indirectly, via a closure that clones it) makes every caller's enclosing future
+    // fail `Send` inference with a higher-ranked-lifetime error at the `tokio::spawn`
+    // sites in app.rs.
+    let mut progress_futures = Vec::with_capacity(entities.len());
+    for entity in &entities {
         let episode_id = entity.recent_episode.as_ref().and_then(|ep| ep.id.clone());
         let library_item_id = entity.recent_episode.as_ref().and_then(|ep| ep.library_item_id.clone());
         let episode_title = entity.recent_episode.as_ref().and_then(|ep| ep.title.clone()).unwrap_or_default();
-        let progress = match (&library_item_id, &episode_id) {
-            (Some(lib_id), Some(ep_id)) => match get_episode_progress(token, lib_id, ep_id, server_address.clone()).await {
-                Ok(p) => Some(p),
-                Err(e) => {
-                    warn!("[get_new_and_unfinished_pod] progress lookup failed for '{episode_title}' ({lib_id}/{ep_id}), treating as unfinished: {e}");
-                    None
-                }
-            },
-            _ => None,
-        };
+        let server_address = server_address.clone();
+        let token = token.to_string();
+        progress_futures.push(async move {
+            match (&library_item_id, &episode_id) {
+                (Some(lib_id), Some(ep_id)) => match get_episode_progress(&token, lib_id, ep_id, server_address).await {
+                    Ok(p) => Some(p),
+                    Err(e) => {
+                        warn!("[get_new_and_unfinished_pod] progress lookup failed for '{episode_title}' ({lib_id}/{ep_id}), treating as unfinished: {e}");
+                        None
+                    }
+                },
+                _ => None,
+            }
+        });
+    }
+    let progresses: Vec<Option<Progress>> = stream::iter(progress_futures)
+        .buffered(MAX_CONCURRENT_REQUESTS)
+        .collect()
+        .await;
+
+    let mut unfinished_entities = Vec::new();
+    for (mut entity, progress) in entities.into_iter().zip(progresses) {
+        let episode_id = entity.recent_episode.as_ref().and_then(|ep| ep.id.clone());
+        let episode_title = entity.recent_episode.as_ref().and_then(|ep| ep.title.clone()).unwrap_or_default();
         let is_finished = progress.as_ref().is_some_and(|p| p.is_finished);
         info!("[get_new_and_unfinished_pod] '{episode_title}' ({episode_id:?}) isFinished={is_finished}");
         if !is_finished {

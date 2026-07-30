@@ -28,3 +28,4 @@ ratatui-image = { version = "11.0.6", default-features = false, features = ["ima
 image = { version = "0.25.10", default-features = false, features = ["default-formats"] }
 id3 = "1.17.0"
 pty-process = { version = "0.5.3", features = ["async"] }
+futures = "0.3"

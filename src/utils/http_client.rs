@@ -44,3 +44,14 @@ pub fn download_client() -> Client {
         .build()
         .unwrap_or_else(|_| Client::new())
 }
+
+/// Cap on in-flight HTTP requests when a startup/refresh phase fans out one request
+/// per item (per-podcast episode lists, per-item progress lookups). Bounded so a large
+/// library doesn't open an unbounded number of connections at once, or look like a
+/// burst to the server - while still turning `n` sequential round-trips into roughly
+/// `ceil(n / this)`.
+///
+/// Always fan out with `futures::stream::...buffered()`, never `buffer_unordered()`:
+/// callers feed results straight into index-aligned parallel arrays, which silently
+/// desync if results come back in completion order instead of request order.
+pub const MAX_CONCURRENT_REQUESTS: usize = 8;
