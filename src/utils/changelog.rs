@@ -652,8 +652,7 @@ let changelog_40 = "Changelog Absotui v0.5.25-beta (28/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_41 = format!(
-    "Changelog Absotui v{VERSION} (29/07/2026) \n\
+let changelog_41 = "Changelog Absotui v0.5.26-beta (29/07/2026) \n\
          \n\
          Fixed:\n\
          - Quitting with Q while something was playing could leave the
@@ -679,10 +678,23 @@ let changelog_41 = format!(
            bounded (large downloads still run as long as they need to).
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_42 = format!(
+    "Changelog Absotui v{VERSION} (30/07/2026) \n\
+         \n\
+         Changed:\n\
+         - App startup is significantly faster, especially with a large
+           podcast library - measured about 17.5s down to roughly 7s on a
+           22-podcast library. Several requests that were previously made one
+           at a time (episode lists, per-item progress lookups, and three
+           independent startup fetches) now run concurrently instead.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_42);
     changelog.push_str(&changelog_41);
     changelog.push_str(&changelog_40);
     changelog.push_str(&changelog_39);
