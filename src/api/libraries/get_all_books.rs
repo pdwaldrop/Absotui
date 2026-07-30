@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::utils::http_client::api_client;
 use serde_json::Value;
 use reqwest::header::AUTHORIZATION;
 use color_eyre::eyre::{Result, Report};
@@ -94,7 +94,7 @@ pub struct CollapsedSeries {
 
 // get all books or podcasts
 pub async fn get_all_books(token: &str, id_selected_lib: &String, server_address: String) -> Result<Root> {
-    let client = Client::new();
+    let client = api_client();
     let url = format!("{server_address}/api/libraries/{id_selected_lib}/items?limit=0");
 
 

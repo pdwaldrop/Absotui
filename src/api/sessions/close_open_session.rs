@@ -1,4 +1,4 @@
-use reqwest::Client; 
+use crate::utils::http_client::api_client;
 use color_eyre::eyre::Result; 
 use reqwest::header::AUTHORIZATION;
 
@@ -6,7 +6,7 @@ use reqwest::header::AUTHORIZATION;
 // https://api.audiobookshelf.org/#close-an-open-session
 
 pub async fn close_session_without_send_prg_data(token: Option<&String>, session_id: &str, server_address: String) -> Result<(), reqwest::Error> {
-    let client = Client::new();
+    let client = api_client();
 
     let _response = client
         .post(format!(

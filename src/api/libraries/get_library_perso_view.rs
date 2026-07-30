@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::utils::http_client::api_client;
 use serde_json::Value;
 use reqwest::header::AUTHORIZATION;
 use color_eyre::eyre::{Result, Report};
@@ -96,7 +96,7 @@ pub struct Book {
 
 // filter only book continue to listening from personalized view
 pub async fn get_continue_listening(token: &str, server_address: String, id_selected_lib: &String) -> Result<Vec<Root>> {
-    let client = Client::new();
+    let client = api_client();
     let url = format!("{server_address}/api/libraries/{id_selected_lib}/personalized");
 
     // Send GET request

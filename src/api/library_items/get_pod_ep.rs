@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::utils::http_client::api_client;
 use serde_json::Value;
 use reqwest::header::AUTHORIZATION;
 use color_eyre::eyre::{Result, Report};
@@ -118,7 +118,7 @@ pub struct LibraryFile {
 
 
 pub async fn get_pod_ep(token: &str, server_address: String, id: &str) -> Result<Root> {
-    let client = Client::new();
+    let client = api_client();
     let url = format!("{server_address}/api/items/{id}");
 
 

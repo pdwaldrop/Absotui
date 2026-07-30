@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::utils::http_client::api_client;
 use reqwest::header::{AUTHORIZATION, RANGE};
 use color_eyre::eyre::Result;
 
@@ -12,7 +12,7 @@ const EMBEDDED_COVER_PREFIX_BYTES: u64 = 8 * 1024 * 1024;
 /// art without downloading the whole file.
 /// <https://api.audiobookshelf.org/#get-a-library-item-39-s-file>
 pub async fn get_audio_file_prefix(token: &str, library_item_id: &str, ino: &str, server_address: &str) -> Result<Vec<u8>> {
-    let client = Client::new();
+    let client = api_client();
     let url = format!("{server_address}/api/items/{library_item_id}/file/{ino}");
 
     let response = client

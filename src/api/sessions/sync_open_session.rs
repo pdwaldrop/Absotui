@@ -1,4 +1,4 @@
-use reqwest::Client; 
+use crate::utils::http_client::api_client;
 use color_eyre::eyre::Result; 
 use reqwest::header::AUTHORIZATION;
 use serde_json::json;
@@ -7,7 +7,7 @@ use serde_json::json;
 /// <https://api.audiobookshelf.org/#sync-an-open-session>
 // sync a session
 pub async fn sync_session(token: Option<&String>, session_id: &str, current_time: Option<u32>, time_listened: u32, server_address: String) -> Result<(), reqwest::Error> {
-    let client = Client::new();
+    let client = api_client();
 
     let params = json!({
         "currentTime": format!("{}", current_time.unwrap_or(0)), 

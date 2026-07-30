@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::utils::http_client::api_client;
 use serde::{Deserialize, Serialize};
 use color_eyre::eyre::{Result, Report};
 use crate::db::crud::db_insert_usr;
@@ -31,7 +31,7 @@ struct UserInfo {
 /// After, some data are fetched with this token and written in database
 pub async fn auth_process(username: &str, password: &str, server_address: &str) -> Result<()> {
     let login_url = format!("{server_address}/login");
-    let client = Client::new();
+    let client = api_client();
 
     // Struct for data request
     let login_data = LoginRequest {

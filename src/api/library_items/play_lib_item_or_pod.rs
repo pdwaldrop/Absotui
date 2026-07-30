@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::utils::http_client::api_client;
 use color_eyre::eyre::Result;
 use reqwest::header::AUTHORIZATION;
 use serde::{Serialize, Deserialize};
@@ -45,7 +45,7 @@ pub async fn post_start_playback_session_book(token: Option<&String>, id_library
             log::error!("[get_vlc_version] {e}");
         }
     }
-    let client = Client::new();
+    let client = api_client();
 
     let params = json!({
         "forceDirectPlay": true, // avoid latency load, allow view chapter, cover etc.(the .m3u8 stream the original format, ex: .m4b) when playing with vlc
@@ -130,7 +130,7 @@ pub async fn post_start_playback_session_pod(token: Option<&String>, id_library_
             //eprintln!("{}", e),
         }
     }
-    let client = Client::new();
+    let client = api_client();
 
     let params = json!({
         "forceDirectPlay": true, // avoid latency load, allow view chapter, cover etc.(the .m3u8 stream the original format, ex: .m4b) when playing with vlc

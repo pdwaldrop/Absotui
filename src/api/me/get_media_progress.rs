@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::utils::http_client::api_client;
 use serde_json::Value;
 use reqwest::header::AUTHORIZATION;
 use color_eyre::eyre::{Result, Report};
@@ -37,7 +37,7 @@ pub struct Root {
 /// <https://api.audiobookshelf.org/#get-a-media-progress>
 // get progress for a book
 pub async fn get_book_progress(token: &str, book_id: &String, server_address: String) -> Result<Root> {
-    let client = Client::new();
+    let client = api_client();
     let url = format!("{server_address}/api/me/progress/{book_id}");
 
     // Send GET request
@@ -72,7 +72,7 @@ pub async fn get_book_progress(token: &str, book_id: &String, server_address: St
 /// isn't found by the bare episode ID alone - it needs the parent podcast's library item
 /// ID too, the same two-ID shape `update_media_progress2_pod` already uses to write it.
 pub async fn get_episode_progress(token: &str, library_item_id: &str, episode_id: &str, server_address: String) -> Result<Root> {
-    let client = Client::new();
+    let client = api_client();
     let url = format!("{server_address}/api/me/progress/{library_item_id}/{episode_id}");
 
     let response = client

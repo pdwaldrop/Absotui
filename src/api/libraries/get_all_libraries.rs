@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::utils::http_client::api_client;
 use serde_json::Value;
 use reqwest::header::AUTHORIZATION;
 use color_eyre::eyre::{Result, Report};
@@ -64,7 +64,7 @@ pub struct Settings {
 
 // get all libraries (shelf). A library can be a Podcast or a Book type
 pub async fn get_all_libraries(token: &str, server_address: String) -> Result<Root> {
-    let client = Client::new();
+    let client = api_client();
     let url = format!("{server_address}/api/libraries");
 
     // Send GET request

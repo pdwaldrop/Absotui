@@ -1,3 +1,4 @@
+use crate::utils::http_client::api_client;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::json;
 use std::error::Error;
@@ -10,7 +11,7 @@ use log::{info, error};
 pub async fn update_media_progress_book(id_library_item: &str, token: Option<&String>, current_time: Option<u32>, duration: &str, server_adress: String) -> Result<(), Box<dyn Error>> {
 
     // Build client reqwest
-    let client = reqwest::Client::new();
+    let client = api_client();
 
     // convert data before init progress (float)
     let duration_f32 = duration.parse::<f32>().unwrap();
@@ -50,7 +51,7 @@ pub async fn update_media_progress_book(id_library_item: &str, token: Option<&St
 pub async fn update_media_progress2_book(id_library_item: &str, token: Option<&String>, current_time: Option<u32>, duration: &str, is_finished: bool, server_adress: String) -> Result<(), Box<dyn Error>> {
 
     // Build client reqwest
-    let client = reqwest::Client::new();
+    let client = api_client();
 
     // convert data before init progress (float)
     let duration_f32 = duration.parse::<f32>().unwrap();
@@ -90,7 +91,7 @@ pub async fn update_media_progress2_book(id_library_item: &str, token: Option<&S
 pub async fn update_media_progress_pod(id_library_item: &str , token: Option<&String>, current_time: Option<u32>, duration: &str, ep_id : &str, server_adress: String) -> Result<(), Box<dyn Error>> {
 
     // Build client reqwest
-    let client = reqwest::Client::new();
+    let client = api_client();
 
     // convert data before init progress (float)
     let duration_f32 = duration.parse::<f32>().unwrap();
@@ -130,7 +131,7 @@ pub async fn update_media_progress_pod(id_library_item: &str , token: Option<&St
 pub async fn update_media_progress2_pod(id_library_item: &str, token: Option<&String>, current_time: Option<u32>, duration: &str, is_finished: bool, ep_id: &str, server_adress: String) -> Result<(), Box<dyn Error>> {
 
     // Build client reqwest
-    let client = reqwest::Client::new();
+    let client = api_client();
 
     // convert data before init progress (float)
     let duration_f32 = duration.parse::<f32>().unwrap();

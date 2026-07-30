@@ -7,6 +7,7 @@ use crate::api::library_items::play_lib_item_or_pod::{post_start_playback_sessio
 use crate::api::sessions::close_open_session::close_session_without_send_prg_data;
 use crate::db::crud::{insert_download, delete_download, get_download, list_downloaded_ids};
 use crate::db::database_struct::DownloadedTrack;
+use crate::utils::http_client::download_client;
 
 fn downloads_dir() -> PathBuf {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -84,7 +85,7 @@ pub async fn download_book(token: String, item_id: String, title: String, author
         error!("[download_book] failed to close transient session for {item_id}: {e}");
     }
 
-    let client = reqwest::Client::new();
+    let client = download_client();
     std::fs::create_dir_all(downloads_dir())?;
 
     // One at a time, same as every other download in this file - a multi-hundred-MB
@@ -145,7 +146,7 @@ pub async fn download_episode(token: String, podcast_id: String, episode_id: Str
         error!("[download_episode] failed to close transient session for {episode_id}: {e}");
     }
 
-    let client = reqwest::Client::new();
+    let client = download_client();
     let response = client
         .get(format!("{server_address}{content_url}"))
         .header(AUTHORIZATION, format!("Bearer {token}"))
