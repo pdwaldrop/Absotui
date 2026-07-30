@@ -735,6 +735,12 @@ impl App {
     // init start_vlc variables
     let is_cvlc = config.player.cvlc.clone();
     let is_cvlc_term = config.player.cvlc_term.clone();
+    // On Linux, `cvlc = "1"` selects the actual `cvlc` binary; macOS has no separate
+    // cvlc binary to select (VLC.app is the only one), so this always launches that
+    // one regardless. Whether playback runs headless is a *separate* question, decided
+    // in start_vlc.rs purely from `is_cvlc` (see bug_id fe4116) - previously this
+    // override discarded `is_cvlc` outright on macOS, which is what made the setting
+    // do nothing there.
     let mut start_vlc_program = match is_cvlc.as_str() {
         "1" => "cvlc".to_string(),
         _ => "vlc".to_string(),
@@ -1482,6 +1488,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
             // init for start_vlc
             let start_vlc_program = self.start_vlc_program.clone();
+            let is_cvlc = self.is_cvlc.clone();
             let is_cvlc_term = self.is_cvlc_term.clone();
 
             // Podcast Autoplay needs these to re-fetch the live "New & Unfinished"
@@ -1527,6 +1534,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 ids_ep_cnt_list,
                                 server_address,
                                 start_vlc_program,
+                                is_cvlc,
                                 is_cvlc_term,
                                 username,
                                 id_selected_lib,
@@ -1561,6 +1569,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 address_player,
                                 server_address, 
                                 start_vlc_program,
+                                is_cvlc,
                                 is_cvlc_term, 
                                 username,
                             ).await;
@@ -1657,6 +1666,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     address_player,
                                     server_address, 
                                     start_vlc_program,
+                                    is_cvlc,
                                     is_cvlc_term, 
                                     username,
                                 ).await;
@@ -1703,6 +1713,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     address_player,
                                     server_address, 
                                     start_vlc_program,
+                                    is_cvlc,
                                     is_cvlc_term, 
                                     username,
                                 ).await;
@@ -1749,6 +1760,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                         id_pod_clone.as_str(), 
                                         server_address, 
                                         start_vlc_program,
+                                        is_cvlc,
                                         is_cvlc_term, 
                                         username,
                                     ).await;
@@ -1791,6 +1803,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                         id_pod_clone.as_str(), 
                                         server_address, 
                                         start_vlc_program,
+                                        is_cvlc,
                                         is_cvlc_term, 
                                         username,
                                     ).await;

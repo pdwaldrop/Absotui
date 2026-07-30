@@ -28,6 +28,7 @@ pub async fn handle_l_pod_home(
     id_pod: Vec<String>,
     server_address: String,
     program: String,
+    is_cvlc: String,
     is_cvlc_term: String,
     username: String,
     id_selected_lib: String,
@@ -69,6 +70,7 @@ pub async fn handle_l_pod_home(
                     port.clone(),
                     address_player.clone(),
                     program.clone(),
+                    is_cvlc.clone(),
                     username.clone(),
                     token.clone(),
                     server_address.clone(),
@@ -116,6 +118,7 @@ pub async fn handle_l_pod_home(
             let address_player_clone = address_player.clone() ;
             let username_clone = username.clone();
             let program_clone = program.clone();
+            let is_cvlc_clone = is_cvlc.clone();
             let id_clone = id.clone();
             // downloaded episode, if any - play from the local copy instead of
             // streaming, even though the server was reachable enough to start this
@@ -137,6 +140,7 @@ pub async fn handle_l_pod_home(
                     info_item_clone[6].clone(), //title
                     server_address_clone.clone(), // server address
                     program_clone,
+                    is_cvlc_clone,
                     username_clone,
                     id_clone,
                     local_file_path,

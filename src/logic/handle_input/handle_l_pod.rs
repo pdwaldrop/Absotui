@@ -26,6 +26,7 @@ pub async fn handle_l_pod(
     id_pod: &str,
     server_address: String,
     program: String,
+    is_cvlc: String,
     is_cvlc_term: String,
     username: String,
 
@@ -62,6 +63,7 @@ pub async fn handle_l_pod(
                     port.clone(),
                     address_player.clone(),
                     program.clone(),
+                    is_cvlc.clone(),
                     username.clone(),
                     token.clone(),
                     server_address.clone(),
@@ -111,6 +113,7 @@ pub async fn handle_l_pod(
                             let address_player_clone = address_player.clone() ;
                             let username_clone = username.clone();
                             let program_clone = program.clone();
+                            let is_cvlc_clone = is_cvlc.clone();
                             let id_pod_clone = id_pod.to_string();
                             // downloaded episode, if any - play from the local copy
                             // instead of streaming, even though the server was
@@ -132,6 +135,7 @@ pub async fn handle_l_pod(
                                     info_item_clone[6].clone(), //title
                                     server_address_clone.clone(), // server address
                                     program_clone,
+                                    is_cvlc_clone,
                                     username_clone,
                                     id_pod_clone,
                                     local_file_path,

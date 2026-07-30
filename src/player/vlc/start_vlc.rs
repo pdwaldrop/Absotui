@@ -36,6 +36,7 @@ pub async fn start_vlc(
     author: String,
     server_address: String,
     program: String,
+    is_cvlc: String,
     username: String,
     id_item: String,
     local_file_path: Option<String>,
@@ -70,10 +71,21 @@ pub async fn start_vlc(
     // `spawn_blocking` moves it onto tokio's separate blocking-task thread pool
     // instead, which doesn't participate in polling/timers for anything else.
     tokio::task::spawn_blocking(move || {
-        Command::new(&program)
-            .arg("-I") // for macos
-            .arg("dummy") // for macos
-            .arg(format!("--start-time={current_time}"))
+        let mut cmd = Command::new(&program);
+        // `-I dummy` suppresses VLC's normal interface (GUI window on macOS, or
+        // whichever the platform default is) so it runs headless, controlled purely
+        // through the `--extraintf rc` RC connection below - this app never shows a
+        // native VLC window either way. Only when cvlc=1: previously unconditional
+        // regardless of the config setting, on every platform - meaning `cvlc = "0"`
+        // never actually did anything observable, even on Linux where `program` did
+        // switch from `cvlc` to `vlc` (both still ran fully headless). Gating on
+        // `is_cvlc` here, rather than `program`, is what makes `cvlc = "0"` show a
+        // real VLC window - `program` alone can't carry that on macOS, which has no
+        // separate cvlc binary and always launches the same VLC.app path.
+        if is_cvlc == "1" {
+            cmd.arg("-I").arg("dummy");
+        }
+        cmd.arg(format!("--start-time={current_time}"))
             .arg("--extraintf")
             .arg("rc")
             .arg("--rc-host")
