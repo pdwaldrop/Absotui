@@ -4,11 +4,9 @@
 [![Rust](https://img.shields.io/badge/Rust-CE422B?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-informational)
 
-<p align="center">
-  <img src="linux/absotui.svg" width="110" alt="Absotui icon">
-</p>
-
-<h1 align="center">🦜 Absotui</h1>
+<h1 align="center">
+  <img src="linux/absotui.svg" width="50" valign="middle" alt="Absotui icon"> Absotui
+</h1>
 <p align="center"><strong>A TUI Audiobookshelf client for Linux and macOS</strong></p>
 
 <p align="center">
