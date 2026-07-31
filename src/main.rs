@@ -212,6 +212,11 @@ async fn main() -> Result<()> {
             // has passed, so this is cheap to call every loop iteration.
             let _ = app.refresh_podcast_home_if_stale().await;
 
+            // Merges the background podcast-episode-list fetch spawned in App::new()
+            // into the live app the moment it's ready (see bug_id 3f729c) - a no-op
+            // once already consumed or while still in flight.
+            app.poll_pod_ep_fetch();
+
             // Drain one pending Settings > Update / Uninstall progress event, if any
             // (non-blocking) - keeps that screen's log panel live without a dedicated
             // blocking sub-loop, just reusing this same draw/poll cadence.

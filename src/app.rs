@@ -117,6 +117,10 @@ pub struct App {
     pub search_query: String,
     pub search_mode: bool,
     pub is_podcast: bool,
+    // Set only while the background fetch spawned in `App::new()` is still in flight -
+    // see `fetch_all_pod_ep` and `poll_pod_ep_fetch`. `None` both before any podcast
+    // library is loaded and after the one batch this ever delivers has been consumed.
+    pub(crate) pod_ep_receiver: Option<tokio::sync::oneshot::Receiver<PodEpBatch>>,
     pub all_titles_pod_ep: Vec<Vec<String>>,
     pub all_ids_pod_ep: Vec<Vec<String>>,
     pub all_subtitles_pod_ep: Vec<Vec<String>>,
@@ -249,6 +253,99 @@ struct PodcastHomeData {
     // `ino` of the episode's audio file, only when it's worth checking for embedded
     // cover art - see collect_embedded_cover_ino_pod_cnt_list.
     embedded_cover_ino: Vec<Option<String>>,
+}
+
+/// One full batch of "every podcast's episode list" data - see `App`'s `all_*_pod_ep`
+/// fields and `fetch_all_pod_ep`'s doc comment for why this is fetched in the
+/// background rather than as part of `App::new()` itself.
+pub(crate) struct PodEpBatch {
+    titles: Vec<Vec<String>>,
+    ids: Vec<Vec<String>>,
+    subtitles: Vec<Vec<String>>,
+    seasons: Vec<Vec<String>>,
+    episodes: Vec<Vec<String>>,
+    authors: Vec<Vec<String>>,
+    descs: Vec<Vec<String>>,
+    titles_pod: Vec<Vec<String>>,
+    durations: Vec<Vec<String>>,
+}
+
+/// Fetches every podcast's full episode list, one request per podcast in
+/// `ids_library`, concurrently (capped at `MAX_CONCURRENT_REQUESTS`). Split out of
+/// `App::new()` (see bug_id 3f729c) so it can run as a background task instead of
+/// blocking the first render - it was ~5s of a ~7s startup on a 22-podcast library, and
+/// is only actually needed once the user opens a specific podcast from Library or
+/// searches episode titles/descriptions (`render_search_book` re-filters every render
+/// frame, so it picks up results the moment `poll_pod_ep_fetch` merges them in - no
+/// separate invalidation needed).
+///
+/// A single podcast's fetch failing does *not* abort the batch (unlike the old inline
+/// version, which used `?` and would fail the whole of `App::new()` over one podcast's
+/// transient error) - failures push an empty episode list for that podcast instead, so
+/// every returned `Vec` stays exactly as long as `ids_library` and index-aligned with
+/// it. A background task has no caller left to propagate a `Result` to by the time it
+/// would fail, so silently degrading one podcast to "no episodes yet" is the only
+/// option that doesn't panic downstream index lookups.
+async fn fetch_all_pod_ep(token: String, server_address: String, ids_library: Vec<String>) -> PodEpBatch {
+    let mut batch = PodEpBatch {
+        titles: Vec::with_capacity(ids_library.len()),
+        ids: Vec::with_capacity(ids_library.len()),
+        subtitles: Vec::with_capacity(ids_library.len()),
+        seasons: Vec::with_capacity(ids_library.len()),
+        episodes: Vec::with_capacity(ids_library.len()),
+        authors: Vec::with_capacity(ids_library.len()),
+        descs: Vec::with_capacity(ids_library.len()),
+        titles_pod: Vec::with_capacity(ids_library.len()),
+        durations: Vec::with_capacity(ids_library.len()),
+    };
+
+    // Built up front as owned futures, not directly inside stream::iter(...map(closure)) -
+    // the latter makes rustc infer a too-narrow higher-ranked lifetime for the borrowed
+    // `token`/`server_address` here, which then fails to satisfy Send once this whole
+    // function is itself awaited inside another spawned task's async block (as it is in
+    // App::new()) even though nothing here actually holds a real borrow across an await
+    // point. Same fix as the equivalent fan-out in get_library_perso_view_pod.rs.
+    let mut episode_list_futures = Vec::with_capacity(ids_library.len());
+    for id_library in &ids_library {
+        let token = token.clone();
+        let server_address = server_address.clone();
+        let id_library = id_library.clone();
+        episode_list_futures.push(async move { get_pod_ep(&token, server_address, id_library.as_str()).await });
+    }
+    let episode_lists: Vec<Result<GetPodEpRoot>> = stream::iter(episode_list_futures)
+        .buffered(MAX_CONCURRENT_REQUESTS)
+        .collect()
+        .await;
+
+    for result in episode_lists {
+        let podcast_episode = match result {
+            Ok(p) => p,
+            Err(e) => {
+                error!("[fetch_all_pod_ep] failed to fetch a podcast's episode list, treating it as empty for now: {e}");
+                batch.titles.push(Vec::new());
+                batch.ids.push(Vec::new());
+                batch.subtitles.push(Vec::new());
+                batch.seasons.push(Vec::new());
+                batch.episodes.push(Vec::new());
+                batch.authors.push(Vec::new());
+                batch.descs.push(Vec::new());
+                batch.titles_pod.push(Vec::new());
+                batch.durations.push(Vec::new());
+                continue;
+            }
+        };
+        batch.titles.push(collect_titles_pod_ep(&podcast_episode).await);
+        batch.ids.push(collect_ids_pod_ep(&podcast_episode).await);
+        batch.subtitles.push(collect_subtitles_pod_ep(&podcast_episode).await);
+        batch.seasons.push(collect_seasons_pod_ep(&podcast_episode).await);
+        batch.episodes.push(collect_episodes_pod_ep(&podcast_episode).await);
+        batch.authors.push(collect_authors_pod_ep(&podcast_episode).await);
+        batch.descs.push(collect_descs_pod_ep(&podcast_episode).await);
+        batch.titles_pod.push(collect_titles_pod(&podcast_episode).await);
+        batch.durations.push(collect_durations_pod_ep(&podcast_episode).await);
+    }
+
+    batch
 }
 
 async fn fetch_podcast_home_data(token: &str, server_address: String, id_selected_lib: &String, newest_first: bool, username: &str) -> Result<PodcastHomeData> {
@@ -645,15 +742,15 @@ impl App {
 
 
     //init for `PodcastEpisode`
-    let mut all_titles_pod_ep: Vec<Vec<String>> = Vec::new(); // fetch titles for all podcast episodes. Ex: {titles_pod1_ep1, title_pod1_ep2}, {titles_pod2_ep1, title_pod2_ep2} 
-    let mut all_ids_pod_ep: Vec<Vec<String>> = Vec::new();
-    let mut all_subtitles_pod_ep: Vec<Vec<String>> = Vec::new();
-    let mut all_seasons_pod_ep: Vec<Vec<String>> = Vec::new();
-    let mut all_episodes_pod_ep: Vec<Vec<String>> = Vec::new();
-    let mut all_authors_pod_ep: Vec<Vec<String>> = Vec::new();
-    let mut all_descs_pod_ep: Vec<Vec<String>> = Vec::new();
-    let mut all_titles_pod: Vec<Vec<String>> = Vec::new(); // fetch title of a podcast (not episode)
-    let mut all_durations_pod_ep: Vec<Vec<String>> = Vec::new();
+    let all_titles_pod_ep: Vec<Vec<String>> = Vec::new(); // fetch titles for all podcast episodes. Ex: {titles_pod1_ep1, title_pod1_ep2}, {titles_pod2_ep1, title_pod2_ep2} 
+    let all_ids_pod_ep: Vec<Vec<String>> = Vec::new();
+    let all_subtitles_pod_ep: Vec<Vec<String>> = Vec::new();
+    let all_seasons_pod_ep: Vec<Vec<String>> = Vec::new();
+    let all_episodes_pod_ep: Vec<Vec<String>> = Vec::new();
+    let all_authors_pod_ep: Vec<Vec<String>> = Vec::new();
+    let all_descs_pod_ep: Vec<Vec<String>> = Vec::new();
+    let all_titles_pod: Vec<Vec<String>> = Vec::new(); // fetch title of a podcast (not episode)
+    let all_durations_pod_ep: Vec<Vec<String>> = Vec::new();
     let titles_pod_ep: Vec<String> = Vec::new(); // fetch episode titles for a podcast. {titles_pod1_ep1, title_pod1_ep2} 
     let ids_pod_ep: Vec<String> = Vec::new();
     let ids_pod_ep_search: Vec<String> = Vec::new();
@@ -665,50 +762,25 @@ impl App {
     let titles_pod: Vec<String> = Vec::new();
     let durations_pod_ep: Vec<String> = Vec::new();
 
-    if is_podcast {
-    // One full episode-list fetch per podcast in the library - the single biggest
-    // chunk of startup time (measured 9.8s of a 17.5s App::new over 22 podcasts,
-    // ~450ms each, strictly sequential). Issued concurrently instead, capped so a
-    // large library doesn't open an unbounded number of connections at once.
-    //
-    // `buffered` (NOT `buffer_unordered`) matters: the nine `all_*_pod_ep` arrays
-    // below are parallel arrays indexed by the podcast's position in `ids_library`,
-    // so results have to come back in request order or every one of them silently
-    // desyncs against the others (see CLAUDE.md). The `collect_*` calls stay
-    // sequential - they're pure in-memory transforms, no I/O, so there's nothing to
-    // gain from parallelizing them and doing so would reintroduce the ordering risk.
-    let episode_lists: Vec<Result<GetPodEpRoot>> = stream::iter(ids_library.iter().map(|id_library| {
+    // Every podcast's full episode list (the `all_*_pod_ep` arrays) is fetched in the
+    // background rather than here - see `fetch_all_pod_ep`'s doc comment for why (bug_id
+    // 3f729c: this was ~5s of a ~7s startup on a 22-podcast library). `poll_pod_ep_fetch`
+    // merges the result into `self` once it arrives, called every render-loop iteration
+    // from main.rs the same way `poll_update_uninstall_event` already is. Until then the
+    // arrays are simply empty - `render_search_book` and the Library->PodcastEpisode
+    // transition both already guard against an index not being populated yet.
+    let pod_ep_receiver = if is_podcast {
+        let (tx, rx) = tokio::sync::oneshot::channel();
         let token = token.clone();
         let server_address = server_address.clone();
-        let id_library = id_library.clone();
-        async move { get_pod_ep(&token, server_address, id_library.as_str()).await }
-    }))
-    .buffered(MAX_CONCURRENT_REQUESTS)
-    .collect()
-    .await;
-
-    for podcast_episode in episode_lists
-    {let podcast_episode = podcast_episode?;
-        let title = collect_titles_pod_ep(&podcast_episode).await;
-        all_titles_pod_ep.push(title);
-        let id = collect_ids_pod_ep(&podcast_episode).await;
-        all_ids_pod_ep.push(id);
-        let sub = collect_subtitles_pod_ep(&podcast_episode).await;
-        all_subtitles_pod_ep.push(sub);
-        let seasons = collect_seasons_pod_ep(&podcast_episode).await;
-        all_seasons_pod_ep.push(seasons);
-        let numep = collect_episodes_pod_ep(&podcast_episode).await;
-        all_episodes_pod_ep.push(numep);
-        let authors = collect_authors_pod_ep(&podcast_episode).await;
-        all_authors_pod_ep.push(authors);
-        let desc = collect_descs_pod_ep(&podcast_episode).await;
-        all_descs_pod_ep.push(desc);
-        let title_pod = collect_titles_pod(&podcast_episode).await;
-        all_titles_pod.push(title_pod);
-        let duration = collect_durations_pod_ep(&podcast_episode).await;
-        all_durations_pod_ep.push(duration);
-    }
-}
+        let ids_library = ids_library.clone();
+        tokio::spawn(async move {
+            let _ = tx.send(fetch_all_pod_ep(token, server_address, ids_library).await);
+        });
+        Some(rx)
+    } else {
+        None
+    };
     // init for `Settings`
     let settings = vec!["Library".to_string(), "Per-Item Speed".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update / Uninstall".to_string(), "Auto Download".to_string()];
 
@@ -833,6 +905,7 @@ impl App {
         search_mode,
         search_query,
         is_podcast,
+        pod_ep_receiver,
         all_titles_pod_ep,
         all_ids_pod_ep,
         titles_pod_ep,
@@ -1469,15 +1542,30 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             if self.is_podcast {
                 if let Some(index) = selected_library
                     && let Some(_id_pod) = ids_library.get(index) {
-                        self.ids_pod_ep = self.all_ids_pod_ep[index].clone();
+                        // `.get` rather than `[index]`: the background fetch this
+                        // depends on (see bug_id 3f729c, poll_pod_ep_fetch) may not
+                        // have delivered yet - if so, this is prep for a screen
+                        // transition that itself already guards on readiness below, so
+                        // there's nothing meaningful to set here yet.
+                        if let Some(ids) = self.all_ids_pod_ep.get(index) {
+                            self.ids_pod_ep = ids.clone();
+                        }
                     }
                 if let Some(index) = selected_search_book {
                     // ids_library_pod_search because we need the pod id and he is given by
                     // this variable
                     if let Some(_id_pod) = self.ids_library_pod_search.get(index) {
                         //    println!("{:?}", id_pod);
-                        self.ids_pod_ep_search = self.all_ids_pod_ep_search[index].clone();
-                        //   println!("{:?}", all_ids_pod_ep_search_clone[index]);
+                        // `.get` rather than `[index]`: `ids_library_pod_search` doesn't
+                        // depend on the background pod_ep fetch (bug_id 3f729c) but
+                        // `all_ids_pod_ep_search` does - it's filtered from
+                        // `all_ids_pod_ep`, which can legitimately be shorter (even
+                        // empty) than the search results list while that fetch is still
+                        // in flight. Same "nothing meaningful to set yet" reasoning as
+                        // the non-search version above.
+                        if let Some(ids) = self.all_ids_pod_ep_search.get(index) {
+                            self.ids_pod_ep_search = ids.clone();
+                        }
                     }}
             }
             // Init for `SettingsAccount`
@@ -1630,16 +1718,27 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 AppView::Library => {
                     if self.is_podcast {
                         if let Some(index) = selected_library {
-                            self.titles_pod_ep = self.all_titles_pod_ep[index].clone();
-                            self.subtitles_pod_ep = self.all_subtitles_pod_ep[index].clone();
-                            self.seasons_pod_ep = self.all_seasons_pod_ep[index].clone();
-                            self.episodes_pod_ep = self.all_episodes_pod_ep[index].clone();
-                            self.authors_pod_ep = self.all_authors_pod_ep[index].clone();
-                            self.descs_pod_ep = self.all_descs_pod_ep[index].clone();
-                            self.titles_pod = self.all_titles_pod[index].clone();
-                            self.durations_pod_ep = self.all_durations_pod_ep[index].clone();
-                            self.list_state_pod_ep.select(Some(0));
-                            self.view_state = AppView::PodcastEpisode;
+                            // The background fetch this depends on (bug_id 3f729c,
+                            // poll_pod_ep_fetch) is usually done well before a user
+                            // reaches here - Home renders in ~2s, and reaching Library
+                            // and picking a podcast takes at least that long by hand -
+                            // but on the rare chance it isn't yet, stay on this screen
+                            // and say so rather than opening an empty episode list.
+                            if index >= self.all_ids_pod_ep.len() {
+                                let mut stdout = stdout();
+                                let _ = pop_message(&mut stdout, 2, "Still loading episode lists, try again in a moment...");
+                            } else {
+                                self.titles_pod_ep = self.all_titles_pod_ep[index].clone();
+                                self.subtitles_pod_ep = self.all_subtitles_pod_ep[index].clone();
+                                self.seasons_pod_ep = self.all_seasons_pod_ep[index].clone();
+                                self.episodes_pod_ep = self.all_episodes_pod_ep[index].clone();
+                                self.authors_pod_ep = self.all_authors_pod_ep[index].clone();
+                                self.descs_pod_ep = self.all_descs_pod_ep[index].clone();
+                                self.titles_pod = self.all_titles_pod[index].clone();
+                                self.durations_pod_ep = self.all_durations_pod_ep[index].clone();
+                                self.list_state_pod_ep.select(Some(0));
+                                self.view_state = AppView::PodcastEpisode;
+                            }
                         }} else {
 
                             tokio::spawn(async move {
@@ -1677,17 +1776,26 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                     if self.is_podcast {
                         self.is_from_search_pod = true;
                         if let Some(index) = selected_search_book {
-                            self.titles_pod_ep_search = self.all_titles_pod_ep_search[index].clone();
-                            self.subtitles_pod_ep_search = self.all_subtitles_pod_ep_search[index].clone();
-                            self.seasons_pod_ep_search = self.all_seasons_pod_ep_search[index].clone();
-                            self.episodes_pod_ep_search = self.all_episodes_pod_ep_search[index].clone();
-                            self.authors_pod_ep_search = self.all_authors_pod_ep_search[index].clone();
-                            self.descs_pod_ep_search = self.all_descs_pod_ep_search[index].clone();
-                            self.titles_pod_search = self.all_titles_pod_search[index].clone();
-                            self.durations_pod_ep_search = self.all_durations_pod_ep_search[index].clone();
-                            self.list_state_pod_ep.select(Some(0));
-                            self.view_state = AppView::PodcastEpisode;
-                        }} else {   
+                            // `all_ids_pod_ep_search`'s length tracks the background
+                            // pod_ep fetch (bug_id 3f729c), not the search-results list
+                            // `index` is bounded by - see the guard note on
+                            // `all_ids_pod_ep_search.get` above.
+                            if index >= self.all_ids_pod_ep_search.len() {
+                                let mut stdout = stdout();
+                                let _ = pop_message(&mut stdout, 2, "Still loading episode lists, try again in a moment...");
+                            } else {
+                                self.titles_pod_ep_search = self.all_titles_pod_ep_search[index].clone();
+                                self.subtitles_pod_ep_search = self.all_subtitles_pod_ep_search[index].clone();
+                                self.seasons_pod_ep_search = self.all_seasons_pod_ep_search[index].clone();
+                                self.episodes_pod_ep_search = self.all_episodes_pod_ep_search[index].clone();
+                                self.authors_pod_ep_search = self.all_authors_pod_ep_search[index].clone();
+                                self.descs_pod_ep_search = self.all_descs_pod_ep_search[index].clone();
+                                self.titles_pod_search = self.all_titles_pod_search[index].clone();
+                                self.durations_pod_ep_search = self.all_durations_pod_ep_search[index].clone();
+                                self.list_state_pod_ep.select(Some(0));
+                                self.view_state = AppView::PodcastEpisode;
+                            }
+                        }} else {
 
                             tokio::spawn(async move {
                                 // close vlc 
@@ -2015,6 +2123,36 @@ pub fn select_last(&mut self) {
 // dedicated blocking sub-loop.
 pub fn poll_update_uninstall_event(&mut self) -> Option<ProgressEvent> {
     self.update_uninstall_receiver.as_mut()?.try_recv().ok()
+}
+
+// Non-blocking check for the background podcast-episode-list fetch spawned in
+// App::new() (see bug_id 3f729c) - called from main.rs's render loop every iteration,
+// same as poll_update_uninstall_event above. Merges the batch into self the moment
+// it's ready; a no-op while still in flight, and a permanent no-op once already
+// consumed (pod_ep_receiver is None either way).
+pub fn poll_pod_ep_fetch(&mut self) {
+    let Some(rx) = self.pod_ep_receiver.as_mut() else { return };
+    match rx.try_recv() {
+        Ok(batch) => {
+            self.all_titles_pod_ep = batch.titles;
+            self.all_ids_pod_ep = batch.ids;
+            self.all_subtitles_pod_ep = batch.subtitles;
+            self.all_seasons_pod_ep = batch.seasons;
+            self.all_episodes_pod_ep = batch.episodes;
+            self.all_authors_pod_ep = batch.authors;
+            self.all_descs_pod_ep = batch.descs;
+            self.all_titles_pod = batch.titles_pod;
+            self.all_durations_pod_ep = batch.durations;
+            self.pod_ep_receiver = None;
+        }
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {}
+        Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
+            // Sender dropped without sending - shouldn't happen (the spawned task
+            // always sends before finishing) but stop polling a receiver that can
+            // never resolve rather than checking it forever.
+            self.pod_ep_receiver = None;
+        }
+    }
 }
 
 // Built lazily on ProgressEvent::NeedPassword rather than up front on confirm, since
