@@ -147,7 +147,7 @@ Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sql
 ---
 
 ## 🛠️ Roadmap
-Recent work: offline playback for both books and podcast episodes, with an Auto Download setting to keep your active listening downloaded automatically; file size shown in the Home info panel.
+Recent work: audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly).
 
 **Under consideration:**
 - Playlist/Collections view
