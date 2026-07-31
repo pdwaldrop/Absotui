@@ -679,8 +679,7 @@ let changelog_41 = "Changelog Absotui v0.5.26-beta (29/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_42 = format!(
-    "Changelog Absotui v{VERSION} (30/07/2026) \n\
+let changelog_42 = "Changelog Absotui v0.5.27-beta (30/07/2026) \n\
          \n\
          Changed:\n\
          - App startup is significantly faster, especially with a large
@@ -690,10 +689,33 @@ let changelog_42 = format!(
            independent startup fetches) now run concurrently instead.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_43 = format!(
+    "Changelog Absotui v{VERSION} (30/07/2026) \n\
+         \n\
+         Changed:\n\
+         - App startup with a large podcast library is faster still - a
+           22-podcast library now measures about 4-5 seconds, down from
+           roughly 7 seconds in the previous release (and about 17.5
+           seconds two releases ago). Podcast episode lists now load in
+           the background after the app opens instead of blocking
+           startup - if you open a podcast's episode list or search for
+           an episode before that finishes (rarely more than a second
+           or two after the app is usable), you'll briefly see a
+           \"still loading\" message instead.
+         \n\
+         Fixed:\n\
+         - On macOS, the `cvlc` setting in config.toml had no effect -
+           the app always launched VLC the same way regardless of how
+           it was set. Setting `cvlc = \"0\"` now shows VLC's normal
+           window, matching Linux behavior.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_43);
     changelog.push_str(&changelog_42);
     changelog.push_str(&changelog_41);
     changelog.push_str(&changelog_40);
