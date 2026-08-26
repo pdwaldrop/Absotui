@@ -21,8 +21,21 @@ struct LoginResponse {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct UserInfo {
-    token: String,
+    token: Option<String>,
+    access_token: Option<String>,
+}
+
+impl UserInfo {
+    fn effective_token(&self) -> &str {
+        if let Some(ref access_token) = self.access_token {
+            if !access_token.is_empty() {
+                return access_token;
+            }
+        }
+        self.token.as_deref().unwrap_or("")
+    }
 }
 
 /// Login
@@ -50,8 +63,12 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
     // Checking the status of the response and fetch data
     if response.status().is_success() {
         let login_response: LoginResponse = response.json().await?;
+        let effective_token = login_response.user.effective_token();
+        if effective_token.is_empty() {
+            return Err(Report::new(std::io::Error::other("No authentication token received from server")));
+        }
 
-        let all_libraries = get_all_libraries(login_response.user.token.as_str(), server_address.to_string()).await?;
+        let all_libraries = get_all_libraries(effective_token, server_address.to_string()).await?;
         let library_names = collect_library_names(&all_libraries).await;
         let _media_types = collect_media_types(&all_libraries).await;
         let library_ids = collect_library_ids(&all_libraries).await;
@@ -67,7 +84,7 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
         }
 
         // Token encryption before insert it in the database
-        let _token_to_encrypt = login_response.user.token.as_str();
+        let _token_to_encrypt = effective_token;
         let mut token_encrypted = String::new();
         match encrypt_token(_token_to_encrypt) {
             Ok(encrypted_token) => {
