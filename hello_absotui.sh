@@ -154,11 +154,36 @@ check_shasum() {
 # CI only builds the real binaries after a release is cut.
 fetch_expected_checksum() {
     local file_name=$1
-    full_version=${full_version:-$(curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"([^\"]*)\",|\1|")}
-    if [[ -z "$checksums_file" || ! -f "$checksums_file" ]]; then
-        checksums_file=$(mktemp)
-        curl -LsSf "$url_latest_binary/$full_version/SHA256SUMS.txt" -o "$checksums_file" 2>/dev/null
+
+    if [[ -z "$full_version" ]]; then
+        full_version=$(curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"([^\"]*)\",|\1|")
+        if [[ -z "$full_version" ]]; then
+            echo "[ERROR] Couldn't reach GitHub's API to determine the latest release version." >&2
+            echo "This usually means a rate limit or transient network issue - wait a few minutes and try again." >&2
+            return 1
+        fi
     fi
+
+    if [[ -z "$checksums_file" || ! -f "$checksums_file" ]]; then
+        # A failed `mktemp` here used to be indistinguishable from a GitHub API
+        # failure below it - both just left $checksums_file empty/unreadable,
+        # producing the same generic "could not determine checksum from GitHub"
+        # message regardless of which one actually happened. Checked explicitly
+        # now, same reasoning as make_tmp_dir's own hardening above.
+        checksums_file=$(mktemp)
+        if [[ -z "$checksums_file" || ! -f "$checksums_file" ]]; then
+            echo "[ERROR] Could not create a temporary file (mktemp failed) to hold the checksum manifest." >&2
+            echo "This usually means \$TMPDIR/\$HOME/tmp is out of disk space, or isn't writable - check with \"df -h /tmp\"." >&2
+            return 1
+        fi
+
+        if ! curl -LsSf "$url_latest_binary/$full_version/SHA256SUMS.txt" -o "$checksums_file" 2>/dev/null; then
+            echo "[ERROR] Couldn't download the checksum manifest (SHA256SUMS.txt) for $full_version from GitHub." >&2
+            echo "This usually means a rate limit or transient network issue - wait a few minutes and try again." >&2
+            return 1
+        fi
+    fi
+
     grep " $file_name\$" "$checksums_file" 2>/dev/null | awk '{print $1}'
 }
 
