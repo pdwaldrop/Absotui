@@ -711,8 +711,7 @@ let changelog_43 = "Changelog Absotui v0.5.28-beta (30/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_44 = format!(
-    "Changelog Absotui v{VERSION} (25/08/2026) \n\
+let changelog_44 = "Changelog Absotui v0.5.29-beta (25/08/2026) \n\
          \n\
          Fixed:\n\
          - Login failed against Audiobookshelf v2.36+, which no longer
@@ -730,10 +729,29 @@ let changelog_44 = format!(
          - sarielhp
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_45 = format!(
+    "Changelog Absotui v{VERSION} (26/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install/update script could report \"Could not determine
+           the expected shasum for hello_absotui.sh from GitHub\" with
+           no way to tell whether that meant a GitHub API/rate-limit
+           issue or a local temp-file problem - the two are now
+           reported distinctly.
+         - The same script could occasionally misread GitHub's release
+           API response and compare against a completely wrong value
+           (a chunk of the release notes instead of the version number)
+           if GitHub happened to return that response as compact JSON
+           instead of pretty-printed - now parsed in a way that doesn't
+           depend on that formatting.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_45);
     changelog.push_str(&changelog_44);
     changelog.push_str(&changelog_43);
     changelog.push_str(&changelog_42);

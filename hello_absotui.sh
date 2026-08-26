@@ -156,7 +156,15 @@ fetch_expected_checksum() {
     local file_name=$1
 
     if [[ -z "$full_version" ]]; then
-        full_version=$(curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"([^\"]*)\",|\1|")
+        # `grep -o` isolates just the "tag_name": "..." fragment before sed extracts
+        # the value, rather than handing sed's greedy `.*` the entire matched line -
+        # GitHub doesn't guarantee pretty-printed (one-field-per-line) JSON, and on a
+        # compact single-line response the old `grep tag_name | sed ...` matched the
+        # *whole response* as "the line", so the greedy pattern captured whatever
+        # quoted-string-then-comma happened to come last in the entire document
+        # (observed live: it grabbed a chunk of the release's own body/reactions
+        # data instead of the tag name).
+        full_version=$(curl -s "$url_latest_release" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
         if [[ -z "$full_version" ]]; then
             echo "[ERROR] Couldn't reach GitHub's API to determine the latest release version." >&2
             echo "This usually means a rate limit or transient network issue - wait a few minutes and try again." >&2
