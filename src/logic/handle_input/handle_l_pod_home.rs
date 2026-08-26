@@ -8,7 +8,8 @@ use crate::api::sessions::close_open_session::close_session_without_send_prg_dat
 use crate::utils::pop_up_message::clear_message;
 use std::io::stdout;
 use log::{info, error};
-use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_is_podcast_autoplay, get_listening_session, get_download};
+use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_is_podcast_autoplay, get_listening_session, get_download, delete_user, update_login_err};
+use crate::api::server::refresh_token::{maybe_refresh_token, RefreshOutcome};
 use crate::utils::vlc_tcp_stream::vlc_tcp_stream;
 use crate::player::vlc::quit_vlc::{pkill_vlc, quit_vlc};
 use crate::utils::convert_seconds::progress_time_diff;
@@ -21,6 +22,7 @@ use crate::logic::handle_input::handle_l_pod_offline::handle_pod_episode_offline
 
 pub async fn handle_l_pod_home(
     token: Option<&String>,
+    refresh_token: Option<&String>,
     ids_library_items: &[String],
     selected: Option<usize>,
     port: String,
@@ -41,6 +43,12 @@ pub async fn handle_l_pod_home(
     pkill_vlc();
 
     let Some(token) = token else { return; };
+    // Owned and mutable so the proactive refresh check below (run once per loop
+    // iteration) can reassign them in place - a Continue Listening episode (or an
+    // autoplay chain of several) can play for well over Audiobookshelf's ~1 hour
+    // default access token lifetime.
+    let mut token = token.clone();
+    let mut refresh_token = refresh_token.cloned().unwrap_or_default();
     let Some(current_index) = selected else { return; };
     let Some(mut id) = ids_library_items.get(current_index).cloned() else { return; };
     let Some(mut id_pod_ep) = id_pod.get(current_index).cloned() else { return; };
@@ -59,7 +67,7 @@ pub async fn handle_l_pod_home(
         // exists - see src/utils/download_cache.rs.
         let downloaded = get_download(&username, &id_pod_ep);
 
-        match post_start_playback_session_pod(Some(token), &id, &id_pod_ep, server_address.clone()).await {
+        match post_start_playback_session_pod(Some(&token), &id, &id_pod_ep, server_address.clone()).await {
         Err(e) => {
             if let Some(downloaded) = downloaded {
                 info!("[handle_l_pod_home] Couldn't start an online playback session ({e}) - falling back to the downloaded copy of {id_pod_ep}");
@@ -73,6 +81,7 @@ pub async fn handle_l_pod_home(
                     is_cvlc.clone(),
                     username.clone(),
                     token.clone(),
+                    refresh_token.clone(),
                     server_address.clone(),
                 ).await;
             } else {
@@ -188,6 +197,21 @@ pub async fn handle_l_pod_home(
             let mut got_real_data = false;
 
             loop {
+                // Keeps this task's own copy of the token fresh independently of the
+                // main App (see CLAUDE.md's "one owner" note) - a Continue Listening
+                // episode, or an autoplay chain of several, can easily outlive
+                // Audiobookshelf's ~1 hour default access token.
+                if maybe_refresh_token(&mut token, &mut refresh_token, username.as_str(), server_address.as_str()).await == RefreshOutcome::Failed {
+                    let _ = delete_user(username.as_str());
+                    let _ = update_login_err("Your session expired - restart Absotui to log in again");
+                    let _ = close_session_without_send_prg_data(Some(&token), &info_item[3], server_address.clone()).await;
+                    let _ = quit_vlc(&address_player, &port);
+                    pkill_vlc();
+                    let _ = update_is_vlc_running("0", username.as_str());
+                    let _ = update_is_loop_break("1", username.as_str());
+                    break 'episodes;
+                }
+
                 match fetch_vlc_data(port.clone(), address_player.clone()).await {
                     Ok(Some(data_fetched_from_vlc)) => {
                         got_real_data = true;
@@ -219,7 +243,7 @@ pub async fn handle_l_pod_home(
                                 let duration_secs = info_item[2].parse::<f64>().map(|d| d.round() as u32).unwrap_or(data_fetched_from_vlc);
 
                                 let next_episode = finish_episode(
-                                    token,
+                                    &token,
                                     &id,
                                     &id_pod_ep,
                                     duration_secs,
@@ -287,8 +311,8 @@ pub async fn handle_l_pod_home(
                             Ok(true) => {
                                 // to sync progress in the server each 10 seconds
                                 if trigger == 10 {
-                                    let _ = update_media_progress_pod(&id, Some(token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
-                                    let _ = sync_session(Some(token), &info_item[3],Some(data_fetched_from_vlc), progress_sync, server_address.clone()).await;
+                                    let _ = update_media_progress_pod(&id, Some(&token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
+                                    let _ = sync_session(Some(&token), &info_item[3],Some(data_fetched_from_vlc), progress_sync, server_address.clone()).await;
                                     // update elapsed_time in database (`listening_session` table)
                                     let _ = update_elapsed_time(progress_sync, info_item[3].as_str());
 
@@ -326,7 +350,7 @@ pub async fn handle_l_pod_home(
                                 // ordering - including an episode already listened to earlier -
                                 // rather than what's actually next in the live queue.)
                                 let next_episode = finish_episode(
-                                    token,
+                                    &token,
                                     &id,
                                     &id_pod_ep,
                                     data_fetched_from_vlc,
@@ -376,11 +400,11 @@ pub async fn handle_l_pod_home(
                                 let _ = update_is_vlc_running("0", username.as_str());
                                 info!("[handle_l_pod_home][Quit]");
                                 // close session when VLC is quitted
-                                let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                                let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
                                 info!("[handle_l_pod_home][Quit] Session successfully closed");
                                 // send one last time media progress (bug to retrieve media
                                 // progress otherwise)
-                                let _ = update_media_progress_pod(&id, Some(token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
+                                let _ = update_media_progress_pod(&id, Some(&token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
                                 info!("[handle_l_pod_home][Quit] VLC closed");
                                 info!("[handle_l_pod_home][Quit] Item {id_pod_ep} closed at {data_fetched_from_vlc}s");
 
@@ -397,10 +421,10 @@ pub async fn handle_l_pod_home(
                     Ok(None) => {
                         let _ = update_is_vlc_running("0", username.as_str());
                         info!("[handle_l_pod_home][None]");
-                        let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                        let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
                         info!("[handle_l_pod_home][None] Session successfully closed");
                         if got_real_data {
-                            let _ = update_media_progress_pod(&id, Some(token), Some(current_time), &info_item[2], &id_pod_ep, server_address.clone()).await;
+                            let _ = update_media_progress_pod(&id, Some(&token), Some(current_time), &info_item[2], &id_pod_ep, server_address.clone()).await;
                             info!("[handle_l_pod_home][None] VLC closed");
                             info!("[handle_l_pod_home][None] Item {id} closed at {current_time}s");
                         } else {
@@ -413,9 +437,9 @@ pub async fn handle_l_pod_home(
                     Err(e) => {
                         error!("[handle_l_pod_home][Err(e)]{e}");
                         let _ = update_is_vlc_running("0", username.as_str());
-                        let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                        let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
                         if got_real_data {
-                            let _ = update_media_progress_pod(&id, Some(token), Some(current_time), &info_item[2], &id_pod_ep, server_address.clone()).await;
+                            let _ = update_media_progress_pod(&id, Some(&token), Some(current_time), &info_item[2], &id_pod_ep, server_address.clone()).await;
                         }
                         let _ = update_is_loop_break("1", username.as_str());
                         break 'episodes; // Exit on error

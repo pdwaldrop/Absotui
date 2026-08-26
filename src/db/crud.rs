@@ -1431,6 +1431,41 @@ pub fn update_server_address(server_address: &str, username: &str) -> Result<()>
     Ok(())
 }
 
+// Persists a freshly-refreshed (access token, refresh token) pair - see
+// src/api/server/refresh_token.rs. Both are already encrypted by the caller, same as
+// the pair `auth_process` stores at login.
+pub fn update_user_tokens(username: &str, encrypted_access_token: &str, encrypted_refresh_token: &str) -> Result<()> {
+
+    let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
+            let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
+
+            if cfg!(target_os = "macos") {
+                path.push("Library/Preferences");
+            } else {
+                path.push(".config");
+            }
+
+            path
+        }, PathBuf::from);
+
+    let db_path = config_home_path.join("absotui/db.sqlite3");
+
+    let err_message = "Error connecting to the database.";
+    if let Ok(conn) = Connection::open(db_path) {
+
+        conn.execute(
+            "UPDATE users SET token = ?1, refresh_token = ?2 WHERE username = ?3",
+            params![encrypted_access_token, encrypted_refresh_token, username],
+        )?;
+        info!("[update_user_tokens] Refreshed token stored for {username}");
+
+    } else {
+        error!("[update_user_tokens] {err_message}");
+    }
+
+    Ok(())
+}
+
 // update default user
 //pub fn update_default_user(conn: &Connection, username: &str) -> Result<()> {
 //    // Mark all user as 0 by default
@@ -1467,8 +1502,8 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
     let conn = Connection::open(db_path)?;
     for user in users {
         conn.execute(
-            "INSERT OR REPLACE INTO users (username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed, is_auto_download)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            "INSERT OR REPLACE INTO users (username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed, is_auto_download, refresh_token)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
             user.username,
             user.server_address,
@@ -1485,6 +1520,7 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
             user.is_podcast_autoplay,
             user.is_per_item_speed,
             user.is_auto_download,
+            user.refresh_token,
             ],
         )?;
     }
@@ -1664,7 +1700,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
     let conn = Connection::open(db_path)?;
 
     let mut stmt = conn.prepare(
-        "SELECT username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed, is_auto_download
+        "SELECT username, server_address, token, is_default_usr, name_selected_lib, id_selected_lib, is_loop_break, is_vlc_launched_first_time, speed_rate, is_vlc_running, is_show_key_bindings, is_speed_adjusted_time, is_podcast_autoplay, is_per_item_speed, is_auto_download, refresh_token
          FROM users WHERE is_default_usr = 1 LIMIT 1"
     )?;
 
@@ -1686,6 +1722,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
             is_podcast_autoplay: row.get(12)?,
             is_per_item_speed: row.get(13)?,
             is_auto_download: row.get(14)?,
+            refresh_token: row.get(15)?,
         })
     })?;
 
@@ -1709,6 +1746,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
                 result.push(user.is_podcast_autoplay);
                 result.push(user.is_per_item_speed);
                 result.push(user.is_auto_download);
+                result.push(user.refresh_token);
             }
             Err(e) => {
                 println!("Error occurred: {e}");
@@ -1760,7 +1798,8 @@ pub fn init_db() -> Result<()> {
                 is_speed_adjusted_time TEXT NOT NULL DEFAULT '1',
                 is_podcast_autoplay TEXT NOT NULL DEFAULT '0',
                 is_per_item_speed TEXT NOT NULL DEFAULT '0',
-                is_auto_download TEXT NOT NULL DEFAULT '0'
+                is_auto_download TEXT NOT NULL DEFAULT '0',
+                refresh_token TEXT NOT NULL DEFAULT ''
             )",
         [],
     )?;
@@ -1793,6 +1832,16 @@ pub fn init_db() -> Result<()> {
     // opt into automatically downloading Continue Listening books via Settings.
     let _ = conn.execute(
         "ALTER TABLE users ADD COLUMN is_auto_download TEXT NOT NULL DEFAULT '0'",
+        [],
+    );
+
+    // Migration for databases created before `refresh_token` existed. Defaults to
+    // empty - an existing logged-in user has no refresh token until they log in again,
+    // and the refresh flow (see src/api/server/refresh_token.rs) treats an empty value
+    // as "nothing to refresh with," so these users just keep working exactly as before
+    // until their current access token naturally expires and they re-authenticate.
+    let _ = conn.execute(
+        "ALTER TABLE users ADD COLUMN refresh_token TEXT NOT NULL DEFAULT ''",
         [],
     );
 

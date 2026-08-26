@@ -28,6 +28,7 @@ pub struct User {
     pub  is_podcast_autoplay: String,
     pub  is_per_item_speed: String,
     pub  is_auto_download: String,
+    pub  refresh_token: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

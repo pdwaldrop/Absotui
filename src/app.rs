@@ -15,7 +15,8 @@ use crate::logic::handle_input::handle_l_book::handle_l_book;
 use crate::logic::handle_input::handle_l_pod::handle_l_pod;
 use crate::logic::handle_input::handle_l_pod_home::handle_l_pod_home;
 use crate::config::{ConfigFile, load_config};
-use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished, get_is_auto_download, update_is_auto_download, update_pending_seek};
+use crate::db::crud::{get_is_show_key_bindings, update_is_show_key_bindings, get_is_speed_adjusted_time, update_is_speed_adjusted_time, update_is_podcast_autoplay, delete_user, update_id_selected_lib, get_listening_session, get_is_vlc_running, update_is_per_item_speed, update_is_finished, get_is_auto_download, update_is_auto_download, update_pending_seek, update_login_err};
+use crate::api::server::refresh_token::{maybe_refresh_token, RefreshOutcome};
 use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
 use crate::utils::download_cache::{is_downloaded, remove_download, download_book, download_episode, sync_auto_downloads, sync_auto_downloads_podcasts};
@@ -90,6 +91,7 @@ pub struct App {
     pub database: Database,
     pub id_selected_lib: String,
     pub token: Option<String>,
+    pub refresh_token: Option<String>,
     pub should_exit: bool,
     pub list_state_cnt_list: ListState,
     pub list_state_library: ListState,
@@ -475,6 +477,20 @@ impl App {
             }
             Err(e) => {
                 println!("Error: {e}");
+            }
+        }
+
+        // retrieve crypted refresh token from database - empty for a legacy/non-JWT
+        // login or an install that hasn't re-authenticated since this feature was
+        // added (see refresh_token.rs's `maybe_refresh_token`, which no-ops on empty)
+        let mut refresh_token: String = String::new();
+        if let Some(var_refresh_token) = database.default_usr.get(15) {
+            refresh_token = var_refresh_token.clone();
+        }
+        if !refresh_token.is_empty() {
+            match decrypt_token(refresh_token.as_str()) {
+                Ok(decrypted_refresh_token) => refresh_token = decrypted_refresh_token,
+                Err(e) => println!("Error: {e}"),
             }
         }
 
@@ -875,6 +891,7 @@ impl App {
         database,
         id_selected_lib,
         token: Some(token),
+        refresh_token: Some(refresh_token),
         should_exit: false,
         list_state_cnt_list,
         list_state_library,
@@ -1010,6 +1027,37 @@ impl App {
     // touching cursor position/selection or anything else - so an episode that just
     // finished (or a newly-published one) shows up without needing a manual refresh,
     // and without disrupting whatever the user is doing in the list.
+    /// Called every main-loop tick (see main.rs) - proactively renews the access token
+    /// well before Audiobookshelf's ~1 hour default expiry, and updates it in place so
+    /// every subsequent call this same running `App` makes uses the fresh value right
+    /// away, without waiting for a full `App::new()` reinit. A no-op whenever there's
+    /// no refresh token to use (see `maybe_refresh_token`'s doc comment).
+    ///
+    /// A long-running playback session doesn't go through this `App` at all (it's a
+    /// detached task talking only to sqlite - see CLAUDE.md's "one owner" note), so it
+    /// carries out this exact same check independently every poll tick - see
+    /// `handle_l_book`/`handle_l_pod`/`handle_l_pod_home`.
+    pub async fn refresh_token_if_needed(&mut self) {
+        let Some(mut token) = self.token.clone() else { return; };
+        let Some(mut refresh_token) = self.refresh_token.clone() else { return; };
+
+        match maybe_refresh_token(&mut token, &mut refresh_token, &self.username, &self.server_address).await {
+            RefreshOutcome::Refreshed => {
+                self.token = Some(token);
+                self.refresh_token = Some(refresh_token);
+            }
+            RefreshOutcome::Failed => {
+                // Refresh token itself is dead (30 days idle, or server-revoked) -
+                // matches the existing Settings > Account "remove account" precedent:
+                // delete the row and rely on the user restarting the app, since there's
+                // no existing live in-process path back to the login screen.
+                let _ = delete_user(&self.username);
+                let _ = update_login_err("Your session expired - restart Absotui to log in again");
+            }
+            RefreshOutcome::NotNeeded => {}
+        }
+    }
+
     pub async fn refresh_podcast_home_if_stale(&mut self) -> Result<()> {
         // Finishing an episode doesn't push a signal to the main render loop (the
         // playback handler runs in a separate spawned task) - it just relies on this
@@ -1508,6 +1556,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
             // Clone needed because variables will be used in a spawn
             let token = self.token.clone();
+            let refresh_token = self.refresh_token.clone();
             let port = self.config.player.port.clone();
             let address_player = self.config.player.address.clone();
             let server_address = self.server_address.clone();
@@ -1615,6 +1664,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                             // start the track
                             handle_l_pod_home(
                                 token.as_ref(),
+                                refresh_token.as_ref(),
                                 &ids_cnt_list,
                                 selected_cnt_list,
                                 port,
@@ -1650,8 +1700,9 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                             // start the track
                             handle_l_book(
-                                token.as_ref(), 
-                                ids_cnt_list, 
+                                token.as_ref(),
+                                refresh_token.as_ref(),
+                                ids_cnt_list,
                                 selected_cnt_list, 
                                 port, 
                                 address_player,
@@ -1759,6 +1810,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 // start the track
                                 handle_l_book(
                                     token.as_ref(),
+                                    refresh_token.as_ref(),
                                     ids_library,
                                     selected_library, 
                                     port, 
@@ -1815,6 +1867,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 // start the track
                                 handle_l_book(
                                     token.as_ref(),
+                                    refresh_token.as_ref(),
                                     ids_search_book,
                                     selected_search_book, 
                                     port, 
@@ -1861,6 +1914,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     // start the track
                                     handle_l_pod(
                                         token.as_ref(),
+                                        refresh_token.as_ref(),
                                         &all_ids_pod_ep_search_clone[index],
                                         selected_pod_ep, 
                                         port, 
@@ -1904,6 +1958,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     // start the track
                                     handle_l_pod(
                                         token.as_ref(),
+                                        refresh_token.as_ref(),
                                         &all_ids_pod_ep_clone[index],
                                         selected_pod_ep, 
                                         port, 

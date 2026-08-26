@@ -6,6 +6,7 @@ version = 4
 name = "absotui"
 version = "0.5.28-beta"
 dependencies = [
+ "base64",
  "chrono",
  "clap",
  "color-eyre",

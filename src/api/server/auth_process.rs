@@ -25,14 +25,14 @@ struct LoginResponse {
 struct UserInfo {
     token: Option<String>,
     access_token: Option<String>,
+    refresh_token: Option<String>,
 }
 
 impl UserInfo {
     fn effective_token(&self) -> &str {
-        if let Some(ref access_token) = self.access_token {
-            if !access_token.is_empty() {
+        if let Some(ref access_token) = self.access_token
+            && !access_token.is_empty() {
                 return access_token;
-            }
         }
         self.token.as_deref().unwrap_or("")
     }
@@ -52,10 +52,15 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
         password: password.to_string(),
     };
 
-    // Send POST request
+    // Send POST request. `x-return-tokens: true` is required for Audiobookshelf to
+    // return `refreshToken` in the response body at all - without it, a server on
+    // v2.26+ (when this JWT flow was introduced) only sets it as an httpOnly cookie,
+    // which is useless to a non-browser client. Confirmed against the server's own
+    // `Auth.js`/`TokenManager.js`, since the public API docs are stale.
     let response = client
         .post(login_url)
         .header("Content-Type", "application/json")
+        .header("x-return-tokens", "true")
         .json(&login_data)
         .send()
         .await?;
@@ -96,6 +101,19 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
             }
         }
 
+        // Empty when the server didn't return one (legacy `token`-only auth, or a
+        // server too old for the JWT flow) - the refresh mechanism (see
+        // src/api/server/refresh_token.rs) treats an empty refresh token as "nothing
+        // to refresh with" and simply never fires, which is the correct behavior for
+        // a token that isn't a short-lived JWT to begin with.
+        let mut refresh_token_encrypted = String::new();
+        if let Some(refresh_token) = login_response.user.refresh_token.filter(|t| !t.is_empty()) {
+            match encrypt_token(&refresh_token) {
+                Ok(encrypted) => refresh_token_encrypted = encrypted,
+                Err(e) => println!("Error: {e}"),
+            }
+        }
+
         // Init for handle_l
         let is_loop_break = "0".to_string();
         let is_vlc_running = "0".to_string();
@@ -122,6 +140,7 @@ pub async fn auth_process(username: &str, password: &str, server_address: &str) 
                 is_podcast_autoplay: "0".to_string(),
                 is_per_item_speed: "0".to_string(),
                 is_auto_download: "0".to_string(),
+                refresh_token: refresh_token_encrypted,
             }
         ];
 

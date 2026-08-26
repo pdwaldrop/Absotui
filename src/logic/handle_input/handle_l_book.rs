@@ -8,7 +8,8 @@ use crate::api::sessions::sync_open_session::sync_session;
 use crate::api::sessions::close_open_session::close_session_without_send_prg_data;
 use std::io::stdout;
 use log::{info, error};
-use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_download, get_listening_session, update_pending_seek};
+use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_download, get_listening_session, update_pending_seek, delete_user, update_login_err};
+use crate::api::server::refresh_token::{maybe_refresh_token, RefreshOutcome};
 use crate::db::database_struct::DownloadedItem;
 use crate::utils::vlc_tcp_stream::vlc_tcp_stream;
 use crate::player::vlc::quit_vlc::{pkill_vlc, quit_vlc};
@@ -65,6 +66,7 @@ fn spawn_track_vlc(
 
 pub async fn handle_l_book(
     token: Option<&String>,
+    refresh_token: Option<&String>,
     ids_library_items: Vec<String>,
     selected: Option<usize>,
     port: String,
@@ -82,12 +84,19 @@ pub async fn handle_l_book(
     if let Some(index) = selected
         && let Some(id) = ids_library_items.get(index)
             && let Some(token) = token {
+                // Owned and mutable so the proactive refresh check below (run once per
+                // loop iteration) can reassign them in place - this task never touches
+                // the live `App`, so keeping its own token fresh is entirely on it (see
+                // CLAUDE.md's "one owner" note).
+                let mut token = token.clone();
+                let mut refresh_token = refresh_token.cloned().unwrap_or_default();
+
                 // Checked up front so both branches below (online, and the offline
                 // fallback if the session-start call fails) know whether a local copy
                 // exists - see src/utils/download_cache.rs.
                 let downloaded = get_download(&username, id);
 
-                match post_start_playback_session_book(Some(token), id, server_address.clone()).await {
+                match post_start_playback_session_book(Some(&token), id, server_address.clone()).await {
                     Err(e) => {
                         if let Some(downloaded) = downloaded {
                             info!("[handle_l_book] Couldn't start an online playback session ({e}) - falling back to the downloaded copy of {id}");
@@ -100,6 +109,7 @@ pub async fn handle_l_book(
                                 is_cvlc,
                                 username,
                                 token.clone(),
+                                refresh_token.clone(),
                                 server_address,
                             ).await;
                         } else {
@@ -221,6 +231,21 @@ pub async fn handle_l_book(
                     let mut got_real_data = false;
 
                     loop {
+                        // Keeps this task's own copy of the token fresh independently of
+                        // the main App (see handle_l_book's module-level context in
+                        // CLAUDE.md's "one owner" note) - a book can play for hours,
+                        // easily outliving Audiobookshelf's ~1 hour default access token.
+                        if maybe_refresh_token(&mut token, &mut refresh_token, username.as_str(), server_address.as_str()).await == RefreshOutcome::Failed {
+                            let _ = delete_user(username.as_str());
+                            let _ = update_login_err("Your session expired - restart Absotui to log in again");
+                            let _ = close_session_without_send_prg_data(Some(&token), &info_item[3], server_address.clone()).await;
+                            let _ = quit_vlc(&address_player, &port);
+                            pkill_vlc();
+                            let _ = update_is_vlc_running("0", username.as_str());
+                            let _ = update_is_loop_break("1", username.as_str());
+                            break;
+                        }
+
                         // A chapter jump ("c" list, or P/U) from the UI - only this loop
                         // knows the real current_track_idx/track_base_offset, so it's the
                         // sole place that decides whether fulfilling it is a same-file seek
@@ -323,8 +348,8 @@ pub async fn handle_l_book(
                                     Ok(true) => {
                                         // to sync progress in the server each 10 seconds
                                         if trigger == 10 {
-                                                let _ = sync_session(Some(token), &info_item[3],Some(book_wide_time), progress_sync, server_address.clone()).await;
-                                                let _ = update_media_progress_book(id, Some(token), Some(book_wide_time), &info_item[2], server_address.clone()).await;
+                                                let _ = sync_session(Some(&token), &info_item[3],Some(book_wide_time), progress_sync, server_address.clone()).await;
+                                                let _ = update_media_progress_book(id, Some(&token), Some(book_wide_time), &info_item[2], server_address.clone()).await;
 
                                                 // update elapsed_time in database (`listening_session` table)
                                                 let _ = update_elapsed_time(progress_sync, info_item[3].as_str());
@@ -393,9 +418,9 @@ pub async fn handle_l_book(
                                         // update is_finished in database (`listening_session` table)
                                         let _ = update_is_finished("1", info_item[3].as_str());
 
-                                        let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                                        let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
                                         info!("[handle_l_book][Finished] Session successfully closed");
-                                        let _ = update_media_progress2_book(id, Some(token), Some(book_wide_time), &info_item[2], is_finised, server_address).await;
+                                        let _ = update_media_progress2_book(id, Some(&token), Some(book_wide_time), &info_item[2], is_finised, server_address).await;
                                         info!("[handle_l_book][Finished] VLC stopped");
                                         info!("[handle_l_book][Finished] Item {id} closed at {book_wide_time}s");
                                         let _ = update_is_loop_break("1", username.as_str());
@@ -411,11 +436,11 @@ pub async fn handle_l_book(
                                         let _ = update_is_vlc_running("0", username.as_str());
                                         info!("[handle_l_book][Quit]");
                                         // close session when VLC is quitted
-                                        let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                                        let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
                                         info!("[handle_l_book][Quit] Session successfully closed");
                                         // send one last time media progress (bug to retrieve media
                                         // progress otherwise)
-                                        let _ = update_media_progress_book(id, Some(token), Some(book_wide_time), &info_item[2], server_address).await;
+                                        let _ = update_media_progress_book(id, Some(&token), Some(book_wide_time), &info_item[2], server_address).await;
                                         info!("[handle_l_book][Quit] VLC closed");
                                         info!("[handle_l_book][Quit] Item {id} closed at {book_wide_time}s");
                                         //eprintln!("Error fetching play status: {}", e);
@@ -431,10 +456,10 @@ pub async fn handle_l_book(
                             Ok(None) => {
                                 let _ = update_is_vlc_running("0", username.as_str());
                                 info!("[handle_l_book][None]");
-                                let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                                let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
                                 info!("[handle_l_book][None] Session successfully closed");
                                 if got_real_data {
-                                    let _ = update_media_progress_book(id, Some(token), Some(current_time), &info_item[2], server_address.clone()).await;
+                                    let _ = update_media_progress_book(id, Some(&token), Some(current_time), &info_item[2], server_address.clone()).await;
                                     info!("[handle_l_book][None] VLC closed");
                                     info!("[handle_l_book][None] Item {id} closed at {current_time}s");
                                 } else {
@@ -447,9 +472,9 @@ pub async fn handle_l_book(
                             Err(e) => {
                                 error!("[handle_l_book][Err(e)]{e}");
                                 let _ = update_is_vlc_running("0", username.as_str());
-                                let _ = close_session_without_send_prg_data(Some(token), &info_item[3],  server_address.clone()).await;
+                                let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
                                 if got_real_data {
-                                    let _ = update_media_progress_book(id, Some(token), Some(current_time), &info_item[2], server_address.clone()).await;
+                                    let _ = update_media_progress_book(id, Some(&token), Some(current_time), &info_item[2], server_address.clone()).await;
                                 }
                                 let _ = update_is_loop_break("1", username.as_str());
                                 break; // Exit on error
@@ -483,7 +508,8 @@ async fn handle_l_book_offline(
     program: String,
     is_cvlc: String,
     username: String,
-    token: String,
+    mut token: String,
+    mut refresh_token: String,
     server_address: String,
 ) {
     // Not a server-issued id - used purely as this local session's sqlite key/log tag.
@@ -555,6 +581,20 @@ async fn handle_l_book_offline(
     let mut got_real_data = false;
 
     loop {
+        // Same proactive-refresh reasoning as the online loop above - this path is
+        // reached because the online session-start call already failed once, so the
+        // token may well already be the reason, and the best-effort progress push at
+        // the end of this loop still needs a usable one.
+        if maybe_refresh_token(&mut token, &mut refresh_token, username.as_str(), server_address.as_str()).await == RefreshOutcome::Failed {
+            let _ = delete_user(username.as_str());
+            let _ = update_login_err("Your session expired - restart Absotui to log in again");
+            let _ = quit_vlc(&address_player, &port);
+            pkill_vlc();
+            let _ = update_is_vlc_running("0", username.as_str());
+            let _ = update_is_loop_break("1", username.as_str());
+            break;
+        }
+
         // Same pending_seek mechanism as the online loop (handle_l_book) - see
         // update_pending_seek's doc comment.
         if let Ok(Some(session)) = get_listening_session()

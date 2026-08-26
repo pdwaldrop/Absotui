@@ -4,7 +4,8 @@ use crate::utils::pop_up_message::clear_message;
 use crate::api::me::update_media_progress::{update_media_progress_pod, update_media_progress2_pod};
 use std::io::stdout;
 use log::{info, error};
-use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, update_chapter, update_is_finished, update_is_loop_break, get_listening_session};
+use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, update_chapter, update_is_finished, update_is_loop_break, get_listening_session, delete_user, update_login_err};
+use crate::api::server::refresh_token::{maybe_refresh_token, RefreshOutcome};
 use crate::db::database_struct::DownloadedItem;
 use crate::utils::vlc_tcp_stream::vlc_tcp_stream;
 
@@ -27,7 +28,8 @@ pub async fn handle_pod_episode_offline(
     program: String,
     is_cvlc: String,
     username: String,
-    token: String,
+    mut token: String,
+    mut refresh_token: String,
     server_address: String,
 ) {
     // Not a server-issued id - used purely as this local session's sqlite key/log tag.
@@ -98,6 +100,20 @@ pub async fn handle_pod_episode_offline(
     let mut got_real_data = false;
 
     loop {
+        // Same proactive-refresh reasoning as handle_l_book_offline - this path is
+        // reached because the online session-start call already failed once, so the
+        // token may well already be the reason, and the best-effort progress push at
+        // the end of this loop still needs a usable one.
+        if maybe_refresh_token(&mut token, &mut refresh_token, username.as_str(), server_address.as_str()).await == RefreshOutcome::Failed {
+            let _ = delete_user(username.as_str());
+            let _ = update_login_err("Your session expired - restart Absotui to log in again");
+            let _ = crate::player::vlc::quit_vlc::quit_vlc(&address_player, &port);
+            crate::player::vlc::quit_vlc::pkill_vlc();
+            let _ = update_is_vlc_running("0", username.as_str());
+            let _ = update_is_loop_break("1", username.as_str());
+            break;
+        }
+
         match fetch_vlc_data(port.clone(), address_player.clone()).await {
             Ok(Some(data_fetched_from_vlc)) => {
                 got_real_data = true;
