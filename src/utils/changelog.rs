@@ -690,8 +690,7 @@ let changelog_42 = "Changelog Absotui v0.5.27-beta (30/07/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_43 = format!(
-    "Changelog Absotui v{VERSION} (30/07/2026) \n\
+let changelog_43 = "Changelog Absotui v0.5.28-beta (30/07/2026) \n\
          \n\
          Changed:\n\
          - App startup with a large podcast library is faster still - a
@@ -711,10 +710,31 @@ let changelog_43 = format!(
            window, matching Linux behavior.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_44 = format!(
+    "Changelog Absotui v{VERSION} (25/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - Login failed against Audiobookshelf v2.36+, which no longer
+           returns the older plain token Absotui relied on - fixed by
+           using the newer accessToken instead.
+         - That newer accessToken only lasts about an hour by default,
+           so without a way to renew it, the fix above would have meant
+           logging back in roughly every hour. Absotui now renews it
+           automatically in the background before it expires, and keeps
+           renewing indefinitely as long as you open the app at least
+           once a month - no more periodic forced re-logins.
+         \n\
+         Contributors:\n\
+         \n\
+         - sarielhp
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_44);
     changelog.push_str(&changelog_43);
     changelog.push_str(&changelog_42);
     changelog.push_str(&changelog_41);
