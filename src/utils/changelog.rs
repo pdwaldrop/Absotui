@@ -747,8 +747,7 @@ let changelog_45 = "Changelog Absotui v0.5.30-beta (26/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_46 = format!(
-    "Changelog Absotui v{VERSION} (27/08/2026) \n\
+let changelog_46 = "Changelog Absotui v0.5.31-beta (27/08/2026) \n\
          \n\
          Fixed:\n\
          - Reopening Absotui after it had been closed for a while (roughly
@@ -760,10 +759,25 @@ let changelog_46 = format!(
            app now renews an expiring token before that first check too.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_47 = format!(
+    "Changelog Absotui v{VERSION} (27/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - A momentary network hiccup while renewing your access token in
+           the background (a dropped connection, a brief timeout) could be
+           mistaken for the server actually rejecting your login, silently
+           deleting your whole saved account and forcing a full re-login -
+           even though the connection would often recover moments later.
+           Only an explicit rejection from the server now triggers that;
+           a plain connectivity blip is retried instead.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_47);
     changelog.push_str(&changelog_46);
     changelog.push_str(&changelog_45);
     changelog.push_str(&changelog_44);
