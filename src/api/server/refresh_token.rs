@@ -31,6 +31,22 @@ const REFRESH_MARGIN_SECS: i64 = 10 * 60;
 /// (confirmed against the server's own `TokenManager.js`/`Auth.js`) - the old value
 /// only remains valid for a short grace period - so callers must persist the returned
 /// refresh token, not just the access token.
+/// Distinguishes "the server was reached and explicitly rejected the refresh token"
+/// from any other failure (network unreachable, timeout, malformed response) - only
+/// this one means the refresh token itself is actually dead. `maybe_refresh_token`
+/// downcasts to this to decide between `RefreshOutcome::Failed` (delete-the-account
+/// worthy) and `RefreshOutcome::TransientError` (try again next tick).
+#[derive(Debug)]
+struct RefreshRejected(reqwest::StatusCode);
+
+impl std::fmt::Display for RefreshRejected {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Token refresh failed with status {}", self.0)
+    }
+}
+
+impl std::error::Error for RefreshRejected {}
+
 pub async fn refresh_access_token(server_address: &str, refresh_token: &str) -> Result<(String, String)> {
     let client = api_client();
 
@@ -42,9 +58,7 @@ pub async fn refresh_access_token(server_address: &str, refresh_token: &str) -> 
         .await?;
 
     if !response.status().is_success() {
-        return Err(Report::new(std::io::Error::other(format!(
-            "Token refresh failed with status {}", response.status()
-        ))));
+        return Err(Report::new(RefreshRejected(response.status())));
     }
 
     let parsed: RefreshResponse = response.json().await?;
@@ -78,6 +92,11 @@ pub enum RefreshOutcome {
     /// The refresh token itself is dead (expired past its ~30 day lifetime, or
     /// revoked server-side) - the caller's session cannot be kept alive.
     Failed,
+    /// Couldn't complete the refresh attempt at all (network unreachable, timeout,
+    /// malformed response) - the refresh token itself might still be perfectly good.
+    /// Callers should just leave the existing token in place and try again next
+    /// tick, not treat this the same as a confirmed-dead refresh token.
+    TransientError,
 }
 
 /// Checked once per loop tick by both the main render loop (`App::refresh_token_if_needed`)
@@ -115,7 +134,11 @@ pub async fn maybe_refresh_token(
         }
         Err(e) => {
             error!("[maybe_refresh_token] Refresh failed for {username}: {e}");
-            RefreshOutcome::Failed
+            if e.downcast_ref::<RefreshRejected>().is_some() {
+                RefreshOutcome::Failed
+            } else {
+                RefreshOutcome::TransientError
+            }
         }
     }
 }
@@ -161,5 +184,40 @@ mod tests {
         let mut refresh_token = String::new();
         let outcome = maybe_refresh_token(&mut token, &mut refresh_token, "someone", "http://unreachable.invalid").await;
         assert_eq!(outcome, RefreshOutcome::NotNeeded);
+    }
+
+    // Regression test for a real incident: a momentary network blip while refreshing
+    // was indistinguishable from the server actually rejecting the refresh token, so
+    // every caller (see RefreshOutcome::Failed's callers) deleted the user's whole
+    // local account over a connection hiccup that resolved itself moments later.
+    #[tokio::test]
+    async fn maybe_refresh_token_reports_transient_error_when_the_server_is_unreachable() {
+        let mut token = fake_jwt_with_exp(chrono::Utc::now().timestamp() - 60);
+        let mut refresh_token = "some-refresh-token".to_string();
+        // Port 1 is privileged/unbound - connection refused immediately, no DNS
+        // dependency, deterministic and fast unlike a real timeout.
+        let outcome = maybe_refresh_token(&mut token, &mut refresh_token, "someone", "http://127.0.0.1:1").await;
+        assert_eq!(outcome, RefreshOutcome::TransientError);
+    }
+
+    #[tokio::test]
+    async fn maybe_refresh_token_reports_failed_when_the_server_actually_rejects_it() {
+        use tokio::io::AsyncWriteExt;
+        use tokio::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let _ = socket
+                    .write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                    .await;
+            }
+        });
+
+        let mut token = fake_jwt_with_exp(chrono::Utc::now().timestamp() - 60);
+        let mut refresh_token = "dead-refresh-token".to_string();
+        let outcome = maybe_refresh_token(&mut token, &mut refresh_token, "someone", &format!("http://{addr}")).await;
+        assert_eq!(outcome, RefreshOutcome::Failed);
     }
 }

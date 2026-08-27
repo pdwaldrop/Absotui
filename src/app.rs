@@ -1060,7 +1060,7 @@ impl App {
                 let _ = delete_user(&self.username);
                 let _ = update_login_err("Your session expired - restart Absotui to log in again");
             }
-            RefreshOutcome::NotNeeded => {}
+            RefreshOutcome::NotNeeded | RefreshOutcome::TransientError => {}
         }
     }
 
