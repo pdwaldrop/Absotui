@@ -527,6 +527,12 @@ impl App {
             }
         }
 
+        // Proactively refresh before the very first API call below - otherwise any
+        // access token that already expired while the app wasn't running (they last
+        // ~1 hour) makes this fail with a 401 before `refresh_token_if_needed` ever
+        // gets a chance to run (that only fires once an `App` already exists).
+        let _ = maybe_refresh_token(&mut token, &mut refresh_token, &username, &server_address).await;
+
         // init for `Libraries` (get all Libraries (shelf), can be a podcast or book type)
         let all_libraries = get_all_libraries(&token, server_address.clone()).await?;
         let libraries_names = collect_library_names(&all_libraries).await; // all the libraries names of the user ex : {name1, name2}
