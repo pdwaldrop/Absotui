@@ -730,8 +730,7 @@ let changelog_44 = "Changelog Absotui v0.5.29-beta (25/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_45 = format!(
-    "Changelog Absotui v{VERSION} (26/08/2026) \n\
+let changelog_45 = "Changelog Absotui v0.5.30-beta (26/08/2026) \n\
          \n\
          Fixed:\n\
          - The install/update script could report \"Could not determine
@@ -747,10 +746,25 @@ let changelog_45 = format!(
            depend on that formatting.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_46 = format!(
+    "Changelog Absotui v{VERSION} (27/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - Reopening Absotui after it had been closed for a while (roughly
+           an hour or more) could fail immediately with \"401
+           Unauthorized\", even though the automatic token renewal added
+           in v0.5.29-beta was meant to prevent exactly this - it only
+           ran once the app was already up and running, never before that
+           first startup check, so retrying couldn't recover either. The
+           app now renews an expiring token before that first check too.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_46);
     changelog.push_str(&changelog_45);
     changelog.push_str(&changelog_44);
     changelog.push_str(&changelog_43);
