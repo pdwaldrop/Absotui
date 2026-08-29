@@ -1,13 +1,14 @@
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Paragraph, Widget},
 };
+use crate::config::Colors;
 use crate::db::crud::get_is_show_key_bindings;
 
 
-pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, bg_color: Vec<u8>, progress_bar_color: Vec<u8>, username: &str) {
+pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, colors: &Colors, username: &str) {
     // player_info() only pushes the full 12 fields this function indexes into on a
     // successful `Ok(Some(session))` read (see src/player/integrated/player_info.rs) -
     // a transient sqlite read error (Ok(None)/Err path, only 4 fields) shouldn't be
@@ -25,7 +26,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     let block_height = 4; // number of line of the player (in lines)
 
     // Create the background block with background color
-    let bg_color_player = Color::Rgb(bg_color[0], bg_color[1], bg_color[2]);
+    let bg_color_player = colors.resolve(&colors.player_background_color);
     let block_area = Rect::new(area.x, new_y, block_width, block_height);
     let block = Block::default()
         .style(Style::default().bg(bg_color_player));
@@ -49,7 +50,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
         key_bindings = "Spc: pause/play | p/u: +/−10s | P/U: nxt/prev ch. | O/I: spd +/− | o/i: vol +/− | T: real/content time | Y: quit".to_string();
     }
 
-    let progress_color = Color::Rgb(progress_bar_color[0], progress_bar_color[1], progress_bar_color[2]);
+    let progress_color = colors.resolve(&colors.progress_bar_color);
 
     // Volume indicator: a subtle underline beneath "Vol NN%" itself, filled up to
     // volume/200 - same underline-fill convention already used for the time/progress
@@ -114,7 +115,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
 
     let title_line = Line::from(vec![
         Span::styled(" ".repeat(padding_left), Style::default().bg(bg_color_player)),
-        Span::styled(filled_text, Style::default().bg(progress_color)),
+        Span::styled(filled_text, colors.fill_style(&colors.progress_bar_color)),
         Span::styled(unfilled_text, Style::default().bg(bg_color_player)),
     ]);
     Paragraph::new(title_line).render(title_area, buf);

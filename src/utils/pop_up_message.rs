@@ -12,18 +12,25 @@ pub fn pop_message(stdout: &mut Stdout, lines_from_bottom: u16, message: &str) -
     // would panic below on color[0]) if config.toml is unreadable/malformed right now,
     // eg. mid-edit or mid-update.
     let mut color = vec![0, 0, 0];
-    if let Ok(cfg) = load_config()
-        && cfg.colors.background_color.len() == 3 {
-        color = cfg.colors.background_color;
+    let mut follow_terminal_theme = false;
+    if let Ok(cfg) = load_config() {
+        follow_terminal_theme = cfg.colors.follow_terminal_theme;
+        if cfg.colors.background_color.len() == 3 {
+            color = cfg.colors.background_color;
+        }
     }
 
-    let (_cols, rows) = terminal::size()?; 
+    let (_cols, rows) = terminal::size()?;
     let target_row = rows.saturating_sub(lines_from_bottom);
-    let bg_color = Color::Rgb { r: color[0], g: color[1], b: color[2] };
+    let bg_color = if follow_terminal_theme {
+        Color::Reset
+    } else {
+        Color::Rgb { r: color[0], g: color[1], b: color[2] }
+    };
 
     execute!(
         stdout,
-        cursor::MoveTo(0, target_row), 
+        cursor::MoveTo(0, target_row),
         SetBackgroundColor(bg_color),
 
     )?;
@@ -41,20 +48,27 @@ pub fn clear_message(stdout: &mut Stdout, lines_from_bottom: u16) -> Result<()> 
     // would panic below on color[0]) if config.toml is unreadable/malformed right now,
     // eg. mid-edit or mid-update.
     let mut color = vec![0, 0, 0];
-    if let Ok(cfg) = load_config()
-        && cfg.colors.background_color.len() == 3 {
-        color = cfg.colors.background_color;
+    let mut follow_terminal_theme = false;
+    if let Ok(cfg) = load_config() {
+        follow_terminal_theme = cfg.colors.follow_terminal_theme;
+        if cfg.colors.background_color.len() == 3 {
+            color = cfg.colors.background_color;
+        }
     }
-    let (_cols, rows) = terminal::size()?; 
+    let (_cols, rows) = terminal::size()?;
     let target_row = rows.saturating_sub(lines_from_bottom);
-    let bg_color = Color::Rgb { r: color[0], g: color[1], b: color[2] };
+    let bg_color = if follow_terminal_theme {
+        Color::Reset
+    } else {
+        Color::Rgb { r: color[0], g: color[1], b: color[2] }
+    };
 
 
     execute!(
         stdout,
-        cursor::MoveTo(0, target_row), 
+        cursor::MoveTo(0, target_row),
         SetBackgroundColor(bg_color),
-        terminal::Clear(terminal::ClearType::CurrentLine), 
+        terminal::Clear(terminal::ClearType::CurrentLine),
     )?;
 
     Ok(())

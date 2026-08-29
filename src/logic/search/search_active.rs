@@ -7,7 +7,7 @@ use std::io;
 use ratatui_textarea::{Input, Key, TextArea};
 use ratatui::{
     layout::Rect,
-    style::{Color, Style},
+    style::Style,
 };
 
 
@@ -28,9 +28,9 @@ impl App {
             .borders(Borders::ALL)
             .title("Search")
             .border_style(Style::default()
-                .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
+                .fg(self.config.colors.resolve(&fg_color)))
             .style(Style::default()
-                .bg(Color::Rgb(bg_color[0], bg_color[1], bg_color[2])))
+                .bg(self.config.colors.resolve(&bg_color)))
 
         );
 
@@ -65,8 +65,8 @@ impl App {
             }
         }
         term.draw(|f| {
-            let empty_block = Block::default().style(Style::default().bg(Color::Rgb(bg_color[0], bg_color[1], bg_color[2])));
-            f.render_widget(empty_block, search_area); 
+            let empty_block = Block::default().style(Style::default().bg(self.config.colors.resolve(&bg_color)));
+            f.render_widget(empty_block, search_area);
         })?;
 
         Ok(textarea.lines().join("\n"))

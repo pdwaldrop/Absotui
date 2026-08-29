@@ -779,7 +779,8 @@ impl App {
         let fg_color_header = self.config.colors.line_header_color.clone();
         let bg_color_block = self.config.colors.list_background_color.clone();
         let progress_bar_color = self.config.colors.progress_bar_color.clone();
-        let progress_color = Color::Rgb(progress_bar_color[0], progress_bar_color[1], progress_bar_color[2]);
+        let progress_color = self.config.colors.resolve(&progress_bar_color);
+        let marker_fill_style = self.config.colors.fill_style(&progress_bar_color);
         // Deliberately no fg/bg/modifiers here at all - any of those get patched across
         // every cell in the row, overriding the row's own colors (the now-playing
         // marker's background, the progress underline). Selection is shown purely via
@@ -787,14 +788,14 @@ impl App {
         let selected_style: Style = Style::default();
 
         let header_style: Style = Style::new()
-            .fg(Color::Rgb(fg_color_header[0], fg_color_header[1], fg_color_header[2]))
-            .bg(Color::Rgb(bg_color_header[0], bg_color_header[1], bg_color_header[2]));
+            .fg(self.config.colors.resolve(&fg_color_header))
+            .bg(self.config.colors.resolve(&bg_color_header));
 
         let block = Block::new()
             .title(Line::raw(render_list_title.to_string()).centered())
             .borders(Borders::TOP)
             .border_style(header_style)
-            .bg(Color::Rgb(bg_color_block[0], bg_color_block[1], bg_color_block[2]));
+            .bg(self.config.colors.resolve(&bg_color_block));
 
         // Approximate content width available inside each row, after the "▎" highlight
         // symbol column that HighlightSpacing::Always reserves on every row.
@@ -846,7 +847,7 @@ impl App {
                         const MARKER_GAP_WIDTH: usize = 1;
                         const MARKER_TOTAL_WIDTH: usize = MARKER_BOX_WIDTH + MARKER_GAP_WIDTH;
                         let marker_span = if *is_now_playing {
-                            Span::styled(" ▶ ", Style::default().bg(progress_color))
+                            Span::styled(" ▶ ", marker_fill_style)
                         } else {
                             Span::raw("   ")
                         };
@@ -1345,6 +1346,9 @@ impl App {
         let mut color_bg_list = Vec::new();
         let mut color_alt_bg_list = Vec::new();
         if let Ok(cfg) = load_config() {
+            if cfg.colors.follow_terminal_theme {
+                return Color::Reset;
+            }
             color_bg_list = cfg.colors.list_background_color;
             color_alt_bg_list = cfg.colors.list_background_color_alt_row;
         }

@@ -7,7 +7,7 @@ use std::io;
 use ratatui_textarea::TextArea;
 use ratatui::{
     layout::Rect,
-    style::{Color, Style},
+    style::Style,
 };
 use crate::api::server::auth_process::auth_process;
 use crossterm::event::{self, KeyEvent, KeyCode};  
@@ -39,7 +39,7 @@ impl AppLogin {
             .title("Server address")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
             .border_style(Style::default()
-                .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
+                .fg(self.config.colors.resolve(&fg_color)))
         );
 
         textarea1.set_placeholder_text("http:// or https:// required");
@@ -51,7 +51,7 @@ impl AppLogin {
             .title("Username")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
             .border_style(Style::default()
-                .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
+                .fg(self.config.colors.resolve(&fg_color)))
         );
 
         let mut textarea3 = TextArea::default();
@@ -61,7 +61,7 @@ impl AppLogin {
             .title("Password")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
             .border_style(Style::default()
-                .fg(Color::Rgb(fg_color[0], fg_color[1], fg_color[2])))
+                .fg(self.config.colors.resolve(&fg_color)))
         );
         textarea3.set_mask_char('\u{2022}');
 
@@ -84,11 +84,7 @@ impl AppLogin {
             term.draw(|f| {
                 let background = Block::default()
                     .style(Style::default()
-                        .bg(Color::Rgb(
-                                log_bg_color[0],
-                                log_bg_color[1],
-                                log_bg_color[2],
-                        )));
+                        .bg(self.config.colors.resolve(&log_bg_color)));
                 f.render_widget(&textareas[current_index], input_area);
                 f.render_widget(background, f.area());
             })?;

@@ -19,6 +19,11 @@ port = "1234"
 
 #### COLORS (RGB) ####
 [colors]
+# When true, ignore every RGB color below and let the app inherit your
+# terminal's own theme instead (no painted backgrounds; progress/now-playing
+# indicators fall back to reverse video). Similar to how a plain CLI tool
+# looks in your terminal. Defaults to false.
+follow_terminal_theme = false
 # General background color of the app:
 background_color = [40, 40, 40]
 # Login background color:
@@ -31,10 +36,6 @@ line_header_color = [180, 180, 180]
 list_background_color = [50, 50, 50]
 # Background color for alternate rows of the book list:
 list_background_color_alt_row = [60, 60, 60]
-# Background color of the selected row of the book list:
-list_selected_background_color = [80, 80, 80]
-# Text color of the selected row of the book list:
-list_selected_foreground_color = [180, 180, 180]
 # Text and border color of the search bar:
 search_bar_foreground_color = [180, 180, 180]
 # Text and border color of the login section:

@@ -6,7 +6,7 @@ use color_eyre::eyre::{Report, Result};
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use log::error;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::DefaultTerminal;
@@ -84,7 +84,7 @@ fn render_error_screen(
         Block::default()
             .borders(Borders::ALL)
             .title("New server address")
-            .border_style(Style::default().fg(Color::Rgb(fg[0], fg[1], fg[2]))),
+            .border_style(Style::default().fg(config.colors.resolve(&fg))),
     );
     textarea.set_placeholder_text("http:// or https:// required");
 
@@ -92,7 +92,7 @@ fn render_error_screen(
         terminal.draw(|frame| {
             let area = frame.area();
             let background = Block::default()
-                .style(Style::default().bg(Color::Rgb(bg[0], bg[1], bg[2])));
+                .style(Style::default().bg(config.colors.resolve(&bg)));
             frame.render_widget(background, area);
 
             if editing_address {
@@ -119,7 +119,6 @@ fn render_error_screen(
 
                 let paragraph = Paragraph::new(lines)
                     .wrap(Wrap { trim: true })
-                    .style(Style::default().fg(Color::Rgb(fg[0], fg[1], fg[2])))
                     .block(Block::default().borders(Borders::ALL).title("Connection error"));
 
                 let msg_area = Rect {
