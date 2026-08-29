@@ -21,6 +21,7 @@ use crate::db::database_struct::Database;
 use crate::utils::convert_seconds::convert_seconds;
 use crate::utils::download_cache::{is_downloaded, remove_download, download_book, download_episode, sync_auto_downloads, sync_auto_downloads_podcasts};
 use color_eyre::Result;
+use color_eyre::eyre::Report;
 use futures::stream::{self, StreamExt};
 use crate::utils::http_client::MAX_CONCURRENT_REQUESTS;
 use log::{warn, error};
@@ -530,7 +531,17 @@ impl App {
         // access token that already expired while the app wasn't running (they last
         // ~1 hour) makes this fail with a 401 before `refresh_token_if_needed` ever
         // gets a chance to run (that only fires once an `App` already exists).
-        let _ = maybe_refresh_token(&mut token, &mut refresh_token, &username, &server_address).await;
+        if maybe_refresh_token(&mut token, &mut refresh_token, &username, &server_address).await == RefreshOutcome::Failed {
+            // Refresh token itself is dead (30 days idle, or server-revoked) - same
+            // handling as refresh_token_if_needed's mid-session case (see below):
+            // delete the account and fail clearly here instead of proceeding to the
+            // API call below with a token guaranteed to 401, which would otherwise
+            // surface as a cryptic "reached the server, but HTTP 401" error with no
+            // indication that a fresh login (not a retry) is what's actually needed.
+            let _ = delete_user(&username);
+            let _ = update_login_err("Your session expired - restart Absotui to log in again");
+            return Err(Report::new(std::io::Error::other("Your session expired - restart Absotui to log in again")));
+        }
 
         // init for `Libraries` (get all Libraries (shelf), can be a podcast or book type)
         let all_libraries = get_all_libraries(&token, server_address.clone()).await?;
