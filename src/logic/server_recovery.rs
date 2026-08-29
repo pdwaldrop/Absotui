@@ -1,12 +1,10 @@
 use crate::app::App;
-use crate::config::load_config;
 use crate::db::crud::{select_default_usr, update_server_address};
 use crate::utils::exit_app::clean_exit;
 use color_eyre::eyre::{Report, Result};
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use log::error;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::DefaultTerminal;
@@ -74,26 +72,18 @@ fn render_error_screen(
     message: &str,
     allow_cancel: bool,
 ) -> Result<Action> {
-    let config = load_config()?;
-    let fg = config.colors.login_foreground_color.clone();
-    let bg = config.colors.log_background_color.clone();
-
     let mut editing_address = false;
     let mut textarea = TextArea::from(vec![address.to_string()]);
     textarea.set_block(
         Block::default()
             .borders(Borders::ALL)
-            .title("New server address")
-            .border_style(Style::default().fg(config.colors.resolve(&fg))),
+            .title("New server address"),
     );
     textarea.set_placeholder_text("http:// or https:// required");
 
     loop {
         terminal.draw(|frame| {
             let area = frame.area();
-            let background = Block::default()
-                .style(Style::default().bg(config.colors.resolve(&bg)));
-            frame.render_widget(background, area);
 
             if editing_address {
                 let input_area = Rect {

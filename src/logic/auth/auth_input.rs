@@ -5,10 +5,7 @@ use ratatui::text::Line;
 use ratatui::Terminal;
 use std::io;
 use ratatui_textarea::TextArea;
-use ratatui::{
-    layout::Rect,
-    style::Style,
-};
+use ratatui::layout::Rect;
 use crate::api::server::auth_process::auth_process;
 use crossterm::event::{self, KeyEvent, KeyCode};  
 use log::{info, error};
@@ -30,16 +27,12 @@ impl AppLogin {
         let backend = CrosstermBackend::new(stdout);
         let mut term = Terminal::new(backend)?;
 
-        let fg_color = self.config.colors.login_foreground_color.clone();
-
         let mut textarea1 = TextArea::default();
         textarea1.set_block(
             Block::default()
             .borders(Borders::ALL)
             .title("Server address")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
-            .border_style(Style::default()
-                .fg(self.config.colors.resolve(&fg_color)))
         );
 
         textarea1.set_placeholder_text("http:// or https:// required");
@@ -50,8 +43,6 @@ impl AppLogin {
             .borders(Borders::ALL)
             .title("Username")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
-            .border_style(Style::default()
-                .fg(self.config.colors.resolve(&fg_color)))
         );
 
         let mut textarea3 = TextArea::default();
@@ -60,8 +51,6 @@ impl AppLogin {
             .borders(Borders::ALL)
             .title("Password")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
-            .border_style(Style::default()
-                .fg(self.config.colors.resolve(&fg_color)))
         );
         textarea3.set_mask_char('\u{2022}');
 
@@ -78,15 +67,10 @@ impl AppLogin {
         let mut textareas = [textarea1, textarea2, textarea3];
         let mut current_index = 0;
         let mut collected_data : Vec<String> = Vec::new();
-        let log_bg_color = self.config.colors.log_background_color.clone();
 
         loop {
             term.draw(|f| {
-                let background = Block::default()
-                    .style(Style::default()
-                        .bg(self.config.colors.resolve(&log_bg_color)));
                 f.render_widget(&textareas[current_index], input_area);
-                f.render_widget(background, f.area());
             })?;
 
             // display error message (in any)

@@ -16,7 +16,6 @@ use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, fo
 use crate::utils::format_size::format_sizes;
 use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc_running, get_is_per_item_speed, get_is_auto_download};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
-use crate::config::load_config;
 use crate::utils::html_to_text::html_to_lines;
 use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_and_cache_episode_cover};
 
@@ -775,27 +774,16 @@ impl App {
     }
 
     fn render_list(&mut self, area: Rect, buf: &mut Buffer, render_list_title: &str, render_list_items: &[String], list_state: &mut ListState, progress_info: Option<&[(String, f32, bool)]>) {
-        let bg_color_header = self.config.colors.header_background_color.clone();
-        let fg_color_header = self.config.colors.line_header_color.clone();
-        let bg_color_block = self.config.colors.list_background_color.clone();
-        let progress_bar_color = self.config.colors.progress_bar_color.clone();
-        let progress_color = self.config.colors.resolve(&progress_bar_color);
-        let marker_fill_style = self.config.colors.fill_style(&progress_bar_color);
+        let marker_fill_style = Style::default().add_modifier(Modifier::REVERSED);
         // Deliberately no fg/bg/modifiers here at all - any of those get patched across
         // every cell in the row, overriding the row's own colors (the now-playing
         // marker's background, the progress underline). Selection is shown purely via
         // the highlight_symbol (a vertical bar) below, leaving the row itself untouched.
         let selected_style: Style = Style::default();
 
-        let header_style: Style = Style::new()
-            .fg(self.config.colors.resolve(&fg_color_header))
-            .bg(self.config.colors.resolve(&bg_color_header));
-
         let block = Block::new()
             .title(Line::raw(render_list_title.to_string()).centered())
-            .borders(Borders::TOP)
-            .border_style(header_style)
-            .bg(self.config.colors.resolve(&bg_color_block));
+            .borders(Borders::TOP);
 
         // Approximate content width available inside each row, after the "▎" highlight
         // symbol column that HighlightSpacing::Always reserves on every row.
@@ -831,7 +819,6 @@ impl App {
             .iter()
             .enumerate()
             .map(|(i, title)| {
-                let color = Self::alternate_colors(i);
                 match progress_info.and_then(|p| p.get(i)) {
                     Some((progress_text, percent, is_now_playing)) => {
                         // Line 1: now-playing marker (cobalt/progress-colored background) +
@@ -893,13 +880,13 @@ impl App {
                             Span::raw(" ".repeat(MARKER_GAP_WIDTH)),
                             Span::raw(display_title),
                             Span::raw(" ".repeat(padding)),
-                            Span::styled(time_filled, Style::default().underline_color(progress_color).add_modifier(Modifier::UNDERLINED)),
+                            Span::styled(time_filled, Style::default().add_modifier(Modifier::UNDERLINED)),
                             Span::raw(time_unfilled),
                         ]);
 
-                        ListItem::new(line1).bg(color)
+                        ListItem::new(line1)
                     }
-                    None => ListItem::new(title.clone()).bg(color),
+                    None => ListItem::new(title.clone()),
                 }
             })
         .collect();
@@ -1340,23 +1327,6 @@ impl App {
                     .render(area, buf);
             } 
 
-    }
-
-    fn alternate_colors(i: usize) -> Color {
-        let mut color_bg_list = Vec::new();
-        let mut color_alt_bg_list = Vec::new();
-        if let Ok(cfg) = load_config() {
-            if cfg.colors.follow_terminal_theme {
-                return Color::Reset;
-            }
-            color_bg_list = cfg.colors.list_background_color;
-            color_alt_bg_list = cfg.colors.list_background_color_alt_row;
-        }
-        if i.is_multiple_of(2) {
-            Color::Rgb(color_bg_list[0], color_bg_list[1], color_bg_list[2])
-        } else {
-            Color::Rgb(color_alt_bg_list[0], color_alt_bg_list[1], color_alt_bg_list[2])
-        }
     }
 }
 

@@ -1,5 +1,4 @@
 use config::{Config as ConfigLib, File};
-use ratatui::style::{Color, Modifier, Style};
 use serde::Deserialize;
 use color_eyre::eyre::{Result, Report};
 use std::env;
@@ -7,59 +6,8 @@ use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
 pub struct ConfigFile {
-    pub colors: Colors,
     pub player: Player,
     pub downloads: Downloads,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Colors {
-    pub background_color: Vec<u8>,
-    pub log_background_color: Vec<u8>,
-    pub header_background_color: Vec<u8>,
-    pub line_header_color: Vec<u8>,
-    pub list_background_color: Vec<u8>,
-    pub list_background_color_alt_row: Vec<u8>,
-    pub search_bar_foreground_color: Vec<u8>,
-    pub login_foreground_color: Vec<u8>,
-    pub player_background_color: Vec<u8>,
-    #[serde(default = "default_progress_bar_color")]
-    pub progress_bar_color: Vec<u8>,
-    // Existing config.toml files predate this option entirely, so it's typically
-    // absent rather than explicitly false - default to false (current look) so
-    // load_config doesn't break for them and nothing changes until opted in.
-    #[serde(default)]
-    pub follow_terminal_theme: bool,
-}
-
-impl Colors {
-    /// Resolves a configured RGB color, or the terminal's own default when
-    /// `follow_terminal_theme` is on.
-    pub fn resolve(&self, rgb: &[u8]) -> Color {
-        if self.follow_terminal_theme {
-            Color::Reset
-        } else {
-            Color::Rgb(rgb[0], rgb[1], rgb[2])
-        }
-    }
-
-    /// Style for a "filled" accent that must stay visually distinct from its
-    /// surroundings even with no configured color (the now-playing marker box,
-    /// the player's progress-fill-behind-title) - reverse video instead of a
-    /// forced RGB, so it still reads as a block under any terminal palette.
-    pub fn fill_style(&self, rgb: &[u8]) -> Style {
-        if self.follow_terminal_theme {
-            Style::default().add_modifier(Modifier::REVERSED)
-        } else {
-            Style::default().bg(Color::Rgb(rgb[0], rgb[1], rgb[2]))
-        }
-    }
-}
-
-// Steel blue - used as a safe default for users whose existing config.toml
-// predates this option, so config loading doesn't break for them.
-fn default_progress_bar_color() -> Vec<u8> {
-    vec![70, 130, 180]
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,12 +59,10 @@ pub fn load_config() -> Result<ConfigFile> {
         .build()
         .map_err(|e| Report::new(e))?;
 
-    let colors: Colors = config.get("colors")
-        .map_err(|e| Report::new(e))?;
     let player: Player = config.get("player")
         .map_err(|e| Report::new(e))?;
     let downloads: Downloads = config.get("downloads").unwrap_or_default();
 
-    Ok(ConfigFile { colors, player, downloads })
+    Ok(ConfigFile { player, downloads })
 }
 

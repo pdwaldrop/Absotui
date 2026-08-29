@@ -17,34 +17,6 @@ address = "localhost"
 # Port:
 port = "1234"
 
-#### COLORS (RGB) ####
-[colors]
-# When true, ignore every RGB color below and let the app inherit your
-# terminal's own theme instead (no painted backgrounds; progress/now-playing
-# indicators fall back to reverse video). Similar to how a plain CLI tool
-# looks in your terminal. Defaults to false.
-follow_terminal_theme = false
-# General background color of the app:
-background_color = [40, 40, 40]
-# Login background color:
-log_background_color = [40, 40, 40]
-# Background color for section headers (e.g., "Continue Listening", "Library", etc.):
-header_background_color = [60, 60, 60]
-# Line color surrounding the header title:
-line_header_color = [180, 180, 180]
-# Background color of the book list:
-list_background_color = [50, 50, 50]
-# Background color for alternate rows of the book list:
-list_background_color_alt_row = [60, 60, 60]
-# Text and border color of the search bar:
-search_bar_foreground_color = [180, 180, 180]
-# Text and border color of the login section:
-login_foreground_color = [180, 180, 180]
-# Background color of the player:
-player_background_color = [80, 80, 80]
-# Background color showing progress behind the title/chapter text in the player (optional, defaults to steel blue if omitted):
-progress_bar_color = [70, 130, 180]
-
 #### DOWNLOADS ####
 [downloads]
 # When Settings > Auto Download is turned on, this is how many books from the top of

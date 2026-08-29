@@ -19,10 +19,6 @@ use crate::utils::pop_up_message::{clear_message, pop_message};
 use crate::utils::logs::setup_logs;
 use log::info;
 use crate::db::crud::{update_is_vlc_launched_first_time, get_is_vlc_launched_first_time, get_is_vlc_running, update_is_vlc_running, get_auth_in_progress};
-use ratatui::{
-    style::Style,
-    widgets::Block
-};
 use crate::player::integrated::player_info::{player_info, playing_item_name};
 use crate::ui::player_tui::render_player;
 use std::env;
@@ -184,17 +180,10 @@ async fn main() -> Result<()> {
             }
 
             terminal.draw(|frame| {
-                // global background
-                let background = Block::default()
-                    .style(Style::default()
-                        .bg(app.config.colors.resolve(&app.config.colors.background_color)));
-
-                frame.render_widget(background, frame.area());
-
                 if is_playing == "1" {
                     let area = frame.area();
                     // render for the player (automatically refreshed)
-                    render_player(area, frame.buffer_mut(), player_info, &app.config.colors, app.username.as_str());
+                    render_player(area, frame.buffer_mut(), player_info, app.username.as_str());
                 }
 
                 // render widget for general app : 

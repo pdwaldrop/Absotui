@@ -5,10 +5,7 @@ use ratatui::widgets::{Block, Borders};
 use ratatui::Terminal;
 use std::io;
 use ratatui_textarea::{Input, Key, TextArea};
-use ratatui::{
-    layout::Rect,
-    style::Style,
-};
+use ratatui::layout::Rect;
 
 
 impl App {
@@ -19,19 +16,11 @@ impl App {
         let backend = CrosstermBackend::new(stdout);
         let mut term = Terminal::new(backend)?;
 
-        let bg_color = self.config.colors.background_color.clone();
-        let fg_color = self.config.colors.search_bar_foreground_color.clone();
-
         let mut textarea = TextArea::default();
         textarea.set_block(
             Block::default()
             .borders(Borders::ALL)
             .title("Search")
-            .border_style(Style::default()
-                .fg(self.config.colors.resolve(&fg_color)))
-            .style(Style::default()
-                .bg(self.config.colors.resolve(&bg_color)))
-
         );
 
         let size = term.size()?;
@@ -65,8 +54,7 @@ impl App {
             }
         }
         term.draw(|f| {
-            let empty_block = Block::default().style(Style::default().bg(self.config.colors.resolve(&bg_color)));
-            f.render_widget(empty_block, search_area);
+            f.render_widget(Block::default(), search_area);
         })?;
 
         Ok(textarea.lines().join("\n"))

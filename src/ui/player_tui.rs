@@ -4,11 +4,10 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Paragraph, Widget},
 };
-use crate::config::Colors;
 use crate::db::crud::get_is_show_key_bindings;
 
 
-pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, colors: &Colors, username: &str) {
+pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, username: &str) {
     // player_info() only pushes the full 12 fields this function indexes into on a
     // successful `Ok(Some(session))` read (see src/player/integrated/player_info.rs) -
     // a transient sqlite read error (Ok(None)/Err path, only 4 fields) shouldn't be
@@ -25,12 +24,6 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     let new_y = area.y + area.height.saturating_sub(9); // the line number where player start
     let block_height = 4; // number of line of the player (in lines)
 
-    // Create the background block with background color
-    let bg_color_player = colors.resolve(&colors.player_background_color);
-    let block_area = Rect::new(area.x, new_y, block_width, block_height);
-    let block = Block::default()
-        .style(Style::default().bg(bg_color_player));
-
     // Text area
     let text_area_width = block_width - 6;
     let text_area_x = (area.width.saturating_sub(text_area_width)) / 2; // Center the text
@@ -42,15 +35,13 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
         Constraint::Length(1),
         Constraint::Length(2),
     ]).areas(text_area);
-    let _ = spacer_area; // already covered by the block's background tint below
+    let _ = spacer_area; // left blank - nothing to render there
 
     let mut key_bindings = String::new();
     let is_show_key_bindings = get_is_show_key_bindings(username);
     if is_show_key_bindings == "1" {
         key_bindings = "Spc: pause/play | p/u: +/−10s | P/U: nxt/prev ch. | O/I: spd +/− | o/i: vol +/− | T: real/content time | Y: quit".to_string();
     }
-
-    let progress_color = colors.resolve(&colors.progress_bar_color);
 
     // Volume indicator: a subtle underline beneath "Vol NN%" itself, filled up to
     // volume/200 - same underline-fill convention already used for the time/progress
@@ -81,7 +72,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
             player_info[9], // Speed rate
             player_info[10], // "Real" or "Content" mode indicator
         )),
-        Span::styled(vol_filled, Style::default().underline_color(progress_color).add_modifier(Modifier::UNDERLINED)),
+        Span::styled(vol_filled, Style::default().add_modifier(Modifier::UNDERLINED)),
         Span::raw(vol_unfilled),
     ]);
 
@@ -90,8 +81,6 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
         .centered()
         .block(Block::default());
 
-    // Render the background block first, then the details paragraph on top of it
-    block.render(block_area, buf);
     paragraph.render(rest_area, buf);
 
     // Title line: progress bar rendered as a background fill directly behind the text,
@@ -114,9 +103,9 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     let unfilled_text: String = chars[fill_count..].iter().collect();
 
     let title_line = Line::from(vec![
-        Span::styled(" ".repeat(padding_left), Style::default().bg(bg_color_player)),
-        Span::styled(filled_text, colors.fill_style(&colors.progress_bar_color)),
-        Span::styled(unfilled_text, Style::default().bg(bg_color_player)),
+        Span::raw(" ".repeat(padding_left)),
+        Span::styled(filled_text, Style::default().add_modifier(Modifier::REVERSED)),
+        Span::raw(unfilled_text),
     ]);
     Paragraph::new(title_line).render(title_area, buf);
 }
