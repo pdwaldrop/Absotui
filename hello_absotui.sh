@@ -1094,7 +1094,13 @@ get_absotui_github_release() {
 }
 
 display_changelog() {
-    local changelog=$(curl -s "$url_latest_release" | grep "\"body\"" | sed -E "s|^\s*\"body\":\s*\"([^\"]*)\"|\1|")
+    # Same `grep -o` rationale as get_absotui_github_release/install_binary above -
+    # the old `grep "\"body\"" | sed "s|^\s*\"body\":..."` pattern anchored to the
+    # start of the matched line, which only worked because pretty-printed JSON puts
+    # "body" at the start of its own line. On a compact response the whole document
+    # is one line starting with "url", so the anchor never matched and the entire
+    # raw response printed unchanged.
+    local changelog=$(curl -s "$url_latest_release" | grep -o '"body": *"[^"]*"' | sed -E 's/^"body": *"//; s/"$//')
     echo -e "\x1b[2m### CHANGELOG ###\x1b[0m"
     echo -e "\x1b[2m$changelog\x1b[0m"
     echo -e "\x1b[2m#################\x1b[0m"

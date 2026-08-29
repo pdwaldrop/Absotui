@@ -790,8 +790,7 @@ let changelog_48 = "Changelog Absotui v0.5.33-beta (29/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_49 = format!(
-    "Changelog Absotui v{VERSION} (29/08/2026) \n\
+let changelog_49 = "Changelog Absotui v0.5.34-beta (29/08/2026) \n\
          \n\
          Fixed:\n\
          - The install/update script could print the entire raw GitHub API
@@ -803,10 +802,23 @@ let changelog_49 = format!(
            same, formatting-independent way.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_50 = format!(
+    "Changelog Absotui v{VERSION} (29/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - The previous release fixed the install script printing raw JSON
+           for the version check, but missed an identical problem in the
+           changelog preview shown during an update - on a compact GitHub
+           API response it printed the entire raw document instead of the
+           release notes. Fixed the same way as the version check.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_50);
     changelog.push_str(&changelog_49);
     changelog.push_str(&changelog_48);
     changelog.push_str(&changelog_47);
