@@ -760,8 +760,7 @@ let changelog_46 = "Changelog Absotui v0.5.31-beta (27/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_47 = format!(
-    "Changelog Absotui v{VERSION} (27/08/2026) \n\
+let changelog_47 = "Changelog Absotui v0.5.32-beta (27/08/2026) \n\
          \n\
          Fixed:\n\
          - A momentary network hiccup while renewing your access token in
@@ -773,10 +772,29 @@ let changelog_47 = format!(
            a plain connectivity blip is retried instead.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_48 = format!(
+    "Changelog Absotui v{VERSION} (29/08/2026) \n\
+         \n\
+         Changed:\n\
+         - The app now always renders using your terminal's own color
+           theme (background, text, accents) instead of a fixed dark
+           palette - no more custom [colors] section in config.toml.
+         \n\
+         Fixed:\n\
+         - If your saved session's refresh token was actually dead (30+
+           days idle, or revoked server-side), startup got stuck showing
+           a raw \"401 Unauthorized\" error that Retry/Change-address
+           couldn't fix. It now clears the stale account and tells you to
+           restart and log in again, matching how this was already
+           handled mid-session.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_48);
     changelog.push_str(&changelog_47);
     changelog.push_str(&changelog_46);
     changelog.push_str(&changelog_45);
