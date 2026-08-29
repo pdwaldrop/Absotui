@@ -773,8 +773,7 @@ let changelog_47 = "Changelog Absotui v0.5.32-beta (27/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_48 = format!(
-    "Changelog Absotui v{VERSION} (29/08/2026) \n\
+let changelog_48 = "Changelog Absotui v0.5.33-beta (29/08/2026) \n\
          \n\
          Changed:\n\
          - The app now always renders using your terminal's own color
@@ -790,10 +789,25 @@ let changelog_48 = format!(
            handled mid-session.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_49 = format!(
+    "Changelog Absotui v{VERSION} (29/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install/update script could print the entire raw GitHub API
+           response instead of just the latest version number (e.g.
+           \"[INFO] GitHub: 0.5.33-beta \\\"draft\\\": false, ...\") - GitHub
+           doesn't guarantee pretty-printed JSON, and two of the three
+           places parsing it still assumed one-field-per-line, unlike a
+           similar fix already applied elsewhere. All three now parse the
+           same, formatting-independent way.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_49);
     changelog.push_str(&changelog_48);
     changelog.push_str(&changelog_47);
     changelog.push_str(&changelog_46);

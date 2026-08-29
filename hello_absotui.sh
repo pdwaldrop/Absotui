@@ -906,8 +906,12 @@ install_binary() {
     arch=$(uname -m)
 
     # get full and latest version on github(e.g: v0.1.0-beta) - reuse it if
-    # fetch_expected_checksum already resolved it earlier in this run
-    full_version=${full_version:-$(curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"([^\"]*)\",|\1|")}
+    # fetch_expected_checksum already resolved it earlier in this run. See
+    # fetch_expected_checksum's comment above for why this needs `grep -o` +
+    # `head -1` rather than a plain `grep tag_name` - GitHub doesn't guarantee
+    # pretty-printed JSON, and this exact call site has been observed live
+    # capturing the entire response as "the value" on a compact response.
+    full_version=${full_version:-$(curl -s "$url_latest_release" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]*)"$/\1/')}
 
 
     # determine binary to download
@@ -1082,7 +1086,11 @@ absotui --version | cut -d' ' -f2
 }
 
 get_absotui_github_release() {
-    curl -s "$url_latest_release" | grep tag_name | sed -E "s|.*\"v([^\"]*)\",|\1|"
+    # See fetch_expected_checksum's comment for why this needs `grep -o` +
+    # `head -1` rather than a plain `grep tag_name` - GitHub doesn't guarantee
+    # pretty-printed JSON, and this exact call site has been observed live
+    # capturing the entire response as "the value" on a compact response.
+    curl -s "$url_latest_release" | grep -o '"tag_name": *"v[^"]*"' | head -1 | sed -E 's/.*"v([^"]*)"$/\1/'
 }
 
 display_changelog() {
