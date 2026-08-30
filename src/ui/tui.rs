@@ -68,13 +68,13 @@ impl App {
     fn render_home(&mut self, area: Rect, buf: &mut Buffer) {
         let text_render_footer = if self.is_podcast {
             let mut hints = vec![("l/→", "play"), ("F", "finished"), ("d", "download"), ("/", "search"), ("D", "sort by age")];
-            hints.extend(Self::footer_trailer("library", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
+            hints.extend(Self::footer_trailer("library", true));
             theme::footer_text(&hints)
         } else {
             let mut hints = vec![("l/→", "play"), ("c", "chapters"), ("d", "download"), ("/", "search")];
-            hints.extend(Self::footer_trailer("library", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
+            hints.extend(Self::footer_trailer("library", true));
             theme::footer_text(&hints)
         };
 
@@ -301,13 +301,13 @@ impl App {
     fn render_library(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.is_podcast {
             let mut hints = vec![("l/→", "episodes"), ("/", "search")];
-            hints.extend(Self::footer_trailer("home", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
+            hints.extend(Self::footer_trailer("home", true));
             theme::footer_text(&hints)
         } else {
             let mut hints = vec![("l/→", "play"), ("/", "search")];
-            hints.extend(Self::footer_trailer("home", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
+            hints.extend(Self::footer_trailer("home", true));
             theme::footer_text(&hints)
         };
 
@@ -547,13 +547,13 @@ impl App {
     fn render_search_book(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.is_podcast {
             let mut hints = vec![("l/→", "episodes"), ("/", "search")];
-            hints.extend(Self::footer_trailer("home", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
+            hints.extend(Self::footer_trailer("home", true));
             theme::footer_text(&hints)
         } else {
             let mut hints = vec![("l/→", "play"), ("/", "search")];
-            hints.extend(Self::footer_trailer("home", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
+            hints.extend(Self::footer_trailer("home", true));
             theme::footer_text(&hints)
         };
 
@@ -717,8 +717,8 @@ impl App {
     /// `AppView::PodcastEpisode`
     fn render_pod_ep(&mut self, area: Rect, buf: &mut Buffer) {
         let mut hints = vec![("l/→", "play"), ("h", "back"), ("/", "search")];
-        hints.extend(Self::footer_trailer("home", true));
         hints.push(Self::FOOTER_SCROLL_DESC);
+        hints.extend(Self::footer_trailer("home", true));
         let text_render_footer = theme::footer_text(&hints);
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
