@@ -1010,11 +1010,17 @@ impl App {
         let show_cover = selected_id.is_some() && self.cover_loaded_for_id == selected_id;
 
         if show_cover {
+            // One box around the whole panel (image + text together) rather than a
+            // bare, unboxed image sitting next to a separately-boxed text panel.
+            let block = theme::section_block("Description");
+            let inner = block.inner(area);
+            block.render(area, buf);
+
             let [image_area, _gap_area, text_area] = Layout::horizontal([
                 Constraint::Length(30),
                 Constraint::Length(3),
                 Constraint::Fill(1),
-            ]).areas(area);
+            ]).areas(inner);
 
             if let Some(cover) = &mut self.cover_protocol {
                 // Defaults to FilterType::Nearest, which drops pixels rather than blending
@@ -1029,7 +1035,6 @@ impl App {
             Paragraph::new(html_to_lines(&_content))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
-                .block(theme::section_block("Description"))
                 .render(text_area, buf);
         } else {
             Paragraph::new(html_to_lines(&_content))
