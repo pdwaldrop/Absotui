@@ -937,7 +937,7 @@ impl App {
     fn footer_trailer(tab_target: &'static str, show_settings: bool) -> Vec<(&'static str, &'static str)> {
         let mut hints = vec![("Tab", tab_target), ("R", "refresh")];
         if show_settings {
-            hints.push(("S", "settings"));
+            hints.push(("s", "settings"));
         }
         hints.push(("?", "keymap"));
         hints.push(("Q/Esc", "quit"));
@@ -1533,7 +1533,7 @@ mod tests {
 
     #[test]
     fn footer_trailer_with_settings() {
-        assert_eq!(App::footer_trailer("library", true), vec![("Tab", "library"), ("R", "refresh"), ("S", "settings"), ("?", "keymap"), ("Q/Esc", "quit")]);
+        assert_eq!(App::footer_trailer("library", true), vec![("Tab", "library"), ("R", "refresh"), ("s", "settings"), ("?", "keymap"), ("Q/Esc", "quit")]);
     }
 
     #[test]

@@ -1297,9 +1297,9 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             let _ = handle_key_player("i", self.config.player.address.as_str(), self.config.player.port.as_str(), &mut is_playback, self.username.as_str()); 
         }
 
-        // shutdown VLC
-        KeyCode::Char('Y') => {
-            let _ = handle_key_player("Y", self.config.player.address.as_str(), self.config.player.port.as_str(), &mut is_playback, self.username.as_str()); 
+        // stop playback (shuts down VLC - not the app, see Q/Esc for that)
+        KeyCode::Char('S') => {
+            let _ = handle_key_player("stop", self.config.player.address.as_str(), self.config.player.port.as_str(), &mut is_playback, self.username.as_str());
         }
 
         // show key bindings
@@ -1491,7 +1491,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         KeyCode::Char('/') => {
             let _ = self.search_active();
         }
-        KeyCode::Char('S') => {
+        KeyCode::Char('s') => {
             self.view_state = AppView::Settings;
         }
         KeyCode::Tab => {

@@ -121,8 +121,8 @@ pub fn handle_key_player(key: &str, address: &str, port: &str, is_playback: &mut
             let speed_rate = adjust_speed_rate(username, false);
             writeln!(stream, "rate {speed_rate}")?;
         }
-        // shutdown
-        "Y" => {
+        // stop playback - shuts down VLC itself, not the app
+        "stop" => {
             writeln!(stream, "shutdown")?;
         }
         _ => {}
