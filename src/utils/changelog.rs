@@ -849,6 +849,16 @@ let changelog_52 = format!(
            currently-playing item is now `S` (was `Y`) - `Y`'s \"quit\"
            label was easy to confuse with `Q`/Esc's actual app-quit right
            next to it, even though it only stops that one item.
+         - Settings no longer advertises `R: refresh` in its footer - it
+           still works, but its only visible effect there is landing back
+           on Home, which `Tab` already does.
+         \n\
+         Fixed:\n\
+         - Whichever keybind chip happened to be first in a footer (e.g.
+           `l/→` or `h`) rendered with no left padding, jamming the key
+           against the highlight's edge unlike every other chip.
+         - The top-level Settings screen's footer was missing `h: back`,
+           even though the key already worked there.
          \n\
          Enjoy!\n
          ####\n"

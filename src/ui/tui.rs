@@ -331,16 +331,16 @@ impl App {
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.list_state_settings.selected() == Some(4) {
             // for `About` section
-            let mut hints = vec![("J/K/H", "scroll what's new")];
+            let mut hints = vec![("h", "back"), ("J/K/H", "scroll what's new")];
             hints.extend(Self::footer_trailer("home", false));
             theme::footer_text(&hints)
         }
         else if self.list_state_settings.selected() == Some(5) {
-            let mut hints = vec![("J/K/H", "scroll instructions")];
+            let mut hints = vec![("h", "back"), ("J/K/H", "scroll instructions")];
             hints.extend(Self::footer_trailer("home", false));
             theme::footer_text(&hints)
         } else {
-            let mut hints = vec![("l/→", "see options")];
+            let mut hints = vec![("h", "back"), ("l/→", "see options")];
             hints.extend(Self::footer_trailer("home", false));
             theme::footer_text(&hints)
         };
@@ -838,33 +838,37 @@ impl App {
                 hints.extend(Self::footer_trailer("home", true));
                 hints
             }
+            // R is added explicitly on these Settings-family arms (rather than via
+            // footer_trailer, which omits it here to keep the live footer short) - it's
+            // still unconditional (main.rs handles it regardless of view_state), so this
+            // authoritative list has to say so regardless of what the footer shows.
             AppView::Settings => {
-                let mut hints = vec![("l/→ Enter", "open selected setting")];
+                let mut hints = vec![("l/→ Enter", "open selected setting"), ("h", "back to Home"), ("R", "refresh")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", false));
                 hints
             }
             AppView::SettingsAccount => {
-                let mut hints = vec![("l/→ Enter", "remove saved user"), ("h", "back to Settings")];
+                let mut hints = vec![("l/→ Enter", "remove saved user"), ("h", "back to Settings"), ("R", "refresh")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", false));
                 hints
             }
             AppView::SettingsLibrary => {
-                let mut hints = vec![("l/→ Enter", "switch library"), ("h", "back to Settings")];
+                let mut hints = vec![("l/→ Enter", "switch library"), ("h", "back to Settings"), ("R", "refresh")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", false));
                 hints
             }
             AppView::SettingsAutoplay | AppView::SettingsPerItemSpeed | AppView::SettingsAutoDownload => {
-                let mut hints = vec![("l/→ Enter", "apply selected option"), ("h", "back to Settings")];
+                let mut hints = vec![("l/→ Enter", "apply selected option"), ("h", "back to Settings"), ("R", "refresh")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", false));
                 hints
             }
             AppView::SettingsUpdateUninstall => {
                 let mut hints = vec![
-                    ("l/→ Enter", "select (Instructions stage)"), ("h", "back to Settings"),
+                    ("l/→ Enter", "select (Instructions stage)"), ("h", "back to Settings"), ("R", "refresh"),
                     ("y/Y", "confirm (Confirm stage)"), ("n/N", "cancel (Confirm stage)"),
                     ("Enter", "submit password (Password stage)"),
                     ("Esc", "back/cancel (Confirm, Password, Failed stages)"),
@@ -934,9 +938,16 @@ impl App {
     // footer ends with - `tab_target` differs (Home's Tab goes to Library, everywhere
     // else's Tab goes to Home), and the Settings submenus don't mention `S` since
     // you're already there.
+    //
+    // `show_settings` also happens to be exactly "are we already on a Settings-family
+    // screen" at every call site, so it's reused to drop `R` there too: refresh
+    // re-fetches library/podcast data, which nothing on a Settings screen displays, and
+    // it fully reinits the app - landing back on Home - so its only visible effect there
+    // duplicates what "Tab: home" already advertises.
     fn footer_trailer(tab_target: &'static str, show_settings: bool) -> Vec<(&'static str, &'static str)> {
-        let mut hints = vec![("Tab", tab_target), ("R", "refresh")];
+        let mut hints = vec![("Tab", tab_target)];
         if show_settings {
+            hints.push(("R", "refresh"));
             hints.push(("s", "settings"));
         }
         hints.push(("?", "keymap"));
@@ -1538,6 +1549,6 @@ mod tests {
 
     #[test]
     fn footer_trailer_without_settings() {
-        assert_eq!(App::footer_trailer("home", false), vec![("Tab", "home"), ("R", "refresh"), ("?", "keymap"), ("Q/Esc", "quit")]);
+        assert_eq!(App::footer_trailer("home", false), vec![("Tab", "home"), ("?", "keymap"), ("Q/Esc", "quit")]);
     }
 }
