@@ -907,6 +907,9 @@ let changelog_54 = format!(
          - Search (`/`) now matches on author too, not just title - e.g. searching
            an author's name finds every one of their books/podcasts even if none
            of the titles themselves contain it.
+         - The search box's label and border are now the same yellow as the
+           footer/player keybind chips, since that's how you get there in the
+           first place, instead of the blue every permanent section uses.
          \n\
          Enjoy!\n
          ####\n"

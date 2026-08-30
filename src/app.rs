@@ -1533,7 +1533,11 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 Block::default()
                     .borders(Borders::ALL)
                     .title("Search")
-                    .border_style(Style::new().fg(crate::ui::theme::ACCENT_STRUCTURE))
+                    // ACCENT_KEY (yellow), matching the footer/player keybind chips -
+                    // not ACCENT_STRUCTURE like every other section's border, since
+                    // this box is reached via one of those chips (`/`) rather than
+                    // being a permanent structural section of the screen.
+                    .border_style(Style::new().fg(crate::ui::theme::ACCENT_KEY))
             );
             self.is_search_active = true;
         }
