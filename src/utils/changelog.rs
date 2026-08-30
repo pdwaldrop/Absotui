@@ -833,12 +833,12 @@ let changelog_52 = format!(
     "Changelog Absotui v{VERSION} (30/08/2026) \n\
          \n\
          Added:\n\
-         - Press `?` on any screen for a full keybind reference (matching
-           superfile/CLIAMP's own help screens), showing every key that
+         - Press `?` on any screen for a full Keymap screen (matching
+           superfile/CLIAMP's own keymap screens), showing every key that
            actually works there. Footers now show a shorter, curated set
-           of hints instead of cramming everything in (dropping only the
-           purely-navigational ones like move/top-bottom, which are
-           already in the new Help screen).
+           of hints instead of cramming everything in (dropping the
+           purely-navigational ones like move/top-bottom, and the player
+           key-bindings legend toggle, all of which are still in Keymap).
          - The player bar now gets its own accent-colored box (matching
            the play icon), the same full width as every other panel.
          - Home's cover art now sits inside the Description box instead

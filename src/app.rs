@@ -66,9 +66,9 @@ pub enum AppView {
     SettingsPerItemSpeed,
     SettingsAutoDownload,
     // Full keybind reference for whichever screen it was opened from (see
-    // `help_return_view`) - bound to `?`, matching CLIAMP/superfile's own
+    // `keymap_return_view`) - bound to `?`, matching CLIAMP/superfile's own
     // dedicated help/keymap screens.
-    Help,
+    Keymap,
 }
 
 // Sub-state for the AppView::SettingsUpdateUninstall screen. `Failed` is the only
@@ -85,8 +85,8 @@ pub enum UpdateUninstallStage {
 
 pub struct App {
     pub view_state: AppView,
-    // The screen `?` was pressed from, so Esc/`?` can return to it from AppView::Help.
-    pub help_return_view: AppView,
+    // The screen `?` was pressed from, so Esc/`?` can return to it from AppView::Keymap.
+    pub keymap_return_view: AppView,
     // Set when the user picks a different library in Settings > Library. `App` can't
     // reinitialize itself (that's an async operation, and this struct's own methods
     // are sync), so this just signals the main loop to do the same full reload/reinit
@@ -844,10 +844,10 @@ impl App {
         view_state = AppView::Library; // If `Home` is empty (no book or podcast to continue)
     }
 
-    // Which screen to return to when leaving AppView::Help - set for real when `?`
-    // is pressed, this initial value is never actually shown since Help can't be
+    // Which screen to return to when leaving AppView::Keymap - set for real when `?`
+    // is pressed, this initial value is never actually shown since Keymap can't be
     // entered before that.
-    let help_return_view = AppView::Home;
+    let keymap_return_view = AppView::Home;
 
     // init start_vlc variables
     let is_cvlc = config.player.cvlc.clone();
@@ -942,7 +942,7 @@ impl App {
         desc_cnt_list,
         _ids_cnt_list,
         view_state,
-        help_return_view,
+        keymap_return_view,
         library_needs_reload: false,
         is_chapter_list_expanded: false,
         titles_library,
@@ -1241,12 +1241,12 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         }
     }
 
-    // AppView::Help owns every key itself, the same way the Update/Uninstall
+    // AppView::Keymap owns every key itself, the same way the Update/Uninstall
     // sub-stages above do - Esc means "go back" here, not "quit", a deliberate,
     // precedented deviation from its usual global meaning below.
-    if matches!(self.view_state, AppView::Help) {
+    if matches!(self.view_state, AppView::Keymap) {
         if matches!(key.code, KeyCode::Char('?') | KeyCode::Esc) {
-            self.view_state = self.help_return_view;
+            self.view_state = self.keymap_return_view;
         }
         return;
     }
@@ -1501,9 +1501,9 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             self.toggle_view();
         }
         KeyCode::Char('?') => {
-            self.help_return_view = self.view_state;
+            self.keymap_return_view = self.view_state;
             self.scroll_offset = 0;
-            self.view_state = AppView::Help;
+            self.view_state = AppView::Keymap;
         }
 
         KeyCode::Char('Q') | KeyCode::Esc => {
@@ -1811,9 +1811,9 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 }
                 AppView::SettingsAbout => {
                 }
-                // Unreachable in practice - the Help guard earlier in handle_key
-                // returns before this match is ever reached while Help is active.
-                AppView::Help => {}
+                // Unreachable in practice - the Keymap guard earlier in handle_key
+                // returns before this match is ever reached while Keymap is active.
+                AppView::Keymap => {}
                 AppView::Library => {
                     if self.is_podcast {
                         if let Some(index) = selected_library {
@@ -2045,9 +2045,9 @@ fn toggle_view(&mut self) {
         AppView::SettingsAutoplay => AppView::Home,
         AppView::SettingsPerItemSpeed => AppView::Home,
         AppView::SettingsAutoDownload => AppView::Home,
-        // Unreachable - Tab never reaches this while Help is active (see handle_key's
-        // Help guard).
-        AppView::Help => AppView::Home,
+        // Unreachable - Tab never reaches this while Keymap is active (see handle_key's
+        // Keymap guard).
+        AppView::Keymap => AppView::Home,
 
     };
 }
@@ -2155,8 +2155,8 @@ pub fn select_next(&mut self) {
             } else {
                 self.list_state_settings_auto_download.select_first();
             }}}
-        // Unreachable - j/Down never reach this while Help is active.
-        AppView::Help => {}
+        // Unreachable - j/Down never reach this while Keymap is active.
+        AppView::Keymap => {}
     }
 }
 
@@ -2174,7 +2174,7 @@ pub fn select_previous(&mut self) {
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select_previous(),
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select_previous(),
         AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select_previous(),
-        AppView::Help => {}
+        AppView::Keymap => {}
     }
 }
 
@@ -2192,7 +2192,7 @@ pub fn select_first(&mut self) {
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select_first(),
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select_first(),
         AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select_first(),
-        AppView::Help => {}
+        AppView::Keymap => {}
     }
 }
 
@@ -2225,7 +2225,7 @@ pub fn select_last(&mut self) {
         AppView::SettingsAutoplay => self.list_state_settings_autoplay.select(Some(1)),
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select(Some(1)),
         AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select(Some(1)),
-        AppView::Help => {}
+        AppView::Keymap => {}
     }
 }
 

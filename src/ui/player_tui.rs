@@ -7,9 +7,9 @@ use ratatui::{
 use crate::db::crud::get_is_show_key_bindings;
 use crate::ui::theme;
 
-// Shared with tui.rs's Help screen (`help_entries()`) so this list is only
+// Shared with tui.rs's Keymap screen (`keymap_entries()`) so this list is only
 // ever spelled out once - the player's own control keys aren't tied to any
-// particular AppView (the player overlay renders on every screen), so Help
+// particular AppView (the player overlay renders on every screen), so Keymap
 // includes these regardless of which screen it was opened from.
 pub const PLAYER_KEYS: &[(&str, &str)] = &[
     ("Spc", "pause/play"), ("p/u", "+/−10s"), ("P/U", "nxt/prev ch."),

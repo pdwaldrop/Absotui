@@ -56,7 +56,7 @@ impl Widget for &mut App {
             AppView::SettingsAutoplay => self.render_settings_autoplay(area, buf),
             AppView::SettingsPerItemSpeed => self.render_settings_per_item_speed(area, buf),
             AppView::SettingsAutoDownload => self.render_settings_auto_download(area, buf),
-            AppView::Help => self.render_help(area, buf),
+            AppView::Keymap => self.render_keymap(area, buf),
         }
     }
 }
@@ -67,12 +67,12 @@ impl App {
     /// `AppView::Home` rendering
     fn render_home(&mut self, area: Rect, buf: &mut Buffer) {
         let text_render_footer = if self.is_podcast {
-            let mut hints = vec![("l/→", "play"), ("F", "finished"), ("d", "download"), ("/", "search"), ("B", "play keys"), ("D", "sort by age")];
+            let mut hints = vec![("l/→", "play"), ("F", "finished"), ("d", "download"), ("/", "search"), ("D", "sort by age")];
             hints.extend(Self::footer_trailer("library", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
             theme::footer_text(&hints)
         } else {
-            let mut hints = vec![("l/→", "play"), ("c", "chapters"), ("d", "download"), ("/", "search"), ("B", "play keys")];
+            let mut hints = vec![("l/→", "play"), ("c", "chapters"), ("d", "download"), ("/", "search")];
             hints.extend(Self::footer_trailer("library", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
             theme::footer_text(&hints)
@@ -300,12 +300,12 @@ impl App {
     /// `AppView::Library` rendering
     fn render_library(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.is_podcast {
-            let mut hints = vec![("l/→", "episodes"), ("/", "search"), ("B", "play keys")];
+            let mut hints = vec![("l/→", "episodes"), ("/", "search")];
             hints.extend(Self::footer_trailer("home", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
             theme::footer_text(&hints)
         } else {
-            let mut hints = vec![("l/→", "play"), ("/", "search"), ("B", "play keys")];
+            let mut hints = vec![("l/→", "play"), ("/", "search")];
             hints.extend(Self::footer_trailer("home", true));
             hints.push(Self::FOOTER_SCROLL_DESC);
             theme::footer_text(&hints)
@@ -762,10 +762,10 @@ impl App {
         }
     }
 
-    /// `AppView::Help` - the full keybind reference for whichever screen `?` was
-    /// pressed from (`self.help_return_view`), matching CLIAMP/superfile's own
+    /// `AppView::Keymap` - the full keybind reference for whichever screen `?` was
+    /// pressed from (`self.keymap_return_view`), matching CLIAMP/superfile's own
     /// dedicated help/keymap screens rather than the always-visible curated footer.
-    fn render_help(&mut self, area: Rect, buf: &mut Buffer) {
+    fn render_keymap(&mut self, area: Rect, buf: &mut Buffer) {
         let footer_hints = [("?", "back"), ("Esc", "back")];
         let text_render_footer = theme::footer_text(&footer_hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] =
@@ -774,23 +774,23 @@ impl App {
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
 
-        let rows: Vec<Row> = self.help_entries().iter()
+        let rows: Vec<Row> = self.keymap_entries().iter()
             .map(|(k, d)| Row::new(vec![Cell::from(*k), Cell::from(*d)]))
             .collect();
         Widget::render(
             Table::new(rows, [Constraint::Length(16), Constraint::Fill(1)])
-                .block(theme::section_block("Help")),
+                .block(theme::section_block("Keymap")),
             main_area, buf,
         );
     }
 
-    /// The complete, authoritative keybind list for `self.help_return_view` - not
+    /// The complete, authoritative keybind list for `self.keymap_return_view` - not
     /// just a copy of that screen's (deliberately curated) footer text. Mirrors
     /// `App::handle_key`'s own guards exactly (is_podcast/is_from_search_pod) so
     /// this can't drift the way the old footers had (T/B are global but were
     /// missing from most footers; D silently worked from any screen when
     /// is_podcast despite only Home's footer mentioning it).
-    fn help_entries(&self) -> Vec<(&'static str, &'static str)> {
+    fn keymap_entries(&self) -> Vec<(&'static str, &'static str)> {
         // Global keys that work from every real screen (everywhere except the 4
         // modal Update/Uninstall sub-stages, which own input themselves and are
         // listed separately below).
@@ -801,7 +801,7 @@ impl App {
         ];
         globals.extend(player_tui::PLAYER_KEYS.iter().copied());
 
-        match self.help_return_view {
+        match self.keymap_return_view {
             AppView::Home if self.is_podcast => {
                 let mut hints = vec![
                     ("l/→ Enter", "play selected episode"), ("d", "download / remove download"),
@@ -877,7 +877,7 @@ impl App {
             // "About" is instead previewed inline while highlighted on the Settings
             // list itself).
             AppView::SettingsAbout => vec![],
-            AppView::Help => vec![],
+            AppView::Keymap => vec![],
         }
     }
 
@@ -939,7 +939,7 @@ impl App {
         if show_settings {
             hints.push(("S", "settings"));
         }
-        hints.push(("?", "help"));
+        hints.push(("?", "keymap"));
         hints.push(("Q/Esc", "quit"));
         hints
     }
@@ -1533,11 +1533,11 @@ mod tests {
 
     #[test]
     fn footer_trailer_with_settings() {
-        assert_eq!(App::footer_trailer("library", true), vec![("Tab", "library"), ("R", "refresh"), ("S", "settings"), ("?", "help"), ("Q/Esc", "quit")]);
+        assert_eq!(App::footer_trailer("library", true), vec![("Tab", "library"), ("R", "refresh"), ("S", "settings"), ("?", "keymap"), ("Q/Esc", "quit")]);
     }
 
     #[test]
     fn footer_trailer_without_settings() {
-        assert_eq!(App::footer_trailer("home", false), vec![("Tab", "home"), ("R", "refresh"), ("?", "help"), ("Q/Esc", "quit")]);
+        assert_eq!(App::footer_trailer("home", false), vec![("Tab", "home"), ("R", "refresh"), ("?", "keymap"), ("Q/Esc", "quit")]);
     }
 }
