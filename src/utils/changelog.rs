@@ -894,6 +894,11 @@ let changelog_53 = format!(
            messages write straight to the terminal, bypassing the same diff cache
            the search box already needed a similar fix for.
          \n\
+         Changed:\n\
+         - The search box now opens over the Info panel (author/year/duration -
+           a quick glance away regardless) instead of the Description panel, so
+           the actual synopsis text and cover art stay visible while typing.
+         \n\
          Enjoy!\n
          ####\n"
 );

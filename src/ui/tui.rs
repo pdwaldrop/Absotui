@@ -58,8 +58,12 @@ impl Widget for &mut App {
             AppView::SettingsAutoDownload => self.render_settings_auto_download(area, buf),
             AppView::Keymap => self.render_keymap(area, buf),
         }
-        if self.is_search_active {
-            self.render_search_overlay(area, buf);
+        // Home/Library/Settings/SearchBook/PodcastEpisode render the overlay
+        // themselves, anchored to their own Info box - see render_search_overlay's
+        // doc comment. Everything else falls back to a generic bottom-anchored spot.
+        if self.is_search_active
+            && !matches!(self.view_state, AppView::Home | AppView::Library | AppView::Settings | AppView::SearchBook | AppView::PodcastEpisode) {
+            self.render_search_overlay_fallback(area, buf);
         }
     }
 }
@@ -298,6 +302,9 @@ impl App {
             self.render_info_home(item_area1, buf, &self.list_state_cnt_list.clone());
             self.render_desc_home(item_area2, buf, &self.list_state_cnt_list.clone());
         }
+        if self.is_search_active {
+            self.render_search_overlay(item_area1, buf);
+        }
     }
 
     /// `AppView::Library` rendering
@@ -327,6 +334,9 @@ impl App {
         if !&self.titles_library.is_empty() {
             self.render_info_library(item_area1, buf, &self.list_state_library.clone());
             self.render_desc_library(item_area2, buf, &self.list_state_library.clone());
+        }
+        if self.is_search_active {
+            self.render_search_overlay(item_area1, buf);
         }
     }
 
@@ -359,6 +369,9 @@ impl App {
         self.render_list(list_area, buf, render_list_title, &self.settings.clone(), &mut self.list_state_settings.clone(), None);
         self.render_info_settings(item_area1, buf, &self.list_state_settings.clone());
         self.render_desc_settings(item_area2, buf, &self.list_state_settings.clone());
+        if self.is_search_active {
+            self.render_search_overlay(item_area1, buf);
+        }
     }
 
     /// `AppView::SettingsAccount` rendering
@@ -708,6 +721,9 @@ impl App {
             self.render_info_search_book(item_area1, buf, &self.list_state_search_results.clone() );
             self.render_desc_search_book(item_area2, buf, &self.list_state_search_results.clone() );
         }
+        if self.is_search_active {
+            self.render_search_overlay(item_area1, buf);
+        }
     }
 
     /// `AppView::PodcastEpisode`
@@ -756,6 +772,9 @@ impl App {
                 self.render_desc_pod_ep(item_area2, buf, &self.list_state_pod_ep.clone() );
             }
         }
+        if self.is_search_active {
+            self.render_search_overlay(item_area1, buf);
+        }
     }
 
     /// The search box (`/`), drawn as an overlay on top of whatever's already been
@@ -764,21 +783,33 @@ impl App {
     /// main loop's own. `Clear` first, since `TextArea`'s own render only draws its
     /// border plus whatever text/cursor it actually holds - an empty box wouldn't
     /// otherwise blank the content already sitting in its area from the same buffer.
-    fn render_search_overlay(&mut self, area: Rect, buf: &mut Buffer) {
+    ///
+    /// Fills `target` exactly - callers with their own Info box (Home, Library,
+    /// Settings, SearchBook, PodcastEpisode) pass that Rect directly, so the box
+    /// replaces the low-value Info summary (author/year/duration - a quick glance
+    /// away regardless) instead of sitting over the Description panel, which has the
+    /// actual synopsis text and cover art worth keeping visible while typing.
+    fn render_search_overlay(&mut self, target: Rect, buf: &mut Buffer) {
+        ratatui::widgets::Clear.render(target, buf);
+        (&self.search_textarea).render(target, buf);
+    }
+
+    /// Fallback for the handful of screens with no Info box to anchor to (Settings'
+    /// own sub-screens, mostly) - `/` isn't advertised there, but it's still a global
+    /// key, so this keeps it from silently vanishing if pressed anyway.
+    fn render_search_overlay_fallback(&mut self, area: Rect, buf: &mut Buffer) {
         // Stays clear of the player bar's own reserved rows (6 for its box + 1 gap
         // above the footer - see player_tui.rs's `new_y` and `standard_layout`'s
         // `player_gap`/`refresh` constraints) when something's playing, rather than
         // landing on top of it.
         let player_reserved = if get_is_vlc_running(&self.username) == "1" { 7 } else { 0 };
-        let search_area = Rect {
+        let target = Rect {
             x: area.x + 1,
             y: area.y + area.height.saturating_sub(5 + player_reserved),
             width: area.width.saturating_sub(2),
             height: 3,
         };
-
-        ratatui::widgets::Clear.render(search_area, buf);
-        (&self.search_textarea).render(search_area, buf);
+        self.render_search_overlay(target, buf);
     }
 
     /// `AppView::Keymap` - the full keybind reference for whichever screen `?` was
