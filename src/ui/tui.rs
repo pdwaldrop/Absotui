@@ -579,12 +579,22 @@ impl App {
 
         let render_list_title = "Search result";
 
-        // init variables for search result (search by a book by title)
+        // init variables for search result - matches on title or author, so e.g.
+        // searching "sanderson" finds every book by Brandon Sanderson even if none of
+        // their titles contain that word. Author comes from whichever of the two
+        // author lists actually applies to the current library type (podcasts and
+        // books each have their own, indexed the same way as titles_library).
+        let query = self.search_query.to_lowercase();
         let idx_and_titles: Vec<(usize, String)> = self.titles_library
             .iter()
-            .enumerate() 
-            .filter(|(_, x)| x.to_lowercase().contains(&self.search_query.to_lowercase())) 
-            .map(|(index, title)| (index, title.clone())) 
+            .enumerate()
+            .filter(|(index, title)| {
+                let title_matches = title.to_lowercase().contains(&query);
+                let author_list = if self.is_podcast { &self.auth_names_library_pod } else { &self.auth_names_library };
+                let author_matches = author_list.get(*index).is_some_and(|author| author.to_lowercase().contains(&query));
+                title_matches || author_matches
+            })
+            .map(|(index, title)| (index, title.clone()))
             .collect();
 
         let mut titles_search_book_or_pod: Vec<String> = Vec::new();

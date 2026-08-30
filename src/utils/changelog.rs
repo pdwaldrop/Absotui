@@ -1,8 +1,3 @@
-// Unused right after a release until the next changelog entry is started - the first
-// fix/feature commit of the next cycle should add a new `format!("...v{VERSION}...")`
-// entry (like the one just frozen below it) rather than a plain string, so it keeps
-// resolving to whatever version is actually running until *that* entry gets frozen too.
-#[allow(dead_code)]
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn changelog() -> String {
@@ -905,8 +900,20 @@ let changelog_53 = "Changelog Absotui v0.5.39-beta (30/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_54 = format!(
+    "Changelog Absotui v{VERSION} (30/08/2026) \n\
+         \n\
+         Changed:\n\
+         - Search (`/`) now matches on author too, not just title - e.g. searching
+           an author's name finds every one of their books/podcasts even if none
+           of the titles themselves contain it.
+         \n\
+         Enjoy!\n
+         ####\n"
+);
 
 
+    changelog.push_str(&changelog_54);
     changelog.push_str(&changelog_53);
     changelog.push_str(&changelog_52);
     changelog.push_str(&changelog_51);
