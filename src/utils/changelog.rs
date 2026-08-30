@@ -844,6 +844,12 @@ let changelog_52 = format!(
          - Home's cover art now sits inside the Description box instead
            of floating unboxed beside it.
          \n\
+         Changed:\n\
+         - Settings is now lowercase `s` (was `S`), and stopping the
+           currently-playing item is now `S` (was `Y`) - `Y`'s \"quit\"
+           label was easy to confuse with `Q`/Esc's actual app-quit right
+           next to it, even though it only stops that one item.
+         \n\
          Enjoy!\n
          ####\n"
 );
