@@ -38,11 +38,12 @@
 - **Books & podcasts:** full support for both, including a unified "New & Unfinished" podcast home view and instant mark-as-finished (`F`)
 - **Podcast autoplay:** automatically start the next unfinished episode when one finishes
 - **Streaming or offline:** play directly, or download any book or podcast episode (`d`) for offline playback — a download is preferred automatically once you have one. Settings > Auto Download can keep your active listening downloaded automatically, and downloaded items are marked right in the list
-- **Cover art:** book and podcast episode cover art shown alongside the description (terminal permitting — Kitty/Sixel/iTerm2), preferring a podcast episode's own embedded artwork over the podcast's cover when the episode's file has one
+- **Cover art:** book and podcast episode cover art shown inside the Description panel (terminal permitting — Kitty/Sixel/iTerm2), preferring a podcast episode's own embedded artwork over the podcast's cover when the episode's file has one
 - **Chapter navigation:** browse a book's full chapter list inline in Continue Listening, with live per-chapter progress
 - **Desktop integration:** a custom app icon, its own taskbar/dock window icon (on supported terminals), and a window title that shows what's currently playing
 - **In-app update / uninstall:** Settings > Update / Uninstall runs the install script for you — authenticates the same way a real terminal would (fingerprint reader first, if configured, falling back to a password prompt), streams progress live, and relaunches itself on a successful update. `absotui --update`/`--uninstall` still work unchanged as a fallback
-- **Customizable color theme:** a config file lets you customize the color theme, including the progress indicator color — [explore and share themes here](https://github.com/AlbanDAVID/Toutui-theme)
+- **Terminal-native theming:** the whole UI renders using your terminal's own color scheme automatically — no config file or custom palette to maintain, it just matches whatever theme your terminal is set to
+- **Full keymap reference:** press `?` on any screen for a complete, always-accurate list of every key that works there — footers only show a short, curated set of the most useful hints to keep things uncluttered
 - **Per-item playback speed:** optionally (Settings > Per-Item Speed) let each book or podcast show remember its own playback speed instead of sharing one speed across everything
 - **Reliable sync:** per-item progress bars and a now-playing marker in the Continue Listening list, accurate progress percentages even at non-1x playback speed, and a clear retry/change-server screen instead of the app just closing if Audiobookshelf is unreachable
 
@@ -147,7 +148,7 @@ Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sql
 ---
 
 ## 🛠️ Roadmap
-Recent work: audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly).
+Recent work: audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly); and a UI refresh — terminal-native theming, bordered/labeled sections, curated footers, and a full keymap reference (`?`) on every screen.
 
 **Under consideration:**
 - Playlist/Collections view
@@ -170,7 +171,7 @@ Contributions of code, ideas, or feedback are welcome — see the [contributing 
 This project follows [this branching workflow](https://gist.github.com/digitaljhelms/4287848).
 
 ### 🎨 UI
-Explore and share themes [here](https://github.com/AlbanDAVID/Toutui-theme). The font and emoji you see may vary depending on your terminal.
+Absotui renders using your terminal's own color theme automatically, with a small set of accent colors pulled from it for structure (borders, active items, keybind hints) — there's no separate config to keep in sync with your terminal. The font and emoji you see may vary depending on your terminal.
 
 ### 🖥️ Terminal compatibility
 Absotui works in any modern terminal, but two features scale with what your terminal supports:
