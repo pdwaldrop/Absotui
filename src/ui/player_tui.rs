@@ -21,21 +21,24 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
         return;
     }
 
-    let block_width = area.width;
     let new_y = area.y + area.height.saturating_sub(9); // the line number where player start
-    let block_height = 4; // number of line of the player (in lines)
+    let block_height = 6; // 4 content rows (spacer/title/details/key-bindings) + border top/bottom
 
-    // Text area
-    let text_area_width = block_width - 6;
-    let text_area_x = (area.width.saturating_sub(text_area_width)) / 2; // Center the text
-    let text_area = Rect::new(text_area_x, new_y, text_area_width, block_height);
+    // Full width, matching every other panel's box - no inset margin.
+    let text_area = Rect::new(area.x, new_y, area.width, block_height);
+
+    // Its own box in the active accent color (matching the play icon/progress fill),
+    // distinct from every other panel's structural-accent box.
+    let block = theme::section_block("Now Playing").border_style(Style::new().fg(theme::ACCENT_ACTIVE));
+    let inner = block.inner(text_area);
+    block.render(text_area, buf);
 
     // Split into: blank spacer line, title line (gets the progress fill), details+key bindings
     let [spacer_area, title_area, rest_area] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Length(2),
-    ]).areas(text_area);
+    ]).areas(inner);
     let _ = spacer_area; // left blank - nothing to render there
 
     let mut key_bindings_line = Line::default();
