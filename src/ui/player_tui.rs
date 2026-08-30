@@ -7,6 +7,14 @@ use ratatui::{
 use crate::db::crud::get_is_show_key_bindings;
 use crate::ui::theme;
 
+// Shared with tui.rs's Help screen (`help_entries()`) so this list is only
+// ever spelled out once - the player's own control keys aren't tied to any
+// particular AppView (the player overlay renders on every screen), so Help
+// includes these regardless of which screen it was opened from.
+pub const PLAYER_KEYS: &[(&str, &str)] = &[
+    ("Spc", "pause/play"), ("p/u", "+/−10s"), ("P/U", "nxt/prev ch."),
+    ("O/I", "spd +/−"), ("o/i", "vol +/−"), ("T", "real/content time"), ("Y", "quit"),
+];
 
 pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, username: &str) {
     // player_info() only pushes the full 12 fields this function indexes into on a
@@ -44,10 +52,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     let mut key_bindings_line = Line::default();
     let is_show_key_bindings = get_is_show_key_bindings(username);
     if is_show_key_bindings == "1" {
-        key_bindings_line = theme::footer_line(&[
-            ("Spc", "pause/play"), ("p/u", "+/−10s"), ("P/U", "nxt/prev ch."),
-            ("O/I", "spd +/−"), ("o/i", "vol +/−"), ("T", "real/content time"), ("Y", "quit"),
-        ]);
+        key_bindings_line = theme::footer_line(PLAYER_KEYS);
     }
 
     // Volume indicator: a subtle underline beneath "Vol NN%" itself, filled up to

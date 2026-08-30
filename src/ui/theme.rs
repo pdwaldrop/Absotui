@@ -41,8 +41,10 @@ pub fn footer_line(hints: &[(&str, &str)]) -> Line<'static> {
     Line::from(spans)
 }
 
-/// Builds the full (possibly multi-line) footer text from an ordered list of
-/// hint lines.
-pub fn footer_text(lines: &[Vec<(&str, &str)>]) -> Text<'static> {
-    Text::from(lines.iter().map(|hints| footer_line(hints)).collect::<Vec<_>>())
+/// Builds footer text from one ordered list of hints - a single `Line`, left to
+/// wrap onto as many rows as the terminal width actually needs (`Wrap{trim:true}`
+/// flattens every chip's spans into one grapheme stream before wrapping, so this
+/// wraps identically to hand-splitting into multiple lines, just automatically).
+pub fn footer_text(hints: &[(&str, &str)]) -> Text<'static> {
+    Text::from(footer_line(hints))
 }

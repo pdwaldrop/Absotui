@@ -8,8 +8,8 @@ use ratatui::{
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{
-        Block, Borders, HighlightSpacing, List, ListItem , ListState,  Paragraph, StatefulWidget,
-        Widget, Wrap
+        Block, Borders, Cell, HighlightSpacing, List, ListItem , ListState,  Paragraph, Row,
+        StatefulWidget, Table, Widget, Wrap
     },
 };
 use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
@@ -19,6 +19,7 @@ use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::utils::html_to_text::html_to_lines;
 use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_and_cache_episode_cover};
 use crate::ui::theme;
+use crate::ui::player_tui;
 
 
 // const version
@@ -55,6 +56,7 @@ impl Widget for &mut App {
             AppView::SettingsAutoplay => self.render_settings_autoplay(area, buf),
             AppView::SettingsPerItemSpeed => self.render_settings_per_item_speed(area, buf),
             AppView::SettingsAutoDownload => self.render_settings_auto_download(area, buf),
+            AppView::Help => self.render_help(area, buf),
         }
     }
 }
@@ -65,17 +67,15 @@ impl App {
     /// `AppView::Home` rendering
     fn render_home(&mut self, area: Rect, buf: &mut Buffer) {
         let text_render_footer = if self.is_podcast {
-            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("F", "finished"), ("d", "download"), ("/", "search"), Self::FOOTER_LIST_JUMP];
-            let mut line2 = vec![("B", "play keys"), ("D", "sort by age")];
-            line2.extend(Self::footer_trailer("library", true));
-            line2.push(Self::FOOTER_SCROLL_DESC);
-            theme::footer_text(&[line1, line2])
+            let mut hints = vec![("l/→", "play"), ("F", "finished"), ("d", "download"), ("/", "search"), ("B", "play keys"), ("D", "sort by age")];
+            hints.extend(Self::footer_trailer("library", true));
+            hints.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&hints)
         } else {
-            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("c", "chapters"), ("d", "download"), ("/", "search"), Self::FOOTER_LIST_JUMP];
-            let mut line2 = vec![("B", "play keys")];
-            line2.extend(Self::footer_trailer("library", true));
-            line2.push(Self::FOOTER_SCROLL_DESC);
-            theme::footer_text(&[line1, line2])
+            let mut hints = vec![("l/→", "play"), ("c", "chapters"), ("d", "download"), ("/", "search"), ("B", "play keys")];
+            hints.extend(Self::footer_trailer("library", true));
+            hints.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&hints)
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
@@ -300,17 +300,15 @@ impl App {
     /// `AppView::Library` rendering
     fn render_library(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.is_podcast {
-            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "episodes"), ("/", "search"), Self::FOOTER_LIST_JUMP];
-            let mut line2 = vec![("B", "play keys")];
-            line2.extend(Self::footer_trailer("home", true));
-            line2.push(Self::FOOTER_SCROLL_DESC);
-            theme::footer_text(&[line1, line2])
+            let mut hints = vec![("l/→", "episodes"), ("/", "search"), ("B", "play keys")];
+            hints.extend(Self::footer_trailer("home", true));
+            hints.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&hints)
         } else {
-            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("/", "search"), Self::FOOTER_LIST_JUMP];
-            let mut line2 = vec![("B", "play keys")];
-            line2.extend(Self::footer_trailer("home", true));
-            line2.push(Self::FOOTER_SCROLL_DESC);
-            theme::footer_text(&[line1, line2])
+            let mut hints = vec![("l/→", "play"), ("/", "search"), ("B", "play keys")];
+            hints.extend(Self::footer_trailer("home", true));
+            hints.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&hints)
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
@@ -333,15 +331,18 @@ impl App {
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.list_state_settings.selected() == Some(4) {
             // for `About` section
-            let line1 = vec![Self::FOOTER_MOVE, ("J/K/H", "scroll what's new")];
-            theme::footer_text(&[line1, Self::footer_trailer("home", false)])
+            let mut hints = vec![("J/K/H", "scroll what's new")];
+            hints.extend(Self::footer_trailer("home", false));
+            theme::footer_text(&hints)
         }
         else if self.list_state_settings.selected() == Some(5) {
-            let line1 = vec![Self::FOOTER_MOVE, ("J/K/H", "scroll instructions")];
-            theme::footer_text(&[line1, Self::footer_trailer("home", false)])
+            let mut hints = vec![("J/K/H", "scroll instructions")];
+            hints.extend(Self::footer_trailer("home", false));
+            theme::footer_text(&hints)
         } else {
-            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "see options")];
-            theme::footer_text(&[line1, Self::footer_trailer("home", false)])
+            let mut hints = vec![("l/→", "see options")];
+            hints.extend(Self::footer_trailer("home", false));
+            theme::footer_text(&hints)
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
@@ -359,7 +360,9 @@ impl App {
 
     /// `AppView::SettingsAccount` rendering
     fn render_settings_account(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "remove saved user")], Self::footer_trailer("home", false)]);
+        let mut hints = vec![("h", "back"), ("l/→", "remove saved user")];
+        hints.extend(Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, _item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -374,7 +377,9 @@ impl App {
 
     /// `AppView::SettingsLibrary` rendering
     fn render_settings_library(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "change library")], Self::footer_trailer("home", false)]);
+        let mut hints = vec![("h", "back"), ("l/→", "change library")];
+        hints.extend(Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -390,7 +395,9 @@ impl App {
 
     /// `AppView::SettingsAutoplay` rendering
     fn render_settings_autoplay(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "apply")], Self::footer_trailer("home", false)]);
+        let mut hints = vec![("h", "back"), ("l/→", "apply")];
+        hints.extend(Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -412,11 +419,15 @@ impl App {
     /// `AppView::SettingsUpdateUninstall` rendering
     fn render_settings_update_uninstall(&mut self, area: Rect, buf: &mut Buffer) {
         let text_render_footer = match &self.update_uninstall_stage {
-            UpdateUninstallStage::Instructions => theme::footer_text(&[vec![("h", "back"), ("l/→", "select")], Self::footer_trailer("home", false)]),
-            UpdateUninstallStage::Confirm(_) => theme::footer_text(&[vec![("Y", "Yes"), ("N/Esc", "No")]]),
-            UpdateUninstallStage::Password(_) => theme::footer_text(&[vec![("Enter", "continue"), ("Esc", "back")]]),
+            UpdateUninstallStage::Instructions => {
+                let mut hints = vec![("h", "back"), ("l/→", "select")];
+                hints.extend(Self::footer_trailer("home", false));
+                theme::footer_text(&hints)
+            }
+            UpdateUninstallStage::Confirm(_) => theme::footer_text(&[("Y", "Yes"), ("N/Esc", "No")]),
+            UpdateUninstallStage::Password(_) => theme::footer_text(&[("Enter", "continue"), ("Esc", "back")]),
             UpdateUninstallStage::Running(_) => Text::from("Working..."),
-            UpdateUninstallStage::Failed(_, _) => theme::footer_text(&[vec![("Esc", "back")]]),
+            UpdateUninstallStage::Failed(_, _) => theme::footer_text(&[("Esc", "back")]),
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
@@ -486,7 +497,9 @@ impl App {
 
     /// `AppView::SettingsPerItemSpeed` rendering
     fn render_settings_per_item_speed(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "apply")], Self::footer_trailer("home", false)]);
+        let mut hints = vec![("h", "back"), ("l/→", "apply")];
+        hints.extend(Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -507,7 +520,9 @@ impl App {
 
     /// `AppView::SettingsAutoDownload` rendering
     fn render_settings_auto_download(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "apply")], Self::footer_trailer("home", false)]);
+        let mut hints = vec![("h", "back"), ("l/→", "apply")];
+        hints.extend(Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -531,15 +546,15 @@ impl App {
     /// `AppView::SearchBook` rendering
     fn render_search_book(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.is_podcast {
-            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "episodes"), ("/", "search"), Self::FOOTER_LIST_JUMP];
-            let mut line2 = Self::footer_trailer("home", true);
-            line2.push(Self::FOOTER_SCROLL_DESC);
-            theme::footer_text(&[line1, line2])
+            let mut hints = vec![("l/→", "episodes"), ("/", "search")];
+            hints.extend(Self::footer_trailer("home", true));
+            hints.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&hints)
         } else {
-            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("/", "search"), Self::FOOTER_LIST_JUMP];
-            let mut line2 = Self::footer_trailer("home", true);
-            line2.push(Self::FOOTER_SCROLL_DESC);
-            theme::footer_text(&[line1, line2])
+            let mut hints = vec![("l/→", "play"), ("/", "search")];
+            hints.extend(Self::footer_trailer("home", true));
+            hints.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&hints)
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
@@ -701,10 +716,10 @@ impl App {
 
     /// `AppView::PodcastEpisode`
     fn render_pod_ep(&mut self, area: Rect, buf: &mut Buffer) {
-        let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("h", "back"), ("/", "search"), Self::FOOTER_LIST_JUMP];
-        let mut line2 = Self::footer_trailer("home", true);
-        line2.push(Self::FOOTER_SCROLL_DESC);
-        let text_render_footer = theme::footer_text(&[line1, line2]);
+        let mut hints = vec![("l/→", "play"), ("h", "back"), ("/", "search")];
+        hints.extend(Self::footer_trailer("home", true));
+        hints.push(Self::FOOTER_SCROLL_DESC);
+        let text_render_footer = theme::footer_text(&hints);
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
@@ -747,7 +762,126 @@ impl App {
         }
     }
 
-    // General functions for rendering 
+    /// `AppView::Help` - the full keybind reference for whichever screen `?` was
+    /// pressed from (`self.help_return_view`), matching CLIAMP/superfile's own
+    /// dedicated help/keymap screens rather than the always-visible curated footer.
+    fn render_help(&mut self, area: Rect, buf: &mut Buffer) {
+        let footer_hints = [("?", "back"), ("Esc", "back")];
+        let text_render_footer = theme::footer_text(&footer_hints);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] =
+            Self::standard_layout(area, &text_render_footer);
+
+        App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
+        App::render_footer(footer_area, buf, &text_render_footer);
+
+        let rows: Vec<Row> = self.help_entries().iter()
+            .map(|(k, d)| Row::new(vec![Cell::from(*k), Cell::from(*d)]))
+            .collect();
+        Widget::render(
+            Table::new(rows, [Constraint::Length(16), Constraint::Fill(1)])
+                .block(theme::section_block("Help")),
+            main_area, buf,
+        );
+    }
+
+    /// The complete, authoritative keybind list for `self.help_return_view` - not
+    /// just a copy of that screen's (deliberately curated) footer text. Mirrors
+    /// `App::handle_key`'s own guards exactly (is_podcast/is_from_search_pod) so
+    /// this can't drift the way the old footers had (T/B are global but were
+    /// missing from most footers; D silently worked from any screen when
+    /// is_podcast despite only Home's footer mentioning it).
+    fn help_entries(&self) -> Vec<(&'static str, &'static str)> {
+        // Global keys that work from every real screen (everywhere except the 4
+        // modal Update/Uninstall sub-stages, which own input themselves and are
+        // listed separately below).
+        // "T" is deliberately not repeated here - it's already in PLAYER_KEYS below.
+        let mut globals = vec![
+            Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::FOOTER_SCROLL_DESC,
+            ("/", "search"), ("B", "toggle player key-bindings legend"),
+        ];
+        globals.extend(player_tui::PLAYER_KEYS.iter().copied());
+
+        match self.help_return_view {
+            AppView::Home if self.is_podcast => {
+                let mut hints = vec![
+                    ("l/→ Enter", "play selected episode"), ("d", "download / remove download"),
+                    ("F", "mark finished"), ("D", "toggle newest/oldest-first sort"),
+                ];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("library", true));
+                hints
+            }
+            AppView::Home => {
+                let mut hints = vec![
+                    ("l/→ Enter", "play selected book"), ("c", "expand/collapse chapters under now-playing book"),
+                    ("d", "download / remove download"),
+                ];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("library", true));
+                hints
+            }
+            AppView::Library => {
+                let mut hints = vec![("l/→ Enter", if self.is_podcast { "open episode list" } else { "play selected book" })];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("home", true));
+                hints
+            }
+            AppView::SearchBook => {
+                let mut hints = vec![("l/→ Enter", if self.is_podcast { "open episode list" } else { "play selected book" })];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("home", true));
+                hints
+            }
+            AppView::PodcastEpisode => {
+                let mut hints = vec![("l/→ Enter", "play selected episode"), ("h", "back")];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("home", true));
+                hints
+            }
+            AppView::Settings => {
+                let mut hints = vec![("l/→ Enter", "open selected setting")];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("home", false));
+                hints
+            }
+            AppView::SettingsAccount => {
+                let mut hints = vec![("l/→ Enter", "remove saved user"), ("h", "back to Settings")];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("home", false));
+                hints
+            }
+            AppView::SettingsLibrary => {
+                let mut hints = vec![("l/→ Enter", "switch library"), ("h", "back to Settings")];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("home", false));
+                hints
+            }
+            AppView::SettingsAutoplay | AppView::SettingsPerItemSpeed | AppView::SettingsAutoDownload => {
+                let mut hints = vec![("l/→ Enter", "apply selected option"), ("h", "back to Settings")];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("home", false));
+                hints
+            }
+            AppView::SettingsUpdateUninstall => {
+                let mut hints = vec![
+                    ("l/→ Enter", "select (Instructions stage)"), ("h", "back to Settings"),
+                    ("y/Y", "confirm (Confirm stage)"), ("n/N", "cancel (Confirm stage)"),
+                    ("Enter", "submit password (Password stage)"),
+                    ("Esc", "back/cancel (Confirm, Password, Failed stages)"),
+                ];
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer("home", false));
+                hints
+            }
+            // Dead/unreachable - Settings' Enter-dispatch never routes here (index 4
+            // "About" is instead previewed inline while highlighted on the Settings
+            // list itself).
+            AppView::SettingsAbout => vec![],
+            AppView::Help => vec![],
+        }
+    }
+
+    // General functions for rendering
 
     fn render_header(area: Rect, buf: &mut Buffer, library_name: String, username: &str, server_address_pretty: &str, version: &str, update_msg: &str) {
         let block = theme::section_block(&library_name);
@@ -805,6 +939,7 @@ impl App {
         if show_settings {
             hints.push(("S", "settings"));
         }
+        hints.push(("?", "help"));
         hints.push(("Q/Esc", "quit"));
         hints
     }
@@ -1398,11 +1533,11 @@ mod tests {
 
     #[test]
     fn footer_trailer_with_settings() {
-        assert_eq!(App::footer_trailer("library", true), vec![("Tab", "library"), ("R", "refresh"), ("S", "settings"), ("Q/Esc", "quit")]);
+        assert_eq!(App::footer_trailer("library", true), vec![("Tab", "library"), ("R", "refresh"), ("S", "settings"), ("?", "help"), ("Q/Esc", "quit")]);
     }
 
     #[test]
     fn footer_trailer_without_settings() {
-        assert_eq!(App::footer_trailer("home", false), vec![("Tab", "home"), ("R", "refresh"), ("Q/Esc", "quit")]);
+        assert_eq!(App::footer_trailer("home", false), vec![("Tab", "home"), ("R", "refresh"), ("?", "help"), ("Q/Esc", "quit")]);
     }
 }
