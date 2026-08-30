@@ -1,3 +1,8 @@
+// Unused right after a release until the next changelog entry is started - the first
+// fix/feature commit of the next cycle should add a new `format!("...v{VERSION}...")`
+// entry (like the one just frozen below it) rather than a plain string, so it keeps
+// resolving to whatever version is actually running until *that* entry gets frozen too.
+#[allow(dead_code)]
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn changelog() -> String {
@@ -829,8 +834,7 @@ let changelog_51 = "Changelog Absotui v0.5.36-beta (29/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_52 = format!(
-    "Changelog Absotui v{VERSION} (30/08/2026) \n\
+let changelog_52 = "Changelog Absotui v0.5.38-beta (30/08/2026) \n\
          \n\
          Added:\n\
          - Press `?` on any screen for a full Keymap screen (matching
@@ -874,8 +878,7 @@ let changelog_52 = format!(
            Keymap entry. Both now consistently show back first.
          \n\
          Enjoy!\n
-         ####\n"
-);
+         ####\n".to_string();
 
 
     changelog.push_str(&changelog_52);
