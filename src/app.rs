@@ -1241,14 +1241,20 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         }
     }
 
-    // AppView::Keymap owns every key itself, the same way the Update/Uninstall
-    // sub-stages above do - Esc means "go back" here, not "quit", a deliberate,
-    // precedented deviation from its usual global meaning below.
+    // AppView::Keymap owns most keys itself, the same way the Update/Uninstall
+    // sub-stages above do - but Esc and Tab deliberately fall through to their
+    // normal global meaning below instead of being intercepted here, so Esc still
+    // quits (consistent with every other screen) and Tab still goes to Home via
+    // the ordinary toggle_view() path.
     if matches!(self.view_state, AppView::Keymap) {
-        if matches!(key.code, KeyCode::Char('?') | KeyCode::Esc) {
-            self.view_state = self.keymap_return_view;
+        match key.code {
+            KeyCode::Char('?') => {
+                self.view_state = self.keymap_return_view;
+                return;
+            }
+            KeyCode::Esc | KeyCode::Tab => {}
+            _ => return,
         }
-        return;
     }
 
     match key.code {
@@ -2045,8 +2051,8 @@ fn toggle_view(&mut self) {
         AppView::SettingsAutoplay => AppView::Home,
         AppView::SettingsPerItemSpeed => AppView::Home,
         AppView::SettingsAutoDownload => AppView::Home,
-        // Unreachable - Tab never reaches this while Keymap is active (see handle_key's
-        // Keymap guard).
+        // Tab deliberately falls through to here from the Keymap guard in
+        // handle_key - this is what makes Tab close Keymap back to Home.
         AppView::Keymap => AppView::Home,
 
     };

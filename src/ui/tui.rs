@@ -766,7 +766,7 @@ impl App {
     /// pressed from (`self.keymap_return_view`), matching CLIAMP/superfile's own
     /// dedicated help/keymap screens rather than the always-visible curated footer.
     fn render_keymap(&mut self, area: Rect, buf: &mut Buffer) {
-        let footer_hints = [("?", "back"), ("Esc", "back")];
+        let footer_hints = [("?", "back"), ("Tab", "home"), ("Q/Esc", "quit")];
         let text_render_footer = theme::footer_text(&footer_hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] =
             Self::standard_layout(area, &text_render_footer);
