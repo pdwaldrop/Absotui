@@ -12,8 +12,8 @@ use crate::ui::theme;
 // particular AppView (the player overlay renders on every screen), so Keymap
 // includes these regardless of which screen it was opened from.
 pub const PLAYER_KEYS: &[(&str, &str)] = &[
-    ("Spc", "pause/play"), ("p/u", "+/−10s"), ("P/U", "nxt/prev ch."),
-    ("O/I", "spd +/−"), ("o/i", "vol +/−"), ("T", "real/content time"), ("S", "stop"),
+    ("Spc", "Pause/play"), ("p/u", "+/−10s"), ("P/U", "Nxt/prev ch."),
+    ("O/I", "Spd +/−"), ("o/i", "Vol +/−"), ("T", "Real/content time"), ("S", "Stop"),
 ];
 
 pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, username: &str) {

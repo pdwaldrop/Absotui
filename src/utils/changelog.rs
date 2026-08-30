@@ -852,6 +852,11 @@ let changelog_52 = format!(
          - Settings no longer advertises `R: refresh` in its footer - it
            still works, but its only visible effect there is landing back
            on Home, which `Tab` already does.
+         - Settings > Library's footer said \"change library\", Keymap said
+           \"switch library\" - picked one wording for both.
+         - Footer/Keymap hint descriptions are now Sentence case (\"Play\",
+           \"Back to Settings\") instead of all-lowercase, matching CLIAMP's
+           own convention.
          \n\
          Fixed:\n\
          - Whichever keybind chip happened to be first in a footer (e.g.
@@ -859,6 +864,14 @@ let changelog_52 = format!(
            against the highlight's edge unlike every other chip.
          - The top-level Settings screen's footer was missing `h: back`,
            even though the key already worked there.
+         - `D` (podcast sort) only checked podcast mode, not which screen
+           you were on - it silently reordered Home's list from anywhere
+           when podcast mode was active, even though it's only shown on
+           Home's footer.
+         - `h: back` appeared after the primary action on the Podcast
+           Episode footer, opposite of every other footer; every Settings
+           screen had the reverse mismatch between its footer and its
+           Keymap entry. Both now consistently show back first.
          \n\
          Enjoy!\n
          ####\n"
