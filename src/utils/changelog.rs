@@ -814,8 +814,7 @@ let changelog_50 = "Changelog Absotui v0.5.35-beta (29/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_51 = format!(
-    "Changelog Absotui v{VERSION} (29/08/2026) \n\
+let changelog_51 = "Changelog Absotui v0.5.36-beta (29/08/2026) \n\
          \n\
          Added:\n\
          - Every screen now shows outlined, labeled sections (list,
@@ -829,10 +828,28 @@ let changelog_51 = format!(
            reverse video.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_52 = format!(
+    "Changelog Absotui v{VERSION} (30/08/2026) \n\
+         \n\
+         Added:\n\
+         - Press `?` on any screen for a full keybind reference (matching
+           superfile/CLIAMP's own help screens), showing every key that
+           actually works there. Footers now show a shorter, curated set
+           of hints instead of cramming everything in (dropping only the
+           purely-navigational ones like move/top-bottom, which are
+           already in the new Help screen).
+         - The player bar now gets its own accent-colored box (matching
+           the play icon), the same full width as every other panel.
+         - Home's cover art now sits inside the Description box instead
+           of floating unboxed beside it.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_52);
     changelog.push_str(&changelog_51);
     changelog.push_str(&changelog_50);
     changelog.push_str(&changelog_49);
