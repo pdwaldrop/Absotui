@@ -260,18 +260,6 @@ async fn main() -> Result<()> {
             if crossterm::event::poll(Duration::from_millis(200))?
                 && let event::Event::Key(key) = crossterm::event::read()? {
                     app.handle_key(key);
-                    // '/' (search) draws through its own separate `Terminal` instance
-                    // (see search_active.rs) rather than this loop's `terminal` - which
-                    // means this `terminal`'s internal diff cache has no idea anything
-                    // was drawn while it ran, and skips repainting cells whose new
-                    // content happens to match what its stale cache already thinks is
-                    // there. Without clearing that cache here, the next draw can leave
-                    // stale characters behind wherever the search box's area happened to
-                    // overlap whatever renders now (confirmed live: a corrupted-looking
-                    // footer line, every time, right after using search).
-                    if let KeyCode::Char('/') = key.code {
-                        let _ = terminal.clear();
-                    }
                     // If the 'R' key is pressed, or a different library was just selected
                     // in Settings > Library, refresh the app - both need the same full
                     // reinit to pick up fresh data (and, for a library switch, land back

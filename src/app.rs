@@ -125,7 +125,13 @@ pub struct App {
     pub auth_names_library: Vec<String>,
     pub ids_search_book: Vec<String>,
     pub search_query: String,
-    pub search_mode: bool,
+    // The search box (`/`) - rendered as an overlay on top of whatever screen it was
+    // opened from, through the same single Terminal/render pass as everything else
+    // (see `handle_key`'s early-return guard and the overlay render in tui.rs), rather
+    // than a separate `Terminal` instance racing the main loop's own. `TextArea` owns
+    // its own text/cursor state, so it lives on `App` for as long as the box is open.
+    pub is_search_active: bool,
+    pub search_textarea: ratatui_textarea::TextArea<'static>,
     pub is_podcast: bool,
     // Set only while the background fetch spawned in `App::new()` is still in flight -
     // see `fetch_all_pod_ep` and `poll_pod_ep_fetch`. `None` both before any podcast
@@ -757,7 +763,7 @@ impl App {
     let duration_library_search_book: Vec<f64> = Vec::new();
     let book_progress_search_book: Vec<Vec<String>> = Vec::new(); 
     let book_progress_search_book_cur_time: Vec<Vec<f64>> = Vec::new(); 
-    let search_mode = false;
+    let is_search_active = false;
     let search_query = "  ".to_string();
     let all_titles_pod_ep_search: Vec<Vec<String>> = Vec::new(); // init in tui.rs in render search book function
     let all_ids_pod_ep_search: Vec<Vec<String>> = Vec::new(); 
@@ -949,7 +955,8 @@ impl App {
         ids_library,
         auth_names_library,
         ids_search_book,
-        search_mode,
+        is_search_active,
+        search_textarea: ratatui_textarea::TextArea::default(),
         search_query,
         is_podcast,
         pod_ep_receiver,
@@ -1172,6 +1179,28 @@ pub fn handle_key(&mut self, key: KeyEvent) {
     let mut is_playback = true;
 
     if key.kind != KeyEventKind::Press {
+        return;
+    }
+
+    // The search box (`/`) owns every key itself while open, the same way the
+    // Update/Uninstall sub-stages and Keymap below do - checked first since it's a
+    // modal overlay on top of whatever screen it was opened from, not tied to any
+    // particular view_state.
+    if self.is_search_active {
+        match key.code {
+            KeyCode::Enter => {
+                self.is_search_active = false;
+                self.search_query = self.search_textarea.lines().join("\n");
+                self.view_state = AppView::SearchBook;
+                self.list_state_search_results.select(Some(0));
+            }
+            KeyCode::Esc => {
+                self.is_search_active = false;
+            }
+            _ => {
+                self.search_textarea.input(key);
+            }
+        }
         return;
     }
 
@@ -1499,7 +1528,14 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         // END PLAYER //
 
         KeyCode::Char('/') => {
-            let _ = self.search_active();
+            self.search_textarea = ratatui_textarea::TextArea::default();
+            self.search_textarea.set_block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Search")
+                    .border_style(Style::new().fg(crate::ui::theme::ACCENT_STRUCTURE))
+            );
+            self.is_search_active = true;
         }
         KeyCode::Char('s') => {
             self.view_state = AppView::Settings;

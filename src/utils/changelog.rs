@@ -882,9 +882,12 @@ let changelog_53 = format!(
            on the right - the row-width calculation only accounted for the list's
            highlight-symbol column, not the bordered box's own left/right border
            columns added when list borders were introduced.
-         - The search box (`/`) could land on top of the Now Playing player bar
-           instead of above it, since its position was hardcoded without checking
-           whether the player bar was actually reserving space there.
+         - The search box (`/`) drew through its own separate terminal session
+           instead of the app's normal render pass, which could land it on top of
+           the Now Playing player bar, leave stale text or a corrupted cover art
+           image visible behind it, or corrupt the whole screen depending on
+           terminal and window size. Rebuilt as a normal overlay on the same
+           render pass as everything else.
          - Pressing `R` (refresh) or switching libraries could silently erase the
            player bar's bottom border until something else forced a full repaint
            (e.g. resizing the window) - the \"Refreshing...\"/\"Switching library...\"

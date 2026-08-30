@@ -40,7 +40,7 @@ You can still do either manually instead:
 - If you installed using the script: absotui --update / absotui --uninstall
 ";
 
-/// init widget for selected `AppView` 
+/// init widget for selected `AppView`
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         match self.view_state {
@@ -57,6 +57,9 @@ impl Widget for &mut App {
             AppView::SettingsPerItemSpeed => self.render_settings_per_item_speed(area, buf),
             AppView::SettingsAutoDownload => self.render_settings_auto_download(area, buf),
             AppView::Keymap => self.render_keymap(area, buf),
+        }
+        if self.is_search_active {
+            self.render_search_overlay(area, buf);
         }
     }
 }
@@ -563,13 +566,6 @@ impl App {
 
         let render_list_title = "Search result";
 
-
-        if self.search_mode
-            && let Ok(query) = self.search_active() {
-                self.search_query = query.clone();
-                self.search_mode = false; 
-            }
-
         // init variables for search result (search by a book by title)
         let idx_and_titles: Vec<(usize, String)> = self.titles_library
             .iter()
@@ -760,6 +756,29 @@ impl App {
                 self.render_desc_pod_ep(item_area2, buf, &self.list_state_pod_ep.clone() );
             }
         }
+    }
+
+    /// The search box (`/`), drawn as an overlay on top of whatever's already been
+    /// rendered above - part of the same single render pass as everything else (see
+    /// the `render()` dispatch above), not a separate `Terminal` instance racing the
+    /// main loop's own. `Clear` first, since `TextArea`'s own render only draws its
+    /// border plus whatever text/cursor it actually holds - an empty box wouldn't
+    /// otherwise blank the content already sitting in its area from the same buffer.
+    fn render_search_overlay(&mut self, area: Rect, buf: &mut Buffer) {
+        // Stays clear of the player bar's own reserved rows (6 for its box + 1 gap
+        // above the footer - see player_tui.rs's `new_y` and `standard_layout`'s
+        // `player_gap`/`refresh` constraints) when something's playing, rather than
+        // landing on top of it.
+        let player_reserved = if get_is_vlc_running(&self.username) == "1" { 7 } else { 0 };
+        let search_area = Rect {
+            x: area.x + 1,
+            y: area.y + area.height.saturating_sub(5 + player_reserved),
+            width: area.width.saturating_sub(2),
+            height: 3,
+        };
+
+        ratatui::widgets::Clear.render(search_area, buf);
+        (&self.search_textarea).render(search_area, buf);
     }
 
     /// `AppView::Keymap` - the full keybind reference for whichever screen `?` was
