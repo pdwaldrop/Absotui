@@ -289,6 +289,15 @@ async fn main() -> Result<()> {
                         }
                         // clear message above
                         let _ = clear_message(&mut stdout, 3);
+                        // pop_message/clear_message write straight to `stdout`, bypassing
+                        // this `terminal`'s diff cache the same way search's separate
+                        // Terminal instance does (see the '/' comment above) - without
+                        // this, the next draw can decide a cell already matches its stale
+                        // cache and skip repainting it, even though clear_message just blanked
+                        // it for real (confirmed live: the player box's bottom border row sits
+                        // exactly 3 rows from the bottom, right where this message prints, and
+                        // silently disappeared until something else forced a full repaint).
+                        let _ = terminal.clear();
                     } else if app.library_needs_reload {
                         let mut stdout = stdout();
                         let _ = clear_message(&mut stdout, 3);
@@ -301,6 +310,7 @@ async fn main() -> Result<()> {
                             app.library_needs_reload = false;
                         }
                         let _ = clear_message(&mut stdout, 3);
+                        let _ = terminal.clear();
                     }
                 }
 

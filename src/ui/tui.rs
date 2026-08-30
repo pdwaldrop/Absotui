@@ -965,9 +965,14 @@ impl App {
 
         let block = theme::section_block(render_list_title);
 
-        // Approximate content width available inside each row, after the "▎" highlight
-        // symbol column that HighlightSpacing::Always reserves on every row.
-        let content_width = area.width.saturating_sub(1) as usize;
+        // Approximate content width available inside each row: `block`'s own left/right
+        // border columns (2 - List::block computes block.inner(area) before laying out
+        // rows) plus the "▎" highlight symbol column that HighlightSpacing::Always
+        // reserves on every row (1). Missing the border columns here (only the highlight
+        // symbol was accounted for) made every row's computed padding 2 columns too wide,
+        // pushing the actual render past the real available width and clipping the
+        // rightmost couple of characters - visible as truncated progress percentages.
+        let content_width = area.width.saturating_sub(3) as usize;
 
         // Minimum gap (in characters) always kept clear between a title and the
         // time/age label, so a long title can never push the label off the row -

@@ -1,8 +1,3 @@
-// Unused right after a release until the next changelog entry is started - the first
-// fix/feature commit of the next cycle should add a new `format!("...v{VERSION}...")`
-// entry (like the one just frozen below it) rather than a plain string, so it keeps
-// resolving to whatever version is actually running until *that* entry gets frozen too.
-#[allow(dead_code)]
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn changelog() -> String {
@@ -879,8 +874,29 @@ let changelog_52 = "Changelog Absotui v0.5.38-beta (30/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_53 = format!(
+    "Changelog Absotui v{VERSION} (30/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - Book progress percentages in list rows (e.g. \"(59%)\") could get cut off
+           on the right - the row-width calculation only accounted for the list's
+           highlight-symbol column, not the bordered box's own left/right border
+           columns added when list borders were introduced.
+         - The search box (`/`) could land on top of the Now Playing player bar
+           instead of above it, since its position was hardcoded without checking
+           whether the player bar was actually reserving space there.
+         - Pressing `R` (refresh) or switching libraries could silently erase the
+           player bar's bottom border until something else forced a full repaint
+           (e.g. resizing the window) - the \"Refreshing...\"/\"Switching library...\"
+           messages write straight to the terminal, bypassing the same diff cache
+           the search box already needed a similar fix for.
+         \n\
+         Enjoy!\n
+         ####\n"
+);
 
 
+    changelog.push_str(&changelog_53);
     changelog.push_str(&changelog_52);
     changelog.push_str(&changelog_51);
     changelog.push_str(&changelog_50);
