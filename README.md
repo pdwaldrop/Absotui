@@ -148,7 +148,7 @@ Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sql
 ---
 
 ## 🛠️ Roadmap
-Recent work: audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly); and a UI refresh — terminal-native theming, bordered/labeled sections, curated footers, and a full keymap reference (`?`) on every screen.
+Recent work: audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly); a UI refresh — terminal-native theming, bordered/labeled sections, curated footers, and a full keymap reference (`?`) on every screen; and the search box (`/`) rebuilt to render as a normal part of the screen instead of a separate window, fixing display glitches around cover art and the Now Playing bar.
 
 **Under consideration:**
 - Playlist/Collections view
