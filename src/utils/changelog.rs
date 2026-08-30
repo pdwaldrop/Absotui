@@ -803,8 +803,7 @@ let changelog_49 = "Changelog Absotui v0.5.34-beta (29/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_50 = format!(
-    "Changelog Absotui v{VERSION} (29/08/2026) \n\
+let changelog_50 = "Changelog Absotui v0.5.35-beta (29/08/2026) \n\
          \n\
          Fixed:\n\
          - The previous release fixed the install script printing raw JSON
@@ -814,10 +813,27 @@ let changelog_50 = format!(
            release notes. Fixed the same way as the version check.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_51 = format!(
+    "Changelog Absotui v{VERSION} (29/08/2026) \n\
+         \n\
+         Added:\n\
+         - Every screen now shows outlined, labeled sections (list,
+           info, description, header) instead of floating unstyled text,
+           with a small set of accent colors pulled from your terminal's
+           own theme (not fixed colors) - matching how apps like
+           superfile and CLIAMP look in any color scheme.
+         - The footer/keybind hints changed from \"key: description\" to
+           \"[key] description\" highlighted chips, and the now-playing
+           marker and player progress bar are colored instead of plain
+           reverse video.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_51);
     changelog.push_str(&changelog_50);
     changelog.push_str(&changelog_49);
     changelog.push_str(&changelog_48);
