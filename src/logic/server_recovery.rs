@@ -1,10 +1,12 @@
 use crate::app::App;
 use crate::db::crud::{select_default_usr, update_server_address};
+use crate::ui::theme;
 use crate::utils::exit_app::clean_exit;
 use color_eyre::eyre::{Report, Result};
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use log::error;
 use ratatui::layout::Rect;
+use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::DefaultTerminal;
@@ -77,7 +79,8 @@ fn render_error_screen(
     textarea.set_block(
         Block::default()
             .borders(Borders::ALL)
-            .title("New server address"),
+            .title("New server address")
+            .border_style(Style::new().fg(theme::ACCENT_STRUCTURE)),
     );
     textarea.set_placeholder_text("http:// or https:// required");
 
@@ -101,15 +104,20 @@ fn render_error_screen(
                     Line::from(message.to_string()),
                     Line::from(""),
                 ];
-                let mut hint = String::from("[R] Retry   [A] Change server address   [Q] Quit");
+                let mut hints: Vec<(&str, &str)> = vec![
+                    ("R", "Retry"),
+                    ("A", "Change server address"),
+                    ("Q", "Quit"),
+                ];
                 if allow_cancel {
-                    hint.push_str("   [Esc] Keep using current data");
+                    hints.push(("Esc", "Keep using current data"));
                 }
-                lines.push(Line::from(hint));
+                lines.push(theme::footer_line(&hints));
 
                 let paragraph = Paragraph::new(lines)
                     .wrap(Wrap { trim: true })
-                    .block(Block::default().borders(Borders::ALL).title("Connection error"));
+                    .block(Block::default().borders(Borders::ALL).title("Connection error")
+                        .border_style(Style::new().fg(theme::ACCENT_ERROR)));
 
                 let msg_area = Rect {
                     x: (area.width / 8).max(1),

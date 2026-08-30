@@ -5,6 +5,7 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget},
 };
 use crate::db::crud::get_is_show_key_bindings;
+use crate::ui::theme;
 
 
 pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, username: &str) {
@@ -37,10 +38,13 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     ]).areas(text_area);
     let _ = spacer_area; // left blank - nothing to render there
 
-    let mut key_bindings = String::new();
+    let mut key_bindings_line = Line::default();
     let is_show_key_bindings = get_is_show_key_bindings(username);
     if is_show_key_bindings == "1" {
-        key_bindings = "Spc: pause/play | p/u: +/−10s | P/U: nxt/prev ch. | O/I: spd +/− | o/i: vol +/− | T: real/content time | Y: quit".to_string();
+        key_bindings_line = theme::footer_line(&[
+            ("Spc", "pause/play"), ("p/u", "+/−10s"), ("P/U", "nxt/prev ch."),
+            ("O/I", "spd +/−"), ("o/i", "vol +/−"), ("T", "real/content time"), ("Y", "quit"),
+        ]);
     }
 
     // Volume indicator: a subtle underline beneath "Vol NN%" itself, filled up to
@@ -77,7 +81,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     ]);
 
     // Create the paragraph for the details/key-bindings lines (title line is handled separately below)
-    let paragraph = Paragraph::new(vec![details_line, Line::from(key_bindings)])
+    let paragraph = Paragraph::new(vec![details_line, key_bindings_line])
         .centered()
         .block(Block::default());
 
@@ -104,7 +108,7 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
 
     let title_line = Line::from(vec![
         Span::raw(" ".repeat(padding_left)),
-        Span::styled(filled_text, Style::default().add_modifier(Modifier::REVERSED)),
+        Span::styled(filled_text, Style::default().fg(theme::ACCENT_ACTIVE).add_modifier(Modifier::REVERSED)),
         Span::raw(unfilled_text),
     ]);
     Paragraph::new(title_line).render(title_area, buf);

@@ -2,10 +2,12 @@ use crate::App;
 use crate::app::AppView;
 use ratatui::backend::CrosstermBackend;
 use ratatui::widgets::{Block, Borders};
+use ratatui::style::Style;
 use ratatui::Terminal;
 use std::io;
 use ratatui_textarea::{Input, Key, TextArea};
 use ratatui::layout::Rect;
+use crate::ui::theme;
 
 
 impl App {
@@ -21,6 +23,7 @@ impl App {
             Block::default()
             .borders(Borders::ALL)
             .title("Search")
+            .border_style(Style::new().fg(theme::ACCENT_STRUCTURE))
         );
 
         let size = term.size()?;

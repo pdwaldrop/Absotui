@@ -6,7 +6,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{
         Block, Borders, HighlightSpacing, List, ListItem , ListState,  Paragraph, StatefulWidget,
         Widget, Wrap
@@ -18,6 +18,7 @@ use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::utils::html_to_text::html_to_lines;
 use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_and_cache_episode_cover};
+use crate::ui::theme;
 
 
 // const version
@@ -64,14 +65,22 @@ impl App {
     /// `AppView::Home` rendering
     fn render_home(&mut self, area: Rect, buf: &mut Buffer) {
         let text_render_footer = if self.is_podcast {
-            format!("{}, l/→: play, F: finished, d: download, '/': search, {}\n B: play keys, D: sort by age, {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
+            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("F", "finished"), ("d", "download"), ("/", "search"), Self::FOOTER_LIST_JUMP];
+            let mut line2 = vec![("B", "play keys"), ("D", "sort by age")];
+            line2.extend(Self::footer_trailer("library", true));
+            line2.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&[line1, line2])
         } else {
-            format!("{}, l/→: play, c: chapters, d: download, '/': search, {}\n B: play keys, {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("library", true), Self::FOOTER_SCROLL_DESC)
+            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("c", "chapters"), ("d", "download"), ("/", "search"), Self::FOOTER_LIST_JUMP];
+            let mut line2 = vec![("B", "play keys")];
+            line2.extend(Self::footer_trailer("library", true));
+            line2.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&[line1, line2])
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
-        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
+        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
         let items_number = self._titles_cnt_list.len();
         let render_list_title = if self.is_podcast {
@@ -291,14 +300,22 @@ impl App {
     /// `AppView::Library` rendering
     fn render_library(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.is_podcast {
-            format!("{}, l/→: episodes, '/': search, {}\n B: play keys, {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "episodes"), ("/", "search"), Self::FOOTER_LIST_JUMP];
+            let mut line2 = vec![("B", "play keys")];
+            line2.extend(Self::footer_trailer("home", true));
+            line2.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&[line1, line2])
         } else {
-            format!("{}, l/→: play, '/': search, {}\n B: play keys, {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("/", "search"), Self::FOOTER_LIST_JUMP];
+            let mut line2 = vec![("B", "play keys")];
+            line2.extend(Self::footer_trailer("home", true));
+            line2.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&[line1, line2])
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
 
-        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
+        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
         let items_number = self.titles_library.len();
         let render_list_title = format!("Library [{items_number} items]");
@@ -316,17 +333,20 @@ impl App {
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.list_state_settings.selected() == Some(4) {
             // for `About` section
-            format!("{}, Scroll what's new: J(↓) K(↑) H(⇡),\n {}.", Self::FOOTER_MOVE, Self::footer_trailer("home", false))
+            let line1 = vec![Self::FOOTER_MOVE, ("J/K/H", "scroll what's new")];
+            theme::footer_text(&[line1, Self::footer_trailer("home", false)])
         }
         else if self.list_state_settings.selected() == Some(5) {
-            format!("{}, Scroll instructions: J(↓) K(↑) H(⇡),\n {}.", Self::FOOTER_MOVE, Self::footer_trailer("home", false))
+            let line1 = vec![Self::FOOTER_MOVE, ("J/K/H", "scroll instructions")];
+            theme::footer_text(&[line1, Self::footer_trailer("home", false)])
         } else {
-            format!("{}, l/→: see options,\n {}.", Self::FOOTER_MOVE, Self::footer_trailer("home", false))
+            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "see options")];
+            theme::footer_text(&[line1, Self::footer_trailer("home", false)])
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
 
-        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
+        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
         let render_list_title = "Settings";
 
@@ -339,7 +359,7 @@ impl App {
 
     /// `AppView::SettingsAccount` rendering
     fn render_settings_account(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = format!("h: back, l/→: remove saved user,\n {}.", Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "remove saved user")], Self::footer_trailer("home", false)]);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, _item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -354,7 +374,7 @@ impl App {
 
     /// `AppView::SettingsLibrary` rendering
     fn render_settings_library(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = format!("h: back, l/→: change library,\n {}.", Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "change library")], Self::footer_trailer("home", false)]);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -370,7 +390,7 @@ impl App {
 
     /// `AppView::SettingsAutoplay` rendering
     fn render_settings_autoplay(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "apply")], Self::footer_trailer("home", false)]);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -385,17 +405,18 @@ impl App {
         Paragraph::new(format!("Currently: {current}\n\nWhen on, finishing a podcast episode automatically starts the next unfinished one in the list it was played from."))
             .left_aligned()
             .wrap(Wrap { trim: true })
+            .block(theme::section_block("Description"))
             .render(item_area, buf);
     }
 
     /// `AppView::SettingsUpdateUninstall` rendering
     fn render_settings_update_uninstall(&mut self, area: Rect, buf: &mut Buffer) {
         let text_render_footer = match &self.update_uninstall_stage {
-            UpdateUninstallStage::Instructions => format!("h: back, l/→: select,\n {}.", Self::footer_trailer("home", false)),
-            UpdateUninstallStage::Confirm(_) => "[Y] Yes   [N] / Esc: No".to_string(),
-            UpdateUninstallStage::Password(_) => "Enter: continue   Esc: back".to_string(),
-            UpdateUninstallStage::Running(_) => "Working...".to_string(),
-            UpdateUninstallStage::Failed(_, _) => "Esc: back".to_string(),
+            UpdateUninstallStage::Instructions => theme::footer_text(&[vec![("h", "back"), ("l/→", "select")], Self::footer_trailer("home", false)]),
+            UpdateUninstallStage::Confirm(_) => theme::footer_text(&[vec![("Y", "Yes"), ("N/Esc", "No")]]),
+            UpdateUninstallStage::Password(_) => theme::footer_text(&[vec![("Enter", "continue"), ("Esc", "back")]]),
+            UpdateUninstallStage::Running(_) => Text::from("Working..."),
+            UpdateUninstallStage::Failed(_, _) => theme::footer_text(&[vec![("Esc", "back")]]),
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
@@ -417,6 +438,7 @@ impl App {
             UpdateUninstallStage::Instructions => {
                 Paragraph::new(UPDATE_UNINSTALL_INSTRUCTIONS)
                     .wrap(Wrap { trim: true })
+                    .block(theme::section_block("Instructions"))
                     .render(area, buf);
             }
             UpdateUninstallStage::Confirm(action) => {
@@ -426,6 +448,7 @@ impl App {
                 };
                 Paragraph::new(message)
                     .wrap(Wrap { trim: true })
+                    .block(theme::section_block("Confirm"))
                     .render(area, buf);
             }
             UpdateUninstallStage::Password(_) => {
@@ -446,6 +469,7 @@ impl App {
                 lines.extend(self.update_uninstall_log.iter().cloned());
                 Paragraph::new(lines.join("\n"))
                     .wrap(Wrap { trim: true })
+                    .block(theme::section_block("Working"))
                     .render(area, buf);
             }
             UpdateUninstallStage::Failed(_, message) => {
@@ -454,6 +478,7 @@ impl App {
                 lines.push(format!("Failed: {message}"));
                 Paragraph::new(lines.join("\n"))
                     .wrap(Wrap { trim: true })
+                    .block(theme::section_block("Failed").border_style(Style::new().fg(theme::ACCENT_ERROR)))
                     .render(area, buf);
             }
         }
@@ -461,7 +486,7 @@ impl App {
 
     /// `AppView::SettingsPerItemSpeed` rendering
     fn render_settings_per_item_speed(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "apply")], Self::footer_trailer("home", false)]);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -476,12 +501,13 @@ impl App {
         Paragraph::new(format!("Currently: {current}\n\nWhen on, each book or podcast show remembers its own playback speed (O/I in the player) instead of sharing one speed across everything. Turning this on resets every book/show back to 1.0x - each one then adjusts independently from there as you play it, starting fresh at 1.0x the first time. When off, O/I always adjust the single shared speed, same as before this setting existed."))
             .left_aligned()
             .wrap(Wrap { trim: true })
+            .block(theme::section_block("Description"))
             .render(item_area, buf);
     }
 
     /// `AppView::SettingsAutoDownload` rendering
     fn render_settings_auto_download(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = format!("h: back, l/→: apply,\n {}.", Self::footer_trailer("home", false));
+        let text_render_footer = theme::footer_text(&[vec![("h", "back"), ("l/→", "apply")], Self::footer_trailer("home", false)]);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
@@ -497,6 +523,7 @@ impl App {
         Paragraph::new(format!("Currently: {current}\n\nWhen on, the {count} most recently played books in Continue Listening, and every episode in Podcasts' New & Unfinished, are automatically downloaded for offline playback (press 'd' on Home to do this manually). Checked each time these lists refresh (opening the app, R, switching libraries - podcasts also refresh every few seconds on their own). Books that fall out of that top-{count} window, or episodes no longer new/unfinished, have their download removed automatically, so disk usage stays bounded rather than growing forever. Change the book count via `auto_download_count` under `[downloads]` in config.toml. Files are hours long, so turning this on can mean several hundred MB to a few GB downloading in the background the moment it's enabled or a new item becomes active."))
             .left_aligned()
             .wrap(Wrap { trim: true })
+            .block(theme::section_block("Description"))
             .render(item_area, buf);
     }
 
@@ -504,14 +531,20 @@ impl App {
     /// `AppView::SearchBook` rendering
     fn render_search_book(&mut self, area: Rect, buf: &mut Buffer) {
         let _text_render_footer = if self.is_podcast {
-            format!("{}, l/→: episodes, '/': search, {}\n {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "episodes"), ("/", "search"), Self::FOOTER_LIST_JUMP];
+            let mut line2 = Self::footer_trailer("home", true);
+            line2.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&[line1, line2])
         } else {
-            format!("{}, l/→: play, '/': search, {}\n {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC)
+            let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("/", "search"), Self::FOOTER_LIST_JUMP];
+            let mut line2 = Self::footer_trailer("home", true);
+            line2.push(Self::FOOTER_SCROLL_DESC);
+            theme::footer_text(&[line1, line2])
         };
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
 
-        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
+        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
         let render_list_title = "Search result";
 
@@ -668,11 +701,14 @@ impl App {
 
     /// `AppView::PodcastEpisode`
     fn render_pod_ep(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = format!("{}, l/→: play, h: back, '/': search, {}\n {}, {}", Self::FOOTER_MOVE, Self::FOOTER_LIST_JUMP, Self::footer_trailer("home", true), Self::FOOTER_SCROLL_DESC);
+        let line1 = vec![Self::FOOTER_MOVE, ("l/→", "play"), ("h", "back"), ("/", "search"), Self::FOOTER_LIST_JUMP];
+        let mut line2 = Self::footer_trailer("home", true);
+        line2.push(Self::FOOTER_SCROLL_DESC);
+        let text_render_footer = theme::footer_text(&[line1, line2]);
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
 
-        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(3), Constraint::Fill(1)]).areas(main_area);
+        let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
@@ -714,21 +750,20 @@ impl App {
     // General functions for rendering 
 
     fn render_header(area: Rect, buf: &mut Buffer, library_name: String, username: &str, server_address_pretty: &str, version: &str, update_msg: &str) {
-        Paragraph::new(library_name)
-            .bold()
-            .centered()
-            .render(area, buf);
+        let block = theme::section_block(&library_name);
+        let inner = block.inner(area);
+        block.render(area, buf);
         Paragraph::new(format!("👋 Connected as {username}\n🔗 {server_address_pretty}"))
             .not_bold()
             .left_aligned()
-            .render(area, buf);
+            .render(inner, buf);
         Paragraph::new(format!("🦜 Absotui v{version}\n {update_msg}"))
             .right_aligned()
-            .render(area, buf);
+            .render(inner, buf);
     }
 
-    fn render_footer(area: Rect, buf: &mut Buffer, text_render_footer: &str) {
-        Paragraph::new(text_render_footer)
+    fn render_footer(area: Rect, buf: &mut Buffer, text_render_footer: &Text<'static>) {
+        Paragraph::new(text_render_footer.clone())
             .centered()
             .wrap(Wrap { trim: true })
             .render(area, buf);
@@ -740,13 +775,13 @@ impl App {
     /// wrapping kicks in on a narrow terminal (confirmed live: shrinking the window
     /// until line 1 wrapped made line 2 disappear entirely, since a 2-row area has
     /// nowhere left to put it once line 1 alone consumes both rows).
-    fn standard_layout(area: Rect, footer_text: &str) -> [Rect; 5] {
-        let footer_height = Paragraph::new(footer_text)
+    fn standard_layout(area: Rect, footer_text: &Text<'static>) -> [Rect; 5] {
+        let footer_height = Paragraph::new(footer_text.clone())
             .wrap(Wrap { trim: true })
             .line_count(area.width)
             .max(1) as u16;
         Layout::vertical([
-            Constraint::Length(2),
+            Constraint::Length(4),
             Constraint::Fill(1),
             Constraint::Length(6),
             Constraint::Length(1),
@@ -757,33 +792,32 @@ impl App {
     // Shared footer key-hint fragments, kept in one place so wording can't drift
     // between screens the way it used to (top/bot vs top/bottom, arrows vs
     // spelled-out words, "Settings" capitalized in some footers but not others).
-    const FOOTER_MOVE: &str = "j/↓, k/↑: move";
-    const FOOTER_LIST_JUMP: &str = "g/G: top/bot";
-    const FOOTER_SCROLL_DESC: &str = "J/K/H: scroll desc";
+    const FOOTER_MOVE: (&'static str, &'static str) = ("j/↓ k/↑", "move");
+    const FOOTER_LIST_JUMP: (&'static str, &'static str) = ("g/G", "top/bot");
+    const FOOTER_SCROLL_DESC: (&'static str, &'static str) = ("J/K/H", "scroll desc");
 
-    // The trailing "Tab: X, R: refresh, [S: settings,] Q/Esc: quit" every footer ends
-    // with - `tab_target` differs (Home's Tab goes to Library, everywhere else's Tab
-    // goes to Home), and the Settings submenus don't mention `S` since you're already
-    // there.
-    fn footer_trailer(tab_target: &str, show_settings: bool) -> String {
+    // The trailing "Tab" / "R: refresh" / "[S: settings]" / "Q/Esc: quit" hints every
+    // footer ends with - `tab_target` differs (Home's Tab goes to Library, everywhere
+    // else's Tab goes to Home), and the Settings submenus don't mention `S` since
+    // you're already there.
+    fn footer_trailer(tab_target: &'static str, show_settings: bool) -> Vec<(&'static str, &'static str)> {
+        let mut hints = vec![("Tab", tab_target), ("R", "refresh")];
         if show_settings {
-            format!("Tab: {tab_target}, R: refresh, S: settings, Q/Esc: quit")
-        } else {
-            format!("Tab: {tab_target}, R: refresh, Q/Esc: quit")
+            hints.push(("S", "settings"));
         }
+        hints.push(("Q/Esc", "quit"));
+        hints
     }
 
     fn render_list(&mut self, area: Rect, buf: &mut Buffer, render_list_title: &str, render_list_items: &[String], list_state: &mut ListState, progress_info: Option<&[(String, f32, bool)]>) {
-        let marker_fill_style = Style::default().add_modifier(Modifier::REVERSED);
+        let marker_fill_style = Style::default().fg(theme::ACCENT_ACTIVE).add_modifier(Modifier::REVERSED);
         // Deliberately no fg/bg/modifiers here at all - any of those get patched across
         // every cell in the row, overriding the row's own colors (the now-playing
         // marker's background, the progress underline). Selection is shown purely via
         // the highlight_symbol (a vertical bar) below, leaving the row itself untouched.
         let selected_style: Style = Style::default();
 
-        let block = Block::new()
-            .title(Line::raw(render_list_title.to_string()).centered())
-            .borders(Borders::TOP);
+        let block = theme::section_block(render_list_title);
 
         // Approximate content width available inside each row, after the "▎" highlight
         // symbol column that HighlightSpacing::Always reserves on every row.
@@ -923,13 +957,14 @@ impl App {
         if let Some(selected) = selected {
 
             if self.is_podcast {
-                Paragraph::new(format!("[{}] - Author: {} - Episode: {} - Duration: {}", 
-                        self.titles_pod_cnt_list[selected], 
-                        self.authors_pod_cnt_list[selected], 
+                Paragraph::new(format!("[{}] - Author: {} - Episode: {} - Duration: {}",
+                        self.titles_pod_cnt_list[selected],
+                        self.authors_pod_cnt_list[selected],
                         self.nums_ep_pod_cnt_list[selected],
                         self.durations_pod_cnt_list[selected],
                 ))
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
                 } else {
                     Paragraph::new(format!("Author: {} - Year: {} - Duration: {} - Size: {}\nProgress: {}%, {} {}",
@@ -942,6 +977,7 @@ impl App {
                             self.book_progress_cnt_list[selected][1], // is finished
                     ))
                         .left_aligned()
+                        .block(theme::section_block("Info"))
                         .render(area, buf);
             }
         }
@@ -993,11 +1029,13 @@ impl App {
             Paragraph::new(html_to_lines(&_content))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
+                .block(theme::section_block("Description"))
                 .render(text_area, buf);
         } else {
             Paragraph::new(html_to_lines(&_content))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
+                .block(theme::section_block("Description"))
                 .render(area, buf);
         }
     }
@@ -1083,23 +1121,25 @@ impl App {
 
         if let Some(selected) = list_state.selected() {
             if self.is_podcast {
-                Paragraph::new(format!("Author: {}", 
-                        self.auth_names_library_pod[selected], 
+                Paragraph::new(format!("Author: {}",
+                        self.auth_names_library_pod[selected],
                 ))
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
-            } 
+            }
             else {
-                Paragraph::new(format!("Author: {} - Year: {}", //- Duration: {}\nProgress:{} {}{}", 
-                        self.auth_names_library[selected], 
-                        self.published_year_library[selected], 
+                Paragraph::new(format!("Author: {} - Year: {}", //- Duration: {}\nProgress:{} {}{}",
+                        self.auth_names_library[selected],
+                        self.published_year_library[selected],
 
                         //duration_library_conv[selected],
                         //self.book_progress_library[selected][0], // percentage progression
                         //format!("{}",convert_seconds_for_prg(self.duration_library[selected], self.book_progress_library_cur_time[selected][0])), // time left
                         //self.book_progress_library[selected][1] // is_finished
-                        )) 
+                        ))
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
             }
         }
@@ -1113,6 +1153,7 @@ impl App {
             Paragraph::new(html_to_lines(&self.desc_library[selected]))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
+                .block(theme::section_block("Description"))
                 .render(area, buf);
         }
     }
@@ -1126,6 +1167,7 @@ impl App {
             // Render placeholder text or handle appropriately
             Paragraph::new("Error: Podcast metadata missing.")
                 .left_aligned()
+                .block(theme::section_block("Info"))
                 .render(area, buf);
             return; // Exit the function early
         }
@@ -1158,17 +1200,20 @@ impl App {
                             self.durations_pod_ep[selected].trim(),
                     ))
                         .left_aligned()
+                        .block(theme::section_block("Info"))
                         .render(area, buf);
                  } else {
                      log::error!("render_info_pod_ep: Index {} out of bounds for duplicated title/author vectors (len={})!", selected, duplicated_titles.len());
                      Paragraph::new("Error: Episode info rendering mismatch.")
                          .left_aligned()
+                         .block(theme::section_block("Info"))
                          .render(area, buf);
                  }
             } else {
                 log::error!("render_info_pod_ep: Index {} out of bounds for episode/duration vectors (ep_len={}, dur_len={})!", selected, self.episodes_pod_ep.len(), self.durations_pod_ep.len());
                 Paragraph::new("Error: Episode data unavailable or index out of bounds.")
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
             }
         }
@@ -1184,6 +1229,7 @@ impl App {
             log::error!("render_info_pod_ep_search: titles_pod_search or authors_pod_ep_search is empty. Cannot render episode info.");
             Paragraph::new("Error: Podcast metadata missing.")
                 .left_aligned()
+                .block(theme::section_block("Info"))
                 .render(area, buf);
             return;
         }
@@ -1203,11 +1249,13 @@ impl App {
                         self.durations_pod_ep_search[selected].trim(),
                 ))
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
             } else {
                 log::error!("render_info_pod_ep_search: Index {selected} out of bounds for episode/duration/title/author vectors!");
                 Paragraph::new("Error: Episode data unavailable or index out of bounds.")
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
             }
         }
@@ -1224,12 +1272,14 @@ impl App {
                 Paragraph::new(html_to_lines(&self.subtitles_pod_ep[selected]))
                     .scroll((self.scroll_offset, 0))
                     .wrap(Wrap { trim: true })
+                    .block(theme::section_block("Description"))
                     .render(area, buf);
             } else {
                 log::error!("render_desc_pod_ep: Index {} out of bounds for subtitles_pod_ep (len={})!", selected, self.subtitles_pod_ep.len());
                 // Render placeholder text
                 Paragraph::new("Error: Episode description unavailable.")
                     .left_aligned()
+                    .block(theme::section_block("Description"))
                     .render(area, buf);
             }
         }
@@ -1242,6 +1292,7 @@ impl App {
             Paragraph::new(html_to_lines(&self.subtitles_pod_ep_search[selected]))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
+                .block(theme::section_block("Description"))
                 .render(area, buf);
         }
     }
@@ -1252,22 +1303,24 @@ impl App {
 
         if let Some(selected) = list_state.selected() {
             if self.is_podcast {
-                Paragraph::new(format!("Author: {}", 
-                        self.auth_names_pod_search_book[selected], 
+                Paragraph::new(format!("Author: {}",
+                        self.auth_names_pod_search_book[selected],
                 ))
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
-            } 
+            }
             else {
-                Paragraph::new(format!("Author: {} - Year: {}", //- Duration: {}\nProgress:{} {}{}", 
-                        self.auth_names_search_book[selected], 
-                        self.published_year_library_search_book[selected], 
+                Paragraph::new(format!("Author: {} - Year: {}", //- Duration: {}\nProgress:{} {}{}",
+                        self.auth_names_search_book[selected],
+                        self.published_year_library_search_book[selected],
                       //  duration_library_search_book_conv[selected],
                       //  self.book_progress_search_book[selected][0], // percentage progression
                       //  format!("{}",convert_seconds_for_prg(self.duration_library_search_book[selected], self.book_progress_search_book_cur_time[selected][0])), // time left
                       //  self.book_progress_search_book[selected][1] // is finished
-                        )) 
+                        ))
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
             }
         }
@@ -1281,6 +1334,7 @@ impl App {
             Paragraph::new(html_to_lines(&self.desc_library_search_book[selected]))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
+                .block(theme::section_block("Description"))
                 .render(area, buf);
         }
     }
@@ -1295,12 +1349,13 @@ impl App {
                     "https://github.com/pdwaldrop/Absotui",
             ))
                 .left_aligned()
+                .block(theme::section_block("Info"))
                 .render(area, buf);
         }
 
     }
 
-    
+
     // desc for settings
     fn render_desc_settings(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
@@ -1312,6 +1367,7 @@ impl App {
             Paragraph::new(self.changelog.clone())
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
+                .block(theme::section_block("Description"))
                 .render(area, buf);
         }
     }
@@ -1320,12 +1376,13 @@ impl App {
     fn render_info_settings_library(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
         if let Some(selected) = list_state.selected() {
-                Paragraph::new(format!("Type: {}", 
-                        self.media_types[selected], 
+                Paragraph::new(format!("Type: {}",
+                        self.media_types[selected],
                 ))
                     .left_aligned()
+                    .block(theme::section_block("Info"))
                     .render(area, buf);
-            } 
+            }
 
     }
 }
@@ -1336,11 +1393,11 @@ mod tests {
 
     #[test]
     fn footer_trailer_with_settings() {
-        assert_eq!(App::footer_trailer("library", true), "Tab: library, R: refresh, S: settings, Q/Esc: quit");
+        assert_eq!(App::footer_trailer("library", true), vec![("Tab", "library"), ("R", "refresh"), ("S", "settings"), ("Q/Esc", "quit")]);
     }
 
     #[test]
     fn footer_trailer_without_settings() {
-        assert_eq!(App::footer_trailer("home", false), "Tab: home, R: refresh, Q/Esc: quit");
+        assert_eq!(App::footer_trailer("home", false), vec![("Tab", "home"), ("R", "refresh"), ("Q/Esc", "quit")]);
     }
 }

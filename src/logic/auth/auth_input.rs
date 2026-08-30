@@ -2,10 +2,12 @@ use crate::login_app::AppLogin;
 use ratatui::backend::CrosstermBackend;
 use ratatui::widgets::{Block, Borders};
 use ratatui::text::Line;
+use ratatui::style::Style;
 use ratatui::Terminal;
 use std::io;
 use ratatui_textarea::TextArea;
 use ratatui::layout::Rect;
+use crate::ui::theme;
 use crate::api::server::auth_process::auth_process;
 use crossterm::event::{self, KeyEvent, KeyCode};  
 use log::{info, error};
@@ -33,6 +35,7 @@ impl AppLogin {
             .borders(Borders::ALL)
             .title("Server address")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
+            .border_style(Style::new().fg(theme::ACCENT_STRUCTURE))
         );
 
         textarea1.set_placeholder_text("http:// or https:// required");
@@ -43,6 +46,7 @@ impl AppLogin {
             .borders(Borders::ALL)
             .title("Username")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
+            .border_style(Style::new().fg(theme::ACCENT_STRUCTURE))
         );
 
         let mut textarea3 = TextArea::default();
@@ -51,6 +55,7 @@ impl AppLogin {
             .borders(Borders::ALL)
             .title("Password")
             .title_bottom(Line::from(format!("🦜Absotui v{VERSION} - Esc to quit.")).right_aligned())
+            .border_style(Style::new().fg(theme::ACCENT_STRUCTURE))
         );
         textarea3.set_mask_char('\u{2022}');
 

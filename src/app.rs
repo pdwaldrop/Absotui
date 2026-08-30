@@ -27,6 +27,7 @@ use crate::utils::http_client::MAX_CONCURRENT_REQUESTS;
 use log::{warn, error};
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
+    style::Style,
     widgets::{Block, Borders, ListState},
 };
 use crate::utils::pop_up_message::{pop_message, clear_message};
@@ -2237,6 +2238,7 @@ pub fn new_password_field(&self) -> TextArea<'static> {
         Block::default()
             .borders(Borders::ALL)
             .title("Password")
+            .border_style(Style::new().fg(crate::ui::theme::ACCENT_STRUCTURE))
     );
     password_field
 }
