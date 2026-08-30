@@ -1358,7 +1358,11 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
         // toggle newest/oldest-first sort order for the podcast New & Unfinished list.
         // Re-sorts immediately using data already in memory - no need to re-fetch.
-        KeyCode::Char('D') if self.is_podcast => {
+        // Gated on Home like `d`/`F` right below it - this reorders _cnt_list state that
+        // only Home renders, so without the view check it silently reordered/reselected
+        // that state from any screen whenever podcast mode was on (only advertised on
+        // Home's footer, but was actually live everywhere).
+        KeyCode::Char('D') if self.is_podcast && matches!(self.view_state, AppView::Home) => {
             self.podcast_sort_newest_first = !self.podcast_sort_newest_first;
 
             let selected_ep_id = self.list_state_cnt_list.selected()

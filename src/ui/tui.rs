@@ -377,7 +377,7 @@ impl App {
 
     /// `AppView::SettingsLibrary` rendering
     fn render_settings_library(&mut self, area: Rect, buf: &mut Buffer) {
-        let mut hints = vec![("h", "back"), ("l/→", "change library")];
+        let mut hints = vec![("h", "back"), ("l/→", "switch library")];
         hints.extend(Self::footer_trailer("home", false));
         let text_render_footer = theme::footer_text(&hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
@@ -716,7 +716,7 @@ impl App {
 
     /// `AppView::PodcastEpisode`
     fn render_pod_ep(&mut self, area: Rect, buf: &mut Buffer) {
-        let mut hints = vec![("l/→", "play"), ("h", "back"), ("/", "search")];
+        let mut hints = vec![("h", "back"), ("l/→", "play"), ("/", "search")];
         hints.push(Self::FOOTER_SCROLL_DESC);
         hints.extend(Self::footer_trailer("home", true));
         let text_render_footer = theme::footer_text(&hints);
@@ -833,7 +833,7 @@ impl App {
                 hints
             }
             AppView::PodcastEpisode => {
-                let mut hints = vec![("l/→ Enter", "play selected episode"), ("h", "back")];
+                let mut hints = vec![("h", "back"), ("l/→ Enter", "play selected episode")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", true));
                 hints
@@ -843,32 +843,32 @@ impl App {
             // still unconditional (main.rs handles it regardless of view_state), so this
             // authoritative list has to say so regardless of what the footer shows.
             AppView::Settings => {
-                let mut hints = vec![("l/→ Enter", "open selected setting"), ("h", "back to Home"), ("R", "refresh")];
+                let mut hints = vec![("h", "back to Home"), ("l/→ Enter", "open selected setting"), ("R", "refresh")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", false));
                 hints
             }
             AppView::SettingsAccount => {
-                let mut hints = vec![("l/→ Enter", "remove saved user"), ("h", "back to Settings"), ("R", "refresh")];
+                let mut hints = vec![("h", "back to Settings"), ("l/→ Enter", "remove saved user"), ("R", "refresh")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", false));
                 hints
             }
             AppView::SettingsLibrary => {
-                let mut hints = vec![("l/→ Enter", "switch library"), ("h", "back to Settings"), ("R", "refresh")];
+                let mut hints = vec![("h", "back to Settings"), ("l/→ Enter", "switch library"), ("R", "refresh")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", false));
                 hints
             }
             AppView::SettingsAutoplay | AppView::SettingsPerItemSpeed | AppView::SettingsAutoDownload => {
-                let mut hints = vec![("l/→ Enter", "apply selected option"), ("h", "back to Settings"), ("R", "refresh")];
+                let mut hints = vec![("h", "back to Settings"), ("l/→ Enter", "apply selected option"), ("R", "refresh")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("home", false));
                 hints
             }
             AppView::SettingsUpdateUninstall => {
                 let mut hints = vec![
-                    ("l/→ Enter", "select (Instructions stage)"), ("h", "back to Settings"), ("R", "refresh"),
+                    ("h", "back to Settings"), ("l/→ Enter", "select (Instructions stage)"), ("R", "refresh"),
                     ("y/Y", "confirm (Confirm stage)"), ("n/N", "cancel (Confirm stage)"),
                     ("Enter", "submit password (Password stage)"),
                     ("Esc", "back/cancel (Confirm, Password, Failed stages)"),
