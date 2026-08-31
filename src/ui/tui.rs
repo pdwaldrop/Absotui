@@ -343,13 +343,15 @@ impl App {
     /// `AppView::Settings` rendering
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
         let selected = self.list_state_settings.selected();
+        // About is the only entry with a list-level preview (render_desc_settings
+        // scrolls its changelog right here without entering a separate screen) -
+        // Update/Uninstall used to get its own "Scroll instructions" hint too, but
+        // render_desc_settings has deliberately never shown anything for it (its
+        // Instructions stage already covers that once you actually enter the
+        // screen), so that hint advertised a scroll that did nothing. Every other
+        // entry, including Update/Uninstall, just gets the normal "enter" hint.
         let _text_render_footer = if selected == self.settings_index(SETTINGS_ABOUT) {
             let mut hints = vec![("h", "Back"), ("J/K/H", "Scroll what's new")];
-            hints.extend(Self::footer_trailer("Home", false));
-            theme::footer_text(&hints)
-        }
-        else if selected == self.settings_index(SETTINGS_UPDATE_UNINSTALL) {
-            let mut hints = vec![("h", "Back"), ("J/K/H", "Scroll instructions")];
             hints.extend(Self::footer_trailer("Home", false));
             theme::footer_text(&hints)
         } else {
