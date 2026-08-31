@@ -499,8 +499,39 @@ static IMAGE_PICKER: std::sync::OnceLock<Option<ratatui_image::picker::Picker>> 
 // indication why. Cached the same way: computed once per process, cloned after.
 static UPDATE_CHECK: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
 
+// The Settings menu's entries, named once so the many places that need to know
+// "which row is X" (the l/→ dispatch below, and the About-specific rendering in
+// tui.rs) can look it up by name via `App::settings_index` instead of a raw
+// position - a previous version of this list matched on hardcoded indices like
+// `Some(4)` scattered across two files, which silently went stale (pointed at the
+// wrong entry, or - for the one nobody happened to touch - simply never noticed)
+// the moment anyone reordered `SETTINGS_ENTRIES` without hunting down every one.
+pub(crate) const SETTINGS_LIBRARY: &str = "Library";
+pub(crate) const SETTINGS_PER_ITEM_SPEED: &str = "Per-Item Speed";
+pub(crate) const SETTINGS_PODCAST_AUTOPLAY: &str = "Podcast Autoplay";
+pub(crate) const SETTINGS_AUTO_DOWNLOAD: &str = "Auto Download";
+pub(crate) const SETTINGS_UPDATE_UNINSTALL: &str = "Update/Uninstall";
+pub(crate) const SETTINGS_ABOUT: &str = "About";
+pub(crate) const SETTINGS_ACCOUNT: &str = "Account";
+const SETTINGS_ENTRIES: [&str; 7] = [
+    SETTINGS_LIBRARY,
+    SETTINGS_PER_ITEM_SPEED,
+    SETTINGS_PODCAST_AUTOPLAY,
+    SETTINGS_AUTO_DOWNLOAD,
+    SETTINGS_UPDATE_UNINSTALL,
+    SETTINGS_ABOUT,
+    SETTINGS_ACCOUNT,
+];
+
 /// Init app
 impl App {
+    /// Index of a named Settings menu entry in `self.settings`, if present - lets
+    /// callers match by name (a compile-time-checked `SETTINGS_*` constant) instead
+    /// of a raw position. See `SETTINGS_ENTRIES`'s doc comment for why.
+    pub(crate) fn settings_index(&self, name: &str) -> Option<usize> {
+        self.settings.iter().position(|s| s == name)
+    }
+
     pub async fn new() -> Result<Self> {
 
         // init config
@@ -876,8 +907,11 @@ impl App {
     } else {
         None
     };
-    // init for `Settings`
-    let settings = vec!["Library".to_string(), "Per-Item Speed".to_string(), "Podcast Autoplay".to_string(), "Account".to_string(), "About".to_string(), "Update / Uninstall".to_string(), "Auto Download".to_string()];
+    // init for `Settings` - order is: the settings you routinely adjust, the
+    // Update/Uninstall maintenance action, then About/Account last since Account's
+    // own action is destructive (see its own screen) and shouldn't sit in the
+    // middle of routine navigation.
+    let settings: Vec<String> = SETTINGS_ENTRIES.iter().map(|s| s.to_string()).collect();
 
     // init for `SettingsAccount`
     let mut all_usernames: Vec<String> = Vec::new();
@@ -1276,7 +1310,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         return;
     }
 
-    // The Confirm/Password/Running/Failed stages of Settings > Update / Uninstall
+    // The Confirm/Password/Running/Failed stages of Settings > Update/Uninstall
     // own every key themselves (most importantly so free-text password typing can't
     // be swallowed by the global single-letter bindings below, eg. player controls) -
     // handle them here and return early. Only the passive `Instructions` stage (just
@@ -1885,14 +1919,23 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                     }}
                 AppView::Settings => {
-                    match self.list_state_settings.selected() {
-                        Some(0) => self.view_state = AppView::SettingsLibrary,
-                        Some(1) => self.view_state = AppView::SettingsPerItemSpeed,
-                        Some(2) => self.view_state = AppView::SettingsAutoplay,
-                        Some(3) => self.view_state = AppView::SettingsAccount,
-                        Some(5) => self.view_state = AppView::SettingsUpdateUninstall,
-                        Some(6) => self.view_state = AppView::SettingsAutoDownload,
-                        _ => {}
+                    let selected = self.list_state_settings.selected();
+                    // `About` has no case here deliberately - it's not something you
+                    // navigate deeper into, l/→ does nothing on it (see
+                    // render_info_settings/render_desc_settings, which show the
+                    // changelog inline the moment it's just selected).
+                    if selected == self.settings_index(SETTINGS_LIBRARY) {
+                        self.view_state = AppView::SettingsLibrary;
+                    } else if selected == self.settings_index(SETTINGS_PER_ITEM_SPEED) {
+                        self.view_state = AppView::SettingsPerItemSpeed;
+                    } else if selected == self.settings_index(SETTINGS_PODCAST_AUTOPLAY) {
+                        self.view_state = AppView::SettingsAutoplay;
+                    } else if selected == self.settings_index(SETTINGS_ACCOUNT) {
+                        self.view_state = AppView::SettingsAccount;
+                    } else if selected == self.settings_index(SETTINGS_UPDATE_UNINSTALL) {
+                        self.view_state = AppView::SettingsUpdateUninstall;
+                    } else if selected == self.settings_index(SETTINGS_AUTO_DOWNLOAD) {
+                        self.view_state = AppView::SettingsAutoDownload;
                     }
                 }
                 AppView::SettingsUpdateUninstall => {

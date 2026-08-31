@@ -34,7 +34,7 @@ use std::os::unix::process::CommandExt;
 
 // Where a binary-method install/update always lands (see hello_absotui.sh's
 // dl_handle_compressed_binary/check_and_cleanup_binary_install) - deterministic
-// because Settings > Update / Uninstall always forces the "download precompiled
+// because Settings > Update/Uninstall always forces the "download precompiled
 // binary" method and always cleans up a stale ~/.cargo/bin/absotui first, regardless
 // of how the currently-running binary was originally installed.
 const INSTALLED_BINARY_PATH: &str = "/usr/local/bin/absotui";
@@ -227,7 +227,7 @@ async fn main() -> Result<()> {
                 let _ = terminal.clear();
             }
 
-            // Drain one pending Settings > Update / Uninstall progress event, if any
+            // Drain one pending Settings > Update/Uninstall progress event, if any
             // (non-blocking) - keeps that screen's log panel live without a dedicated
             // blocking sub-loop, just reusing this same draw/poll cadence.
             if let Some(event) = app.poll_update_uninstall_event() {

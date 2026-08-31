@@ -1,5 +1,5 @@
 use crate::App;
-use crate::app::{AppView, HomeRow, UpdateUninstallStage};
+use crate::app::{AppView, HomeRow, UpdateUninstallStage, SETTINGS_ABOUT, SETTINGS_UPDATE_UNINSTALL};
 use crate::logic::update_uninstall::Action;
 use crate::api::libraries::get_library_perso_view_pod::Chapter;
 use ratatui::{
@@ -25,7 +25,7 @@ use crate::ui::player_tui;
 // const version
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// Shared by both render_desc_settings (the preview shown while "Update / Uninstall" is
+// Shared by both render_desc_settings (the preview shown while "Update/Uninstall" is
 // merely highlighted in the Settings list) and render_update_uninstall_content (the
 // Instructions stage once you've actually entered that screen) - one string so the two
 // can't drift out of sync the way they did before (the preview kept describing a
@@ -342,13 +342,13 @@ impl App {
 
     /// `AppView::Settings` rendering
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
-        let _text_render_footer = if self.list_state_settings.selected() == Some(4) {
-            // for `About` section
+        let selected = self.list_state_settings.selected();
+        let _text_render_footer = if selected == self.settings_index(SETTINGS_ABOUT) {
             let mut hints = vec![("h", "Back"), ("J/K/H", "Scroll what's new")];
             hints.extend(Self::footer_trailer("Home", false));
             theme::footer_text(&hints)
         }
-        else if self.list_state_settings.selected() == Some(5) {
+        else if selected == self.settings_index(SETTINGS_UPDATE_UNINSTALL) {
             let mut hints = vec![("h", "Back"), ("J/K/H", "Scroll instructions")];
             hints.extend(Self::footer_trailer("Home", false));
             theme::footer_text(&hints)
@@ -472,7 +472,7 @@ impl App {
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
-        let render_list_title = "Update / Uninstall";
+        let render_list_title = SETTINGS_UPDATE_UNINSTALL;
         let options = vec!["Update now".to_string(), "Uninstall".to_string()];
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
@@ -1637,7 +1637,7 @@ impl App {
     // info for settings
     fn render_info_settings(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
-        if list_state.selected() == Some(4) {
+        if list_state.selected() == self.settings_index(SETTINGS_ABOUT) {
             Paragraph::new(format!("Absotui v{} - Licence: GPL-3.0 - Issues: {}/issues\nSource code: {}\nWhat's new:",
                     VERSION,
                     "https://github.com/pdwaldrop/Absotui",
@@ -1654,11 +1654,11 @@ impl App {
     // desc for settings
     fn render_desc_settings(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
-        // Update / Uninstall deliberately has no list-level preview here, same as every
+        // Update/Uninstall deliberately has no list-level preview here, same as every
         // other item besides About - its Instructions stage (rendered once you actually
         // enter the screen, see render_update_uninstall_content) already shows
         // UPDATE_UNINSTALL_INSTRUCTIONS.
-        if list_state.selected() == Some(4) {
+        if list_state.selected() == self.settings_index(SETTINGS_ABOUT) {
             Paragraph::new(self.changelog.clone())
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
