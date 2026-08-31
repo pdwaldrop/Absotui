@@ -5,7 +5,8 @@ use crate::api::library_items::play_lib_item_or_pod::post_start_playback_session
 use crate::api::sessions::sync_open_session::sync_session;
 use crate::api::sessions::close_open_session::close_session_without_send_prg_data;
 use crate::player::vlc::exec_nc::exec_nc;
-use crate::utils::pop_up_message::clear_message;
+use crate::utils::pop_up_message::{clear_message, NEEDS_TERMINAL_CLEAR};
+use std::sync::atomic::Ordering;
 use std::io::stdout;
 use log::{info, error};
 use crate::db::crud::{insert_listening_session, update_is_vlc_running, update_current_time, get_speed_rate, update_chapter, update_elapsed_time, update_is_finished, update_is_loop_break, get_is_podcast_autoplay, get_download, delete_user, update_login_err};
@@ -166,6 +167,7 @@ pub async fn handle_l_pod(
                             // clear loading message (from app.rs) when vlc is launched
                             let mut stdout = stdout();
                             let _ = clear_message(&mut stdout, 3);
+                            NEEDS_TERMINAL_CLEAR.store(true, Ordering::Relaxed);
 
 
                             // Important, sleep time to 1s otherwise connection to vlc player will not have time to connect

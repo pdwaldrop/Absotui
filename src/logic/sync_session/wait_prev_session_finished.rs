@@ -1,7 +1,8 @@
 use crate::db::crud::{get_is_vlc_launched_first_time, get_is_loop_break, update_is_loop_break, update_is_vlc_launched_first_time, try_claim_playback_slot};
 use log::info;
-use crate::utils::pop_up_message::{pop_message, clear_message};
+use crate::utils::pop_up_message::{pop_message, clear_message, NEEDS_TERMINAL_CLEAR};
 use std::io::stdout;
+use std::sync::atomic::Ordering;
 
 // Blocks until the previously-running playback task (if any) has finished its own
 // close/sync and released the playback slot, so a new track can't start while the old
@@ -51,5 +52,13 @@ pub fn wait_prev_session_finished(username: String) {
 
         // clear pop up message
         let _ = clear_message(&mut stdout, 3);
+
+        // This function runs inside a detached `tokio::spawn`ed playback task with
+        // no `Terminal` in scope to call `.clear()` on directly - see
+        // NEEDS_TERMINAL_CLEAR's doc comment. Set unconditionally (not just on the
+        // branch that actually popped a message) since the caller's own subsequent
+        // `pop_message` call (see handle_l_pod_home.rs and friends) can suffer the
+        // same stale-cache fate regardless of which branch ran here.
+        NEEDS_TERMINAL_CLEAR.store(true, Ordering::Relaxed);
 
 }

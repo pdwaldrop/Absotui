@@ -1,7 +1,8 @@
 use crate::player::vlc::start_vlc::start_vlc;
 use crate::player::vlc::fetch_vlc_data::{fetch_vlc_data, fetch_vlc_is_playing};
 use crate::player::vlc::exec_nc::exec_nc;
-use crate::utils::pop_up_message::clear_message;
+use crate::utils::pop_up_message::{clear_message, NEEDS_TERMINAL_CLEAR};
+use std::sync::atomic::Ordering;
 use crate::api::me::update_media_progress::{update_media_progress_book, update_media_progress2_book};
 use crate::api::library_items::play_lib_item_or_pod::{post_start_playback_session_book, AudioTrack, find_track_index};
 use crate::api::sessions::sync_open_session::sync_session;
@@ -203,6 +204,7 @@ pub async fn handle_l_book(
                     // clear loading message (from app.rs) when vlc is launched
                     let mut stdout = stdout();
                     let _ = clear_message(&mut stdout, 3);
+                    NEEDS_TERMINAL_CLEAR.store(true, Ordering::Relaxed);
 
 
                     // Important, sleep time to 1s minimum otherwise connection to vlc player will not have time to connect
@@ -572,6 +574,7 @@ async fn handle_l_book_offline(
 
     let mut stdout = stdout();
     let _ = clear_message(&mut stdout, 3);
+    NEEDS_TERMINAL_CLEAR.store(true, Ordering::Relaxed);
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 

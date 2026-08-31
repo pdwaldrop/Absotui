@@ -1,6 +1,7 @@
 use crate::player::vlc::start_vlc::start_vlc;
 use crate::player::vlc::fetch_vlc_data::{fetch_vlc_data, fetch_vlc_is_playing};
-use crate::utils::pop_up_message::clear_message;
+use crate::utils::pop_up_message::{clear_message, NEEDS_TERMINAL_CLEAR};
+use std::sync::atomic::Ordering;
 use crate::api::me::update_media_progress::{update_media_progress_pod, update_media_progress2_pod};
 use std::io::stdout;
 use log::{info, error};
@@ -91,6 +92,7 @@ pub async fn handle_pod_episode_offline(
 
     let mut stdout = stdout();
     let _ = clear_message(&mut stdout, 3);
+    NEEDS_TERMINAL_CLEAR.store(true, Ordering::Relaxed);
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 

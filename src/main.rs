@@ -15,7 +15,8 @@ use color_eyre::Result;
 use std::time::Duration;
 use crossterm::event::{self, KeyCode};
 use std::io::stdout;
-use crate::utils::pop_up_message::{clear_message, pop_message};
+use crate::utils::pop_up_message::{clear_message, pop_message, NEEDS_TERMINAL_CLEAR};
+use std::sync::atomic::Ordering;
 use crate::utils::logs::setup_logs;
 use log::info;
 use crate::db::crud::{update_is_vlc_launched_first_time, get_is_vlc_launched_first_time, get_is_vlc_running, update_is_vlc_running, get_auth_in_progress};
@@ -209,6 +210,16 @@ async fn main() -> Result<()> {
             // into the live app the moment it's ready (see bug_id 3f729c) - a no-op
             // once already consumed or while still in flight.
             app.poll_pod_ep_fetch();
+
+            // A detached playback task (wait_prev_session_finished and the
+            // handle_l_* session starters) just popped/cleared a raw stdout status
+            // message with no `Terminal` in scope to reconcile ratatui's diff cache
+            // itself - see NEEDS_TERMINAL_CLEAR's doc comment. Forces a full repaint
+            // so the next `terminal.draw` doesn't skip cells it thinks are already
+            // correct.
+            if NEEDS_TERMINAL_CLEAR.swap(false, Ordering::Relaxed) {
+                let _ = terminal.clear();
+            }
 
             // Drain one pending Settings > Update / Uninstall progress event, if any
             // (non-blocking) - keeps that screen's log panel live without a dedicated

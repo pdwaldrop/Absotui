@@ -960,11 +960,40 @@ impl App {
             .render(inner, buf);
     }
 
+    /// When the footer wraps onto 2+ lines, one blank row is inserted right after
+    /// the first line so the wrapped chips don't read as a single crowded block -
+    /// exactly one row is added no matter how many lines wrap (see `footer_height`
+    /// below for why that cap matters), so only the gap after line 1 exists; any
+    /// further wrapped lines stay packed tight against each other. Rendered
+    /// off-screen first (at its natural, un-spaced height) and then copied into
+    /// `area`, which `standard_layout` has already sized to fit that one gap row.
     fn render_footer(area: Rect, buf: &mut Buffer, text_render_footer: &Text<'static>) {
+        let content_rows = Self::footer_row_count(text_render_footer, area.width);
+        let offscreen_area = Rect::new(0, 0, area.width, content_rows);
+        let mut offscreen_buf = Buffer::empty(offscreen_area);
         Paragraph::new(text_render_footer.clone())
             .centered()
             .wrap(Wrap { trim: true })
-            .render(area, buf);
+            .render(offscreen_area, &mut offscreen_buf);
+
+        for row in 0..content_rows {
+            let gap = if row > 0 { 1 } else { 0 };
+            let target_y = area.y + row + gap;
+            if target_y >= area.y + area.height {
+                break;
+            }
+            for x in 0..area.width {
+                buf[(area.x + x, target_y)] = offscreen_buf[(x, row)].clone();
+            }
+        }
+    }
+
+    /// How many rows a footer's text actually needs once wrapped at `width`.
+    fn footer_row_count(footer_text: &Text<'static>, width: u16) -> u16 {
+        Paragraph::new(footer_text.clone())
+            .wrap(Wrap { trim: true })
+            .line_count(width)
+            .max(1) as u16
     }
 
     /// The standard header/main/player/refresh/footer vertical split, with the footer
@@ -972,12 +1001,14 @@ impl App {
     /// a fixed-height footer silently drops whichever of its lines don't fit once
     /// wrapping kicks in on a narrow terminal (confirmed live: shrinking the window
     /// until line 1 wrapped made line 2 disappear entirely, since a 2-row area has
-    /// nowhere left to put it once line 1 alone consumes both rows).
+    /// nowhere left to put it once line 1 alone consumes both rows). A wrapped (2+
+    /// row) footer gets exactly one extra row on top of its content rows (see
+    /// `render_footer`'s single fixed gap) - capped at +1 flat, not scaling with
+    /// how many rows wrap, because `player_tui.rs`'s Now Playing box hardcodes an
+    /// assumed max footer height and needs this bounded, not open-ended.
     fn standard_layout(area: Rect, footer_text: &Text<'static>) -> [Rect; 5] {
-        let footer_height = Paragraph::new(footer_text.clone())
-            .wrap(Wrap { trim: true })
-            .line_count(area.width)
-            .max(1) as u16;
+        let content_rows = Self::footer_row_count(footer_text, area.width);
+        let footer_height = if content_rows > 1 { content_rows + 1 } else { content_rows };
         Layout::vertical([
             Constraint::Length(4),
             Constraint::Fill(1),

@@ -34,14 +34,16 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     // tui.rs's `standard_layout` split) - it has to stay aligned with that layout's
     // reserved player-gap by hand. That gap sits right after `main_area`, which is
     // `Constraint::Fill(1)` and so grows to absorb whatever the footer *doesn't* need -
-    // the footer is 1-2 rows depending on how much it wraps at the current width (see
-    // `standard_layout`'s dynamic `footer_height`, floored at 1). Anchoring to the
-    // worst case (footer_height=1, meaning `main_area` is at its largest) is what
-    // makes this safe for every width: at footer_height=2 this leaves one harmless
-    // extra blank row above the box instead of encroaching into `main_area` and
-    // getting the app's own next frame to silently paint over this box's top border/
-    // title (confirmed live: exactly what happened at footer_height=1 when this was 9).
-    let new_y = area.y + area.height.saturating_sub(8); // the line number where player start
+    // the footer is 1-3 rows depending on how much it wraps at the current width (see
+    // `standard_layout`'s dynamic `footer_height`: content rows, +1 flat once it wraps
+    // onto 2+ lines, floored at 1 - so 3 is the max for a 2-line wrap, the common case).
+    // Anchoring to the worst case (footer_height=1, meaning `main_area` is at its
+    // largest) is what makes this safe for every width: at footer_height=2 or 3 this
+    // leaves a harmless extra blank row or two above the box instead of encroaching
+    // into `main_area` and getting the app's own next frame to silently paint over
+    // this box's top border/title (confirmed live: exactly what happened when the
+    // reserved margin fell short of the actual footer height).
+    let new_y = area.y + area.height.saturating_sub(9); // the line number where player start
     let block_height = 6; // 4 content rows (spacer/title/details/key-bindings) + border top/bottom
 
     // Full width, matching every other panel's box - no inset margin.
