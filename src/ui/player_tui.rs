@@ -48,7 +48,6 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     // this box's own `block_height` rows, landing exactly where `main_area` ends.
     let new_y = area.y + area.height.saturating_sub(footer_height + 1 + block_height);
 
-    // Full width, matching every other panel's box - no inset margin.
     let text_area = Rect::new(area.x, new_y, area.width, block_height);
 
     // Its own box in the active accent color (matching the play icon/progress fill),
@@ -57,7 +56,6 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
     let inner = block.inner(text_area);
     block.render(text_area, buf);
 
-    // Split into: blank spacer line, title line (gets the progress fill), details+key bindings
     let [spacer_area, title_area, rest_area] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
@@ -104,7 +102,6 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
         Span::raw(vol_unfilled),
     ]);
 
-    // Create the paragraph for the details/key-bindings lines (title line is handled separately below)
     let paragraph = Paragraph::new(vec![details_line, key_bindings_line])
         .centered()
         .block(Block::default());

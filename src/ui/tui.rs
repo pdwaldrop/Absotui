@@ -22,7 +22,6 @@ use crate::ui::theme;
 use crate::ui::player_tui;
 
 
-// const version
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Shared by both render_desc_settings (the preview shown while "Update/Uninstall" is
@@ -483,7 +482,6 @@ impl App {
         self.render_update_uninstall_content(item_area, buf);
     }
 
-    // content pane for `render_settings_update_uninstall`, one branch per stage
     fn render_update_uninstall_content(&self, area: Rect, buf: &mut Buffer) {
         match &self.update_uninstall_stage {
             UpdateUninstallStage::Instructions => {
@@ -634,7 +632,6 @@ impl App {
 
         let titles_search_book_or_pod: &[String] = &titles_search_book_or_pod;
 
-        // apply search filtering for book
         self.ids_search_book = self.ids_library
             .iter()
             .enumerate()
@@ -671,26 +668,7 @@ impl App {
             .filter(|(index, _)| index_to_keep.contains(index))
             .map(|(_, value)| *value)
             .collect();
-//        self.book_progress_search_book = self.book_progress_library
-//            .iter()
-//            .enumerate()
-//            .filter(|(index, _)| index_to_keep.contains(&index))
-//            .map(|(_, value)| value.clone())
-//            .collect();
-//        self.book_progress_search_book_cur_time = self.book_progress_library_cur_time
-//            .iter()
-//            .enumerate()
-//            .filter(|(index, _)| index_to_keep.contains(&index))
-//            .map(|(_, value)| value.clone())
-//            .collect();
-//        self.book_progress_search_book = self.book_progress_library
-//            .iter()
-//            .enumerate()
-//            .filter(|(index, _)| index_to_keep.contains(&index))
-//            .map(|(_, value)| value.clone())
-//            .collect();
 
-        // apply search filtering for podacst
         self.all_titles_pod_ep_search = self.all_titles_pod_ep
             .iter()
             .enumerate()
@@ -789,7 +767,6 @@ impl App {
             } else {
                 let items_number = self.titles_pod_ep_search.len();
                 let render_list_title = format!("Episodes [{items_number} items]");
-                // Only render list/info/desc if episodes exist
                 self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep_search.clone(), &mut self.list_state_pod_ep.clone(), None);
                 self.render_info_pod_ep_search(item_area1, buf, &self.list_state_pod_ep.clone() );
                 self.render_desc_pod_ep_search(item_area2, buf, &self.list_state_pod_ep.clone() );
@@ -804,7 +781,6 @@ impl App {
             } else {
                 let items_number = self.titles_pod_ep.len();
                 let render_list_title = format!("Episodes [{items_number} items]");
-                // Only render list/info/desc if episodes exist
                 self.render_list(list_area, buf, &render_list_title, &self.titles_pod_ep.clone(), &mut self.list_state_pod_ep.clone(), None);
                 self.render_info_pod_ep(item_area1, buf, &self.list_state_pod_ep.clone() );
                 self.render_desc_pod_ep(item_area2, buf, &self.list_state_pod_ep.clone() );
@@ -972,8 +948,6 @@ impl App {
             AppView::Keymap => vec![],
         }
     }
-
-    // General functions for rendering
 
     fn render_header(area: Rect, buf: &mut Buffer, library_name: String, username: &str, server_address_pretty: &str, version: &str, update_msg: &str) {
         let block = theme::section_block(&library_name);
@@ -1228,7 +1202,6 @@ impl App {
     }
 
 
-    // info about the book or podacst for `Home`
     fn render_info_home(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
         let duration_cnt_list_conv = convert_seconds(self.duration_cnt_list.clone());
         let size_cnt_list_conv = format_sizes(self.size_cnt_list.clone());
@@ -1275,7 +1248,6 @@ impl App {
         }
     }
 
-    // description of the book or podcast `Home`
     fn render_desc_home(&mut self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
         // See render_info_home - chapter rows resolve back to their parent book's index.
         let selected = if self.is_podcast {
@@ -1412,7 +1384,6 @@ impl App {
         }
     }
 
-    // info about the book or podacst for `Library`
     fn render_info_library(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
         let _duration_library_conv = convert_seconds(self.duration_library.clone());
 
@@ -1426,14 +1397,9 @@ impl App {
                     .render(area, buf);
             }
             else {
-                Paragraph::new(format!("Author: {} - Year: {}", //- Duration: {}\nProgress:{} {}{}",
+                Paragraph::new(format!("Author: {} - Year: {}",
                         self.auth_names_library[selected],
                         self.published_year_library[selected],
-
-                        //duration_library_conv[selected],
-                        //self.book_progress_library[selected][0], // percentage progression
-                        //format!("{}",convert_seconds_for_prg(self.duration_library[selected], self.book_progress_library_cur_time[selected][0])), // time left
-                        //self.book_progress_library[selected][1] // is_finished
                         ))
                     .left_aligned()
                     .block(theme::section_block("Info"))
@@ -1442,7 +1408,6 @@ impl App {
         }
     }
 
-    // description of the book or podcast `Library`
     fn render_desc_library(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
         if let Some(selected) = list_state.selected() {
@@ -1455,18 +1420,14 @@ impl App {
         }
     }
 
-    // info about the podcast for `PodcastEpisode`
     fn render_info_pod_ep(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
-
-        // Check if source vectors for podcast title/author are empty before accessing index 0
         if self.titles_pod.is_empty() || self.authors_pod_ep.is_empty() {
             log::error!("render_info_pod_ep: titles_pod or authors_pod_ep is empty. Cannot render episode info.");
-            // Render placeholder text or handle appropriately
             Paragraph::new("Error: Podcast metadata missing.")
                 .left_aligned()
                 .block(theme::section_block("Info"))
                 .render(area, buf);
-            return; // Exit the function early
+            return;
         }
 
         let n = self.durations_pod_ep.len();
@@ -1478,17 +1439,15 @@ impl App {
             log::debug!(
                 "render_info_pod_ep: selected={}, titles_pod.len={}, authors_pod_ep.len={}, durations_pod_ep.len={}, episodes_pod_ep.len={}, duplicated_titles.len={}, duplicated_authors.len={}",
                 selected,
-                self.titles_pod.len(), // Should be >= 1 here
-                self.authors_pod_ep.len(), // Should be >= 1 here
+                self.titles_pod.len(),
+                self.authors_pod_ep.len(),
                 self.durations_pod_ep.len(),
                 self.episodes_pod_ep.len(),
-                duplicated_titles.len(), // Will be n
-                duplicated_authors.len() // Will be n
+                duplicated_titles.len(),
+                duplicated_authors.len()
             );
 
-            // Check if episode-specific vectors are valid for the selected index
             if selected < self.episodes_pod_ep.len() && selected < self.durations_pod_ep.len() {
-                 // Also check duplicated vectors, though their length depends on n (durations_pod_ep.len())
                  if selected < duplicated_titles.len() && selected < duplicated_authors.len() {
                     Paragraph::new(format!("[{}] - Author: {} - Episode: {} - Duration: {} ",
                             duplicated_titles[selected].trim(),
@@ -1515,7 +1474,6 @@ impl App {
             }
         }
     }
-    // info about the podcast for `PodcastEpisode` (from search)
     fn render_info_pod_ep_search(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
         // Same guard as render_info_pod_ep: a podcast with episodes but null
@@ -1558,13 +1516,10 @@ impl App {
         }
     }
 
-    // desc of the podcast for `PodcastEpisode`
     fn render_desc_pod_ep(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
-
         if let Some(selected) = list_state.selected() {
             log::debug!("render_desc_pod_ep: selected={}, subtitles_pod_ep.len={}", selected, self.subtitles_pod_ep.len());
 
-            // Check if index is valid for subtitles vector
             if selected < self.subtitles_pod_ep.len() {
                 Paragraph::new(html_to_lines(&self.subtitles_pod_ep[selected]))
                     .scroll((self.scroll_offset, 0))
@@ -1573,7 +1528,6 @@ impl App {
                     .render(area, buf);
             } else {
                 log::error!("render_desc_pod_ep: Index {} out of bounds for subtitles_pod_ep (len={})!", selected, self.subtitles_pod_ep.len());
-                // Render placeholder text
                 Paragraph::new("Error: Episode description unavailable.")
                     .left_aligned()
                     .block(theme::section_block("Description"))
@@ -1581,7 +1535,6 @@ impl App {
             }
         }
     }
-    // desc of the podcast for `PodcastEpisode` (from search)
     fn render_desc_pod_ep_search(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
         if let Some(selected) = list_state.selected() {
@@ -1594,7 +1547,6 @@ impl App {
         }
     }
 
-    // info about the book or podacst for `SearchBook`
     fn render_info_search_book(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
         let _duration_library_search_book_conv = convert_seconds(self.duration_library_search_book.clone());
 
@@ -1608,13 +1560,9 @@ impl App {
                     .render(area, buf);
             }
             else {
-                Paragraph::new(format!("Author: {} - Year: {}", //- Duration: {}\nProgress:{} {}{}",
+                Paragraph::new(format!("Author: {} - Year: {}",
                         self.auth_names_search_book[selected],
                         self.published_year_library_search_book[selected],
-                      //  duration_library_search_book_conv[selected],
-                      //  self.book_progress_search_book[selected][0], // percentage progression
-                      //  format!("{}",convert_seconds_for_prg(self.duration_library_search_book[selected], self.book_progress_search_book_cur_time[selected][0])), // time left
-                      //  self.book_progress_search_book[selected][1] // is finished
                         ))
                     .left_aligned()
                     .block(theme::section_block("Info"))
@@ -1623,7 +1571,6 @@ impl App {
         }
     }
 
-    // description of the book or podcast `SearchBook`
     fn render_desc_search_book(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
 
         if let Some(selected) = list_state.selected() {
@@ -1636,9 +1583,7 @@ impl App {
         }
     }
 
-    // info for settings
     fn render_info_settings(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
-
         if list_state.selected() == self.settings_index(SETTINGS_ABOUT) {
             Paragraph::new(format!("Absotui v{} - Licence: GPL-3.0 - Issues: {}/issues\nSource code: {}\nWhat's new:",
                     VERSION,
@@ -1649,13 +1594,9 @@ impl App {
                 .block(theme::section_block("Info"))
                 .render(area, buf);
         }
-
     }
 
-
-    // desc for settings
     fn render_desc_settings(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
-
         // Update/Uninstall deliberately has no list-level preview here, same as every
         // other item besides About - its Instructions stage (rendered once you actually
         // enter the screen, see render_update_uninstall_content) already shows
@@ -1669,9 +1610,7 @@ impl App {
         }
     }
 
-    // info for settings library
     fn render_info_settings_library(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
-
         if let Some(selected) = list_state.selected() {
                 Paragraph::new(format!("Type: {}",
                         self.media_types[selected],
@@ -1680,7 +1619,6 @@ impl App {
                     .block(theme::section_block("Info"))
                     .render(area, buf);
             }
-
     }
 }
 

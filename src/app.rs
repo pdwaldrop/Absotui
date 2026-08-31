@@ -231,8 +231,6 @@ pub struct App {
     pub duration_library_search_book: Vec<f64>,
     pub book_progress_cnt_list: Vec<Vec<String>>,
     pub book_progress_cnt_list_cur_time: Vec<Vec<f64>>,
-//    pub book_progress_library: Vec<Vec<String>>,
-//    pub book_progress_library_cur_time: Vec<Vec<f64>>,
     pub book_progress_search_book: Vec<Vec<String>>,
     pub book_progress_search_book_cur_time: Vec<Vec<f64>>,
     pub is_cvlc: String,
@@ -534,17 +532,10 @@ impl App {
 
     pub async fn new() -> Result<Self> {
 
-        // init config
         let config = load_config()?;
-
-        // init database from Database struct
         let database = Database::new().await?;
-
-        // init changelog
         let changelog = changelog();
 
-
-        // retrieve crypted token from database
         let mut token: String = String::new();
         if let Some(var_token) = database.default_usr.get(2) {
             token = var_token.clone();
@@ -574,25 +565,22 @@ impl App {
         }
 
 
-        // init server_address
         let mut _server_address: String = String::new();
         if let Some(var_server_address) = database.default_usr.get(1) {
             _server_address = var_server_address.clone();
         }
 
-        // init id_selected_lib
         let mut id_selected_lib: String = String::new();
         if let Some(var_id_selected_lib) = database.default_usr.get(5) {
             id_selected_lib = var_id_selected_lib.clone();
         }
 
-        // init current username
         let mut username: String = String::new();
         if let Some(var_username) = database.default_usr.first() {
             username = var_username.clone();
         }
 
-        // init server address (without prefix)
+        // Without the "http(s)://" prefix, for display.
         let mut server_address: String = String::new();
         let mut server_address_pretty: String = String::new();
         if let Some(var_server_address) = database.default_usr.get(1) {
@@ -622,27 +610,23 @@ impl App {
             return Err(Report::new(std::io::Error::other("Your session expired - restart Absotui to log in again")));
         }
 
-        // init for `Libraries` (get all Libraries (shelf), can be a podcast or book type)
         let all_libraries = get_all_libraries(&token, server_address.clone()).await?;
-        let libraries_names = collect_library_names(&all_libraries).await; // all the libraries names of the user ex : {name1, name2}
-    let media_types = collect_media_types(&all_libraries).await; // all media type of libraries ex : {book, podcast}
-    let libraries_ids = collect_library_ids(&all_libraries).await; // all all libraries ids
-    let mut library_name = String::new(); // library name of the selected library
-    let mut media_type = String::new(); // media type of the selected library
+    let libraries_names = collect_library_names(&all_libraries).await;
+    let media_types = collect_media_types(&all_libraries).await;
+    let libraries_ids = collect_library_ids(&all_libraries).await;
+    let mut library_name = String::new();
+    let mut media_type = String::new();
 
     let target = id_selected_lib.clone();
 
-    // retrieve name and mediatype of the current librarie
     if let Some(index) = libraries_ids.iter().position(|x| x == &target) {
         library_name = libraries_names[index].clone();
         media_type = media_types[index].clone();
-    }         
+    }
     let lib_name_type = format!("📖 {library_name} ({media_type})");
 
-    // init is_podcast
     let is_podcast = media_type == "podcast";
 
-    // init for `Home` (continue listening)
     let mut _titles_cnt_list: Vec<String> = Vec::new();
     let mut auth_names_cnt_list: Vec<String> = Vec::new();
     let mut pub_year_cnt_list: Vec<String> = Vec::new();
@@ -676,7 +660,6 @@ impl App {
     // them in sequence would be exactly as slow as the original code.
     let home_fut = async {
     if is_podcast {
-        // init for `Home` (new & unfinished episodes) for podcasts
         let data = fetch_podcast_home_data(&token, server_address.clone(), &id_selected_lib, podcast_sort_newest_first, &username).await?;
         _ids_cnt_list = data.ids;
         _titles_cnt_list = data.titles;
@@ -693,7 +676,6 @@ impl App {
         episode_embedded_cover_ino_cnt_list = data.embedded_cover_ino;
     }
     else {
-        // init for  `Home` (continue listening) for books
         let continue_listening = get_continue_listening(&token, server_address.clone(), &id_selected_lib.clone()).await?;
         _titles_cnt_list = collect_titles_cnt_list(&continue_listening).await;
         auth_names_cnt_list = collect_auth_names_cnt_list(&continue_listening).await;
@@ -793,43 +775,13 @@ impl App {
     // on every `App::new()` call.
     let image_picker = IMAGE_PICKER.get_or_init(|| ratatui_image::picker::Picker::from_query_stdio().ok()).clone();
 
-    //init for `Library ` (all books  or podcasts of a Library (shelf))
     let titles_library = collect_titles_library(&all_books).await;
     let ids_library = collect_ids_library(&all_books).await;
-    let auth_names_library = collect_auth_names_library(&all_books).await; // for a book
-    let auth_names_library_pod = collect_auth_names_library_pod(&all_books).await; // for a podcast
+    let auth_names_library = collect_auth_names_library(&all_books).await;
+    let auth_names_library_pod = collect_auth_names_library_pod(&all_books).await;
     let published_year_library = collect_published_year_library(&all_books).await;
     let desc_library = collect_desc_library(&all_books).await;
     let duration_library = collect_duration_library(&all_books).await;
-//    let mut book_progress_library: Vec<Vec<String>> = Vec::new();
-//    let mut book_progress_library_cur_time: Vec<Vec<f64>> = Vec::new();
-//    if !is_podcast{
-//        for id in _ids_cnt_list.clone() {
-//            if let Ok(val) = get_book_progress(&token, &id, server_address.clone()).await {
-//                let mut values: Vec<String> = Vec::new();
-//                let mut values_f64: Vec<f64> = Vec::new();
-//                values.push(format!(" {}%,",collect_progress_percentage_book(&val).await));
-//                values.push(format!(" {}",collect_is_finished_book(&val).await));
-//                values_f64.push(collect_current_time_prg(&val).await);
-//                book_progress_library.push(values);
-//                book_progress_library_cur_time.push(values_f64);
-//                
-//            } else {
-//                // if the book is not starded, `get book progress` is not fetched
-//                // so the empty values are handled here : 
-//                // avoid an out of bound panick
-//                let mut values: Vec<String> = Vec::new();
-//                let mut values_f64: Vec<f64> = Vec::new();
-//                values.push(format!(" Not started yet"));
-//                values.push(format!(""));
-//                values_f64.push(0.0);
-//                book_progress_library.push(values);
-//                book_progress_library_cur_time.push(values_f64);
-//            }
-//        }
-//    }            
-
-    // init for `SearchBook`
 
     let ids_search_book: Vec<String> = Vec::new();
     let _auth_names_pod_search_book: Vec<String> = Vec::new();
@@ -845,7 +797,8 @@ impl App {
     let book_progress_search_book_cur_time: Vec<Vec<f64>> = Vec::new(); 
     let is_search_active = false;
     let search_query = "  ".to_string();
-    let all_titles_pod_ep_search: Vec<Vec<String>> = Vec::new(); // init in tui.rs in render search book function
+    // Populated in tui.rs's render_search_book, not here.
+    let all_titles_pod_ep_search: Vec<Vec<String>> = Vec::new();
     let all_ids_pod_ep_search: Vec<Vec<String>> = Vec::new(); 
     let all_subtitles_pod_ep_search: Vec<Vec<String>> = Vec::new(); 
     let all_seasons_pod_ep_search: Vec<Vec<String>> = Vec::new(); 
@@ -867,17 +820,18 @@ impl App {
 
 
 
-    //init for `PodcastEpisode`
-    let all_titles_pod_ep: Vec<Vec<String>> = Vec::new(); // fetch titles for all podcast episodes. Ex: {titles_pod1_ep1, title_pod1_ep2}, {titles_pod2_ep1, title_pod2_ep2} 
+    // One inner Vec per podcast, e.g. all_titles_pod_ep[i] is podcast i's episode titles.
+    let all_titles_pod_ep: Vec<Vec<String>> = Vec::new();
     let all_ids_pod_ep: Vec<Vec<String>> = Vec::new();
     let all_subtitles_pod_ep: Vec<Vec<String>> = Vec::new();
     let all_seasons_pod_ep: Vec<Vec<String>> = Vec::new();
     let all_episodes_pod_ep: Vec<Vec<String>> = Vec::new();
     let all_authors_pod_ep: Vec<Vec<String>> = Vec::new();
     let all_descs_pod_ep: Vec<Vec<String>> = Vec::new();
-    let all_titles_pod: Vec<Vec<String>> = Vec::new(); // fetch title of a podcast (not episode)
+    let all_titles_pod: Vec<Vec<String>> = Vec::new(); // the podcast's own title, not an episode's
     let all_durations_pod_ep: Vec<Vec<String>> = Vec::new();
-    let titles_pod_ep: Vec<String> = Vec::new(); // fetch episode titles for a podcast. {titles_pod1_ep1, title_pod1_ep2} 
+    // Flat - one podcast's episode titles, unlike all_titles_pod_ep above.
+    let titles_pod_ep: Vec<String> = Vec::new();
     let ids_pod_ep: Vec<String> = Vec::new();
     let ids_pod_ep_search: Vec<String> = Vec::new();
     let subtitles_pod_ep: Vec<String> = Vec::new();
@@ -913,7 +867,6 @@ impl App {
     // middle of routine navigation.
     let settings: Vec<String> = SETTINGS_ENTRIES.iter().map(|s| s.to_string()).collect();
 
-    // init for `SettingsAccount`
     let mut all_usernames: Vec<String> = Vec::new();
     let mut all_server_addresses: Vec<String> = Vec::new();
     if let Some(var_username) = database.default_usr.first() {
@@ -923,14 +876,12 @@ impl App {
         all_server_addresses.push(var_server_address.clone());
     }
 
-    // init variables for for scrolling into description section 
     let scroll_offset = 0;
 
-    // Default view_state at launch
-    let mut view_state = AppView::Home; // By default, Home will be the first AppView launched when the app start
+    let mut view_state = AppView::Home;
+    // Nothing to continue - land on Library instead of an empty Home.
     if _ids_cnt_list.is_empty() {
-
-        view_state = AppView::Library; // If `Home` is empty (no book or podcast to continue)
+        view_state = AppView::Library;
     }
 
     // Which screen to return to when leaving AppView::Keymap - set for real when `?`
@@ -938,7 +889,6 @@ impl App {
     // entered before that.
     let keymap_return_view = AppView::Home;
 
-    // init start_vlc variables
     let is_cvlc = config.player.cvlc.clone();
     let is_cvlc_term = config.player.cvlc_term.clone();
     // On Linux, `cvlc = "1"` selects the actual `cvlc` binary; macOS has no separate
@@ -955,53 +905,29 @@ impl App {
         start_vlc_program = "/Applications/VLC.app/Contents/MacOS/VLC".to_string();
     }
 
-    // Init for check_update
-
-    // Init ListeState for `Home` list (continue listening)
-    let mut list_state_cnt_list = ListState::default(); // init the ListState ratatui's widget
-    list_state_cnt_list.select(Some(0)); // select the first item of the list when app is launch
-
-    // Init ListeState for `Library` list
-    let mut list_state_library = ListState::default(); 
-    list_state_library.select(Some(0)); 
-
-    // Init ListeState for `SearchBook` list
-    let mut list_state_search_results = ListState::default(); 
-    list_state_search_results.select(Some(0)); 
-
-    // Init ListState for `PodacastEpisode` list
+    // Every list starts with its first row selected.
+    let mut list_state_cnt_list = ListState::default();
+    list_state_cnt_list.select(Some(0));
+    let mut list_state_library = ListState::default();
+    list_state_library.select(Some(0));
+    let mut list_state_search_results = ListState::default();
+    list_state_search_results.select(Some(0));
     let mut list_state_pod_ep = ListState::default();
     list_state_pod_ep.select(Some(0));
-
-    // Init ListState for `Settings` list
     let mut list_state_settings = ListState::default();
     list_state_settings.select(Some(0));
-
-    // Init ListState for `SettingsAccount` list
     let mut list_state_settings_account = ListState::default();
     list_state_settings_account.select(Some(0));
-
-    // Init ListState for `SettingsLibrary` list
     let mut list_state_settings_library = ListState::default();
     list_state_settings_library.select(Some(0));
-
-    // Init ListState for `SettingsAbout` list
     let mut list_state_settings_about = ListState::default();
     list_state_settings_about.select(Some(0));
-
-    // Init ListState for `SettingsUpdateUninstall` list
     let mut list_state_settings_update_uninstall = ListState::default();
     list_state_settings_update_uninstall.select(Some(0));
-
-    // Init ListState for `SettingsAutoplay` list
     let mut list_state_settings_autoplay = ListState::default();
     list_state_settings_autoplay.select(Some(0));
-
-    // Init ListState for `SettingsPerItemSpeed` list
     let mut list_state_settings_per_item_speed = ListState::default();
     list_state_settings_per_item_speed.select(Some(0));
-
-    // Init ListState for `SettingsAutoDownload` list
     let mut list_state_settings_auto_download = ListState::default();
     list_state_settings_auto_download.select(Some(0));
 
@@ -1122,8 +1048,6 @@ impl App {
         duration_library_search_book,
         book_progress_cnt_list,
         book_progress_cnt_list_cur_time,
- //       book_progress_library,
- //       book_progress_library_cur_time,
         book_progress_search_book,
         book_progress_search_book_cur_time,
         is_cvlc,
@@ -1258,9 +1182,7 @@ impl App {
     }
 
 
-// handle key
 pub fn handle_key(&mut self, key: KeyEvent) {
-    // init variable for player
     let mut is_playback = true;
 
     if key.kind != KeyEventKind::Press {
@@ -1664,7 +1586,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
         KeyCode::Char('Q') | KeyCode::Esc => {
 
-            // display message
             let message_quit = "Exiting the application and syncing data, please hold on.";
             let mut stdout = stdout();
             let _ = pop_message(&mut stdout, 3, message_quit);
@@ -1689,16 +1610,14 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             self.scroll_offset = 0; 
 
         }
-        // scroll up into description section
+        // J/K/H scroll the Description panel, independent of list selection.
         KeyCode::Char('J') => self.scroll_offset += 1,
-        // go start description section
         KeyCode::Char('H') => self.scroll_offset = 0,
         KeyCode::Char('k') | KeyCode::Up => {
-            self.select_previous(); 
-            self.scroll_offset = 0; 
+            self.select_previous();
+            self.scroll_offset = 0;
         }
 
-        // scroll down into description section
         KeyCode::Char('K') => {
             if usize::from(self.scroll_offset) > 0 {
                 self.scroll_offset -= 1;
@@ -1713,7 +1632,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             self.scroll_offset = 0; 
         }
         KeyCode::Char('h') => {
-            // To return to a page
             match self.view_state {
                 AppView::SettingsAccount => {self.view_state = AppView::Settings} 
                 AppView::SettingsLibrary => {self.view_state = AppView::Settings} 
@@ -1755,7 +1673,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                     return;
             }
 
-            // Clone needed because variables will be used in a spawn
             let token = self.token.clone();
             let refresh_token = self.refresh_token.clone();
             let port = self.config.player.port.clone();
@@ -1763,7 +1680,6 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             let server_address = self.server_address.clone();
             let username = self.username.clone();
 
-            // Init for `Continue Listening` (AppView::Home)
             let ids_cnt_list = self._ids_cnt_list.clone();
             let selected_cnt_list = if matches!(self.view_state, AppView::Home) && !self.is_podcast && self.is_chapter_list_expanded {
                 // Any selection reaching here is a book row (chapter rows already handled
@@ -1780,15 +1696,12 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 self.list_state_cnt_list.selected()
             };
 
-            // Init for `Library`
             let ids_library = self.ids_library.clone();
             let selected_library = self.list_state_library.selected();
 
-            // Init for `Search Book`
             let ids_search_book = self.ids_search_book.clone();
             let selected_search_book = self.list_state_search_results.selected();
 
-            // Init for `PodcastEpisode`
             if self.is_podcast {
                 if let Some(index) = selected_library
                     && let Some(_id_pod) = ids_library.get(index) {
@@ -1802,10 +1715,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         }
                     }
                 if let Some(index) = selected_search_book {
-                    // ids_library_pod_search because we need the pod id and he is given by
-                    // this variable
+                    // ids_library_pod_search holds the podcast id here, not the episode id.
                     if let Some(_id_pod) = self.ids_library_pod_search.get(index) {
-                        //    println!("{:?}", id_pod);
                         // `.get` rather than `[index]`: `ids_library_pod_search` doesn't
                         // depend on the background pod_ep fetch (bug_id 3f729c) but
                         // `all_ids_pod_ep_search` does - it's filtered from
@@ -1818,13 +1729,9 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         }
                     }}
             }
-            // Init for `SettingsAccount`
             let selected_account = self.list_state_settings_account.selected();
-
-            // Init for `SettingsLibrary`
             let selected_settings_library = self.list_state_settings_library.selected();
 
-            // init for start_vlc
             let start_vlc_program = self.start_vlc_program.clone();
             let is_cvlc = self.is_cvlc.clone();
             let is_cvlc_term = self.is_cvlc_term.clone();
@@ -1836,33 +1743,26 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             let podcast_sort_newest_first = self.podcast_sort_newest_first;
             let initial_published_at = selected_cnt_list.and_then(|i| self.podcast_published_at_cnt_list.get(i)).copied();
 
-            // Init message 
             let message = "Loading the media...";
 
-            // Now, spawn the async task based on the current view state
             match self.view_state {
                 AppView::Home => {
                     if self.is_podcast {
-                        // init some variables
                         let _selected_pod_ep = self.list_state_pod_ep.selected();
                         let ids_ep_cnt_list = self.ids_ep_cnt_list.clone();
 
                         tokio::spawn(async move {
-                            // close vlc 
                             let _ = quit_vlc(address_player.as_str(), port.as_str());
 
-                            // pkill vlc
                             pkill_vlc();
 
                             // wait to close/sync the previous session first - see
                             // wait_prev_session_finished for what a false return means
                             if wait_prev_session_finished(username.clone()) {
 
-                            // pop message
                             let mut stdout = stdout();
                             let _ = pop_message(&mut stdout, 3, message);
 
-                            // start the track
                             handle_l_pod_home(
                                 token.as_ref(),
                                 refresh_token.as_ref(),
@@ -1886,21 +1786,17 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 
                         tokio::spawn(async move {
 
-                            // close vlc 
                             let _ = quit_vlc(address_player.as_str(), port.as_str());
 
-                            // pkill vlc
                             pkill_vlc();
 
                             // wait to close/sync the previous session first - see
                             // wait_prev_session_finished for what a false return means
                             if wait_prev_session_finished(username.clone()) {
 
-                            // pop message
                             let mut stdout = stdout();
                             let _ = pop_message(&mut stdout, 3, message);
 
-                            // start the track
                             handle_l_book(
                                 token.as_ref(),
                                 refresh_token.as_ref(),
@@ -2009,21 +1905,17 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         }} else {
 
                             tokio::spawn(async move {
-                                // close vlc 
                                 let _ = quit_vlc(address_player.as_str(), port.as_str());
 
-                                // pkill vlc
                                 pkill_vlc();
 
                                 // wait to close/sync the previous session first - see
                                 // wait_prev_session_finished for what a false return means
                                 if wait_prev_session_finished(username.clone()) {
 
-                                // pop message
                                 let mut stdout = stdout();
                                 let _ = pop_message(&mut stdout, 3, message);
 
-                                // start the track
                                 handle_l_book(
                                     token.as_ref(),
                                     refresh_token.as_ref(),
@@ -2067,21 +1959,17 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         }} else {
 
                             tokio::spawn(async move {
-                                // close vlc 
                                 let _ = quit_vlc(address_player.as_str(), port.as_str());
 
-                                // pkill vlc
                                 pkill_vlc();
 
                                 // wait to close/sync the previous session first - see
                                 // wait_prev_session_finished for what a false return means
                                 if wait_prev_session_finished(username.clone()) {
 
-                                // pop message
                                 let mut stdout = stdout();
                                 let _ = pop_message(&mut stdout, 3, message);
 
-                                // start the track
                                 handle_l_book(
                                     token.as_ref(),
                                     refresh_token.as_ref(),
@@ -2102,34 +1990,24 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 }
                 AppView::PodcastEpisode => {
                     if self.is_from_search_pod {
-                        // we need the index of selected_search_book to feet after with
-                        // ids_library_pod_search
-                        if let Some(index) = selected_search_book {
-                            // ids_library_pod_search because we need the pod id and he is given by
-                            // this variable
-                            if let Some(id_pod) = self.ids_library_pod_search.get(index) {
-                                //    println!("{:?}", id_pod);
+                        if let Some(index) = selected_search_book
+                            && let Some(id_pod) = self.ids_library_pod_search.get(index) {
                                 let all_ids_pod_ep_search_clone = self.all_ids_pod_ep_search.clone();
-                                //   println!("{:?}", all_ids_pod_ep_search_clone[index]);
                                 let id_pod_clone = id_pod.clone();
                                 let selected_pod_ep = self.list_state_pod_ep.selected();
 
                                 tokio::spawn(async move {
-                                    // close vlc 
                                     let _ = quit_vlc(address_player.as_str(), port.as_str());
 
-                                    // pkill vlc
                                     pkill_vlc();
 
                                     // wait to close/sync the previous session first - see
                                     // wait_prev_session_finished for what a false return means
                                     if wait_prev_session_finished(username.clone()) {
 
-                                    // pop message
                                     let mut stdout = stdout();
                                     let _ = pop_message(&mut stdout, 3, message);
 
-                                    // start the track
                                     handle_l_pod(
                                         token.as_ref(),
                                         refresh_token.as_ref(),
@@ -2147,12 +2025,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     }
                                 });
                             }
-                        }
                     } else {
-                        // selected_livrary ids_library because we need the pod id and he is given by
-                        // these variables
-                        // we also need the index of selected library to feet after with
-                        // ids_library
                         if let Some(index) = selected_library
                             && let Some(id_pod) = ids_library.get(index) {
                                 let all_ids_pod_ep_clone = self.all_ids_pod_ep.clone();
@@ -2160,21 +2033,17 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 let id_pod_clone = id_pod.clone();
                                 let selected_pod_ep = self.list_state_pod_ep.selected();
                                 tokio::spawn(async move {
-                                    // close vlc 
                                     let _ = quit_vlc(address_player.as_str(), port.as_str());
 
-                                    // pkill vlc
                                     pkill_vlc();
 
                                     // wait to close/sync the previous session first - see
                                     // wait_prev_session_finished for what a false return means
                                     if wait_prev_session_finished(username.clone()) {
 
-                                    // pop message
                                     let mut stdout = stdout();
                                     let _ = pop_message(&mut stdout, 3, message);
 
-                                    // start the track
                                     handle_l_pod(
                                         token.as_ref(),
                                         refresh_token.as_ref(),

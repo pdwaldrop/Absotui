@@ -42,40 +42,29 @@ const INSTALLED_BINARY_PATH: &str = "/usr/local/bin/absotui";
 #[tokio::main]
 async fn main() -> Result<()> {
 
-    // clap 
     clap();
 
-    // this function allow to write all the logs in a file 
     setup_logs().expect("Failed to execute logger");
 
-    // set dotenv to ~/.config.absotui/.env for linux
-    // Library/Application Support/absotui/.env for macos
-    // (dotenv will be use in `encrypt_token.rs`)
-    // if env::var("XDG_CONFIG_HOME") is not empty env_path will take designed path
-    // else, env_path will be set to default path - home_dir() is only actually called
-    // in that fallback case (matches the pattern used everywhere else in the codebase,
-    // eg. cover_cache.rs/logs.rs/config.rs), since eagerly requiring $HOME here would
-    // defeat the whole point of the override on a system where $HOME isn't set/valid
-    // (containers, sandboxes) but XDG_CONFIG_HOME is.
+    // Used in `encrypt_token.rs`. home_dir() is only actually called in the
+    // XDG_CONFIG_HOME-unset fallback case (matches the pattern used everywhere else in
+    // the codebase, eg. cover_cache.rs/logs.rs/config.rs), since eagerly requiring $HOME
+    // here would defeat the whole point of the override on a system where $HOME isn't
+    // set/valid (containers, sandboxes) but XDG_CONFIG_HOME is.
     let config_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let home_dir = dirs::home_dir().expect("Unable to find the user's home directory");
             if cfg!(target_os = "macos") {
-            // If XDG_CONFIG_HOME is not defined on macOS, use the default directory
             home_dir.join("Library").join("Preferences")
         } else {
-            // Otherwise, use ~/.config for other systems (like Linux)
             home_dir.join(".config")
         }
         }, PathBuf::from);
-    // Construct the dotenv 
     let env_path = config_path.join("absotui").join(".env");
     dotenv::from_filename(env_path.clone()).ok();
 
-    // Init database
     let mut _database = Database::new().await?;
     let mut _database_ready = false;
 
-    // Wait for the database to be ready, waiting for the user to enter their credentials
     loop {
         _database = Database::new().await?;
         if _database.default_usr.is_empty() {
@@ -88,23 +77,19 @@ async fn main() -> Result<()> {
             // fixed delay - see wait_for_auth_to_finish.
             wait_for_auth_to_finish().await;
         } else {
-            // If the database is ready, exit the loop
-            print!("\x1B[2J\x1B[1;1H"); // clear all stdout (avoid to sill have the previous print when the app is launched)
+            // Avoid showing the previous screen's leftover print once the app launches.
+            print!("\x1B[2J\x1B[1;1H");
             _database_ready = true;
             info!("Database ready");
             break;
         }
     }
 
-    // Once the database is ready, initialize the app
     if _database_ready {
-
-        // init current username
         let mut username: String = String::new();
         if let Some(var_username) = _database.default_usr.first() {
             username = var_username.clone();
         }
-        // init is_vlc_launched_first_time
         let _ = update_is_vlc_launched_first_time("1", username.as_str());
         let value = get_is_vlc_launched_first_time(username.as_str());
         info!("[main][is_vlc_launched_first_time] {value}");
@@ -164,7 +149,6 @@ async fn main() -> Result<()> {
         // that name when the window title itself is blank.
         let mut last_window_title: Option<String> = None;
 
-        // Running the app in a loop
         loop {
 
             let is_playing = get_is_vlc_running(app.username.as_str());
@@ -181,11 +165,6 @@ async fn main() -> Result<()> {
             }
 
             terminal.draw(|frame| {
-                // render widget for general app :
-                // Will be manually refresh by pressing `R`
-                // If `app` variable is reinitialized below (`app = App::new().await?`), it will be taken into account and data will be refreshed
-                // Otherwise, the current `app` variable will still be used.
-                //
                 // Drawn before the player box (below) rather than after - this frame's
                 // `standard_layout` call, part of rendering `app`, sets
                 // `app.last_footer_height` to whatever the current screen's footer
@@ -195,7 +174,6 @@ async fn main() -> Result<()> {
 
                 if is_playing == "1" {
                     let area = frame.area();
-                    // render for the player (automatically refreshed)
                     render_player(area, frame.buffer_mut(), player_info, app.username.as_str(), app.last_footer_height);
                 }
             })?;
@@ -273,7 +251,6 @@ async fn main() -> Result<()> {
                 }
             }
 
-            // Checking if any key is pressed (waiting for events with a 200ms delay here)
             if crossterm::event::poll(Duration::from_millis(200))?
                 && let event::Event::Key(key) = crossterm::event::read()? {
                     app.handle_key(key);
@@ -282,9 +259,8 @@ async fn main() -> Result<()> {
                     // reinit to pick up fresh data (and, for a library switch, land back
                     // on Home in the newly selected library).
                     if let KeyCode::Char('R') = key.code {
-                        // pop up message
                         let mut stdout = stdout();
-                        let _ = clear_message(&mut stdout, 3); // clear a message, if any, before print the message bellow
+                        let _ = clear_message(&mut stdout, 3);
                         let _ = pop_message(&mut stdout, 3, "Refreshing app...");
                         // Reinitialize app to refresh - a working `app` already exists,
                         // so on failure the recovery screen offers a way to cancel back
@@ -292,7 +268,6 @@ async fn main() -> Result<()> {
                         if let Some(new_app) = init_app_with_retry(&mut terminal, true).await? {
                             app = new_app;
                         }
-                        // clear message above
                         let _ = clear_message(&mut stdout, 3);
                         // pop_message/clear_message write straight to `stdout`, bypassing
                         // this `terminal`'s diff cache the same way search's separate
@@ -319,12 +294,10 @@ async fn main() -> Result<()> {
                     }
                 }
 
-            // Short pause between event checks
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
 
-    // Restore the terminal state before exiting the application
     ratatui::restore();
     restore_terminal_scroll_wheel();
     Ok(())
