@@ -1749,8 +1749,11 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                             pkill_vlc();
 
                             // before open a new session, wait to close and sync previous
-                            // session
-                            wait_prev_session_finished(username.clone());
+                            // session. If this attempt lost a race to an overlapping
+                            // playback-start (see wait_prev_session_finished), skip
+                            // starting a track entirely rather than starting a second
+                            // VLC/session alongside the one that won.
+                            if wait_prev_session_finished(username.clone()) {
 
                             // pop message
                             let mut stdout = stdout();
@@ -1774,6 +1777,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 podcast_sort_newest_first,
                                 initial_published_at,
                             ).await;
+                            }
                         });
                     } else {
 
@@ -1786,8 +1790,11 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                             pkill_vlc();
 
                             // before open a new session, wait to close and sync previous
-                            // session
-                            wait_prev_session_finished(username.clone());
+                            // session. If this attempt lost a race to an overlapping
+                            // playback-start (see wait_prev_session_finished), skip
+                            // starting a track entirely rather than starting a second
+                            // VLC/session alongside the one that won.
+                            if wait_prev_session_finished(username.clone()) {
 
                             // pop message
                             let mut stdout = stdout();
@@ -1798,15 +1805,16 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 token.as_ref(),
                                 refresh_token.as_ref(),
                                 ids_cnt_list,
-                                selected_cnt_list, 
-                                port, 
+                                selected_cnt_list,
+                                port,
                                 address_player,
-                                server_address, 
+                                server_address,
                                 start_vlc_program,
                                 is_cvlc,
-                                is_cvlc_term, 
+                                is_cvlc_term,
                                 username,
                             ).await;
+                            }
                         });
 
                     }}
@@ -1897,9 +1905,13 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 // pkill vlc
                                 pkill_vlc();
 
-                                // before open a new session, wait to close and sync previous
-                                // session
-                                wait_prev_session_finished(username.clone());
+                                // before open a new session, wait to close and sync
+                                // previous session. If this attempt lost a race to an
+                                // overlapping playback-start (see
+                                // wait_prev_session_finished), skip starting a track
+                                // entirely rather than starting a second VLC/session
+                                // alongside the one that won.
+                                if wait_prev_session_finished(username.clone()) {
 
                                 // pop message
                                 let mut stdout = stdout();
@@ -1910,15 +1922,16 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     token.as_ref(),
                                     refresh_token.as_ref(),
                                     ids_library,
-                                    selected_library, 
-                                    port, 
+                                    selected_library,
+                                    port,
                                     address_player,
-                                    server_address, 
+                                    server_address,
                                     start_vlc_program,
                                     is_cvlc,
-                                    is_cvlc_term, 
+                                    is_cvlc_term,
                                     username,
                                 ).await;
+                                }
                             });
                         }
                 }
@@ -1954,9 +1967,13 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 // pkill vlc
                                 pkill_vlc();
 
-                                // before open a new session, wait to close and sync previous
-                                // session
-                                wait_prev_session_finished(username.clone());
+                                // before open a new session, wait to close and sync
+                                // previous session. If this attempt lost a race to an
+                                // overlapping playback-start (see
+                                // wait_prev_session_finished), skip starting a track
+                                // entirely rather than starting a second VLC/session
+                                // alongside the one that won.
+                                if wait_prev_session_finished(username.clone()) {
 
                                 // pop message
                                 let mut stdout = stdout();
@@ -1967,15 +1984,16 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     token.as_ref(),
                                     refresh_token.as_ref(),
                                     ids_search_book,
-                                    selected_search_book, 
-                                    port, 
+                                    selected_search_book,
+                                    port,
                                     address_player,
-                                    server_address, 
+                                    server_address,
                                     start_vlc_program,
                                     is_cvlc,
-                                    is_cvlc_term, 
+                                    is_cvlc_term,
                                     username,
                                 ).await;
+                                }
                             });
 
                         }
@@ -2001,9 +2019,13 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     // pkill vlc
                                     pkill_vlc();
 
-                                    // before open a new session, wait to close and sync previous
-                                    // session
-                                    wait_prev_session_finished(username.clone());
+                                    // before open a new session, wait to close and sync
+                                    // previous session. If this attempt lost a race to
+                                    // an overlapping playback-start (see
+                                    // wait_prev_session_finished), skip starting a
+                                    // track entirely rather than starting a second
+                                    // VLC/session alongside the one that won.
+                                    if wait_prev_session_finished(username.clone()) {
 
                                     // pop message
                                     let mut stdout = stdout();
@@ -2014,16 +2036,17 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                         token.as_ref(),
                                         refresh_token.as_ref(),
                                         &all_ids_pod_ep_search_clone[index],
-                                        selected_pod_ep, 
-                                        port, 
+                                        selected_pod_ep,
+                                        port,
                                         address_player,
-                                        id_pod_clone.as_str(), 
-                                        server_address, 
+                                        id_pod_clone.as_str(),
+                                        server_address,
                                         start_vlc_program,
                                         is_cvlc,
-                                        is_cvlc_term, 
+                                        is_cvlc_term,
                                         username,
                                     ).await;
+                                    }
                                 });
                             }
                         }
@@ -2045,9 +2068,13 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     // pkill vlc
                                     pkill_vlc();
 
-                                    // before open a new session, wait to close and sync previous
-                                    // session
-                                    wait_prev_session_finished(username.clone());
+                                    // before open a new session, wait to close and sync
+                                    // previous session. If this attempt lost a race to
+                                    // an overlapping playback-start (see
+                                    // wait_prev_session_finished), skip starting a
+                                    // track entirely rather than starting a second
+                                    // VLC/session alongside the one that won.
+                                    if wait_prev_session_finished(username.clone()) {
 
                                     // pop message
                                     let mut stdout = stdout();
@@ -2058,16 +2085,17 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                         token.as_ref(),
                                         refresh_token.as_ref(),
                                         &all_ids_pod_ep_clone[index],
-                                        selected_pod_ep, 
-                                        port, 
+                                        selected_pod_ep,
+                                        port,
                                         address_player,
-                                        id_pod_clone.as_str(), 
-                                        server_address, 
+                                        id_pod_clone.as_str(),
+                                        server_address,
                                         start_vlc_program,
                                         is_cvlc,
-                                        is_cvlc_term, 
+                                        is_cvlc_term,
                                         username,
                                     ).await;
+                                    }
                                 });
                             }
 
