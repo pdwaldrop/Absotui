@@ -164,6 +164,19 @@ async fn main() -> Result<()> {
                 last_window_title = Some(window_title);
             }
 
+            // A detached playback task (wait_prev_session_finished and the
+            // handle_l_* session starters) may have popped/cleared a raw stdout status
+            // message with no `Terminal` in scope to reconcile ratatui's diff cache
+            // itself - see NEEDS_TERMINAL_CLEAR's doc comment. Checked here, right
+            // before `terminal.draw`, rather than after it, so the physical clear (a
+            // real blank-the-screen write) is immediately followed by the full
+            // repaint it forces, with no event-poll/sleep gap between them - doing
+            // it after `draw` left the screen visibly blank for up to ~250ms on every
+            // playback start (confirmed live: a full-screen flash on every "l"/Enter).
+            if NEEDS_TERMINAL_CLEAR.swap(false, Ordering::Relaxed) {
+                let _ = terminal.clear();
+            }
+
             terminal.draw(|frame| {
                 // Drawn before the player box (below) rather than after - this frame's
                 // `standard_layout` call, part of rendering `app`, sets
@@ -194,16 +207,6 @@ async fn main() -> Result<()> {
             // into the live app the moment it's ready (see bug_id 3f729c) - a no-op
             // once already consumed or while still in flight.
             app.poll_pod_ep_fetch();
-
-            // A detached playback task (wait_prev_session_finished and the
-            // handle_l_* session starters) just popped/cleared a raw stdout status
-            // message with no `Terminal` in scope to reconcile ratatui's diff cache
-            // itself - see NEEDS_TERMINAL_CLEAR's doc comment. Forces a full repaint
-            // so the next `terminal.draw` doesn't skip cells it thinks are already
-            // correct.
-            if NEEDS_TERMINAL_CLEAR.swap(false, Ordering::Relaxed) {
-                let _ = terminal.clear();
-            }
 
             // Drain one pending Settings > Update/Uninstall progress event, if any
             // (non-blocking) - keeps that screen's log panel live without a dedicated
