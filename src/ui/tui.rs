@@ -376,19 +376,41 @@ impl App {
 
     /// `AppView::SettingsAccount` rendering
     fn render_settings_account(&mut self, area: Rect, buf: &mut Buffer) {
-        let mut hints = vec![("h", "Back"), ("l/→", "Remove saved user")];
-        hints.extend(Self::footer_trailer("Home", false));
+        // See account_removal_confirm's doc comment - Yes/No while armed, same as
+        // Update/Uninstall's own Confirm stage's footer.
+        let hints = if self.account_removal_confirm {
+            vec![("Y", "Yes"), ("N/Esc", "No")]
+        } else {
+            let mut h = vec![("h", "Back"), ("l/→", "Remove saved user")];
+            h.extend(Self::footer_trailer("Home", false));
+            h
+        };
         let text_render_footer = theme::footer_text(&hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
-        let [list_area, _item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
+        let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
-        let render_list_title = "Settings account";
+        let render_list_title = "Remove account";
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
         self.render_list(list_area, buf, render_list_title, &self.all_usernames.clone(), &mut self.list_state_settings_account.clone(), None);
-        //self.render_selected_item(item_area, buf, &self.titles_library.clone(), self.auth_names_library.clone());
+
+        if self.account_removal_confirm {
+            // ACCENT_ERROR (red), matching render_list's own accent for this screen -
+            // see its doc comment for why removal gets red instead of the yellow other
+            // "applies a change" screens use.
+            Paragraph::new("Remove this saved account?\n\nThis permanently deletes it from local storage - its server address, auth token, and every setting tied to it. You'll need to log in again on restart.\n\n[Y] Yes   [N] No")
+                .wrap(Wrap { trim: true })
+                .block(theme::section_block("Confirm").border_style(Style::new().fg(theme::ACCENT_ERROR)))
+                .render(item_area, buf);
+        } else {
+            Paragraph::new("Removing an account here deletes it from local storage - the saved server address, auth token, and every setting tied to it. You'll need to log in again on restart; this can't be undone from within the app.")
+                .left_aligned()
+                .wrap(Wrap { trim: true })
+                .block(theme::section_block("Description"))
+                .render(item_area, buf);
+        }
     }
 
     /// `AppView::SettingsLibrary` rendering
@@ -473,9 +495,12 @@ impl App {
                     Action::Update => "Update to the latest version now?\n\nThis downloads and installs it, and may ask for your password.\n\n[Y] Yes   [N] No",
                     Action::Uninstall => "Uninstall Absotui?\n\nThis deletes the binary, config, launcher, and icon. May ask for your password.\n\n[Y] Yes   [N] No",
                 };
+                // ACCENT_KEY (yellow), same reasoning as the search box - this stage
+                // is reached by taking an action (Update/Uninstall), not a permanent
+                // structural section of the screen.
                 Paragraph::new(message)
                     .wrap(Wrap { trim: true })
-                    .block(theme::section_block("Confirm"))
+                    .block(theme::section_block("Confirm").border_style(Style::new().fg(theme::ACCENT_KEY)))
                     .render(area, buf);
             }
             UpdateUninstallStage::Password(_) => {
@@ -494,9 +519,10 @@ impl App {
                 };
                 let mut lines = vec![header.to_string(), String::new()];
                 lines.extend(self.update_uninstall_log.iter().cloned());
+                // ACCENT_KEY (yellow) - see Confirm's comment above.
                 Paragraph::new(lines.join("\n"))
                     .wrap(Wrap { trim: true })
-                    .block(theme::section_block("Working"))
+                    .block(theme::section_block("Working").border_style(Style::new().fg(theme::ACCENT_KEY)))
                     .render(area, buf);
             }
             UpdateUninstallStage::Failed(_, message) => {
@@ -1061,7 +1087,22 @@ impl App {
         // the highlight_symbol (a vertical bar) below, leaving the row itself untouched.
         let selected_style: Style = Style::default();
 
-        let block = theme::section_block(render_list_title);
+        // ACCENT_KEY (yellow) on the handful of Settings sub-screens whose own list IS
+        // the action - selecting a row there (l/→) immediately applies a real change
+        // (switches library, flips a toggle, or - Account - arms the removal
+        // confirmation below) rather than just navigating deeper, same reasoning as
+        // the search box and the Update/Uninstall Confirm/Working/Password stages.
+        // Account's own Confirm panel escalates to ACCENT_ERROR (red) once armed (see
+        // render_settings_account) since l/→ there is irreversible, but the list
+        // itself stays yellow like its siblings until that point. Every other list
+        // (Home, the main Library view, Settings' own menu, SearchBook, PodcastEpisode)
+        // is just browsing/navigation, so stays ACCENT_STRUCTURE.
+        let list_accent = match self.view_state {
+            AppView::SettingsLibrary | AppView::SettingsAutoplay | AppView::SettingsAccount
+                | AppView::SettingsPerItemSpeed | AppView::SettingsAutoDownload => theme::ACCENT_KEY,
+            _ => theme::ACCENT_STRUCTURE,
+        };
+        let block = theme::section_block(render_list_title).border_style(Style::new().fg(list_accent));
 
         // Approximate content width available inside each row: `block`'s own left/right
         // border columns (2 - List::block computes block.inner(area) before laying out

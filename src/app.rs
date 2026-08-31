@@ -101,6 +101,12 @@ pub struct App {
     // in Continue Listening. Session-local only (not persisted) - matches the pattern used
     // by other ephemeral view toggles like `podcast_sort_newest_first`.
     pub is_chapter_list_expanded: bool,
+    // Settings > Account's "Remove saved user" used to delete on a single l/→ press
+    // with no warning anywhere on screen and no way back - a stray keypress while
+    // browsing Settings would permanently wipe the saved login (server address,
+    // token, all per-user settings) with nothing to undo it. Gates that behind a
+    // Y/N confirmation, same pattern as Update/Uninstall's own Confirm stage.
+    pub account_removal_confirm: bool,
     pub database: Database,
     pub id_selected_lib: String,
     pub token: Option<String>,
@@ -995,6 +1001,7 @@ impl App {
         library_needs_reload: false,
         last_footer_height: 1,
         is_chapter_list_expanded: false,
+        account_removal_confirm: false,
         titles_library,
         ids_library,
         auth_names_library,
@@ -1244,6 +1251,27 @@ pub fn handle_key(&mut self, key: KeyEvent) {
             _ => {
                 self.search_textarea.input(key);
             }
+        }
+        return;
+    }
+
+    // Settings > Account's removal confirmation owns every key itself while armed,
+    // same reasoning as Update/Uninstall's Confirm stage just below - `l/→` (also
+    // used for plain navigation on the rest of the app's screens) must not be able
+    // to reach the actual delete a second time by accident.
+    if matches!(self.view_state, AppView::SettingsAccount) && self.account_removal_confirm {
+        match key.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                if let Some(index) = self.list_state_settings_account.selected()
+                    && let Some(username) = self.all_usernames.get(index) {
+                        let _ = delete_user(username.as_str());
+                }
+                self.account_removal_confirm = false;
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                self.account_removal_confirm = false;
+            }
+            _ => {}
         }
         return;
     }
@@ -1874,10 +1902,11 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         _ => {}
                     }
                 }
+                // Arms the confirmation gate above rather than deleting directly - see
+                // account_removal_confirm's doc comment.
                 AppView::SettingsAccount => {
-                    if let Some(index) = selected_account {
-                        let usr_to_delete = &self.all_usernames[index];
-                        let _ = delete_user(usr_to_delete.as_str());
+                    if selected_account.is_some() {
+                        self.account_removal_confirm = true;
                     }
                 }
                 AppView::SettingsAutoplay => {
@@ -2377,7 +2406,10 @@ pub fn new_password_field(&self) -> TextArea<'static> {
         Block::default()
             .borders(Borders::ALL)
             .title("Password")
-            .border_style(Style::new().fg(crate::ui::theme::ACCENT_STRUCTURE))
+            // ACCENT_KEY (yellow), matching the Update/Uninstall flow's Confirm/Working
+            // stages and the search box - reached by taking an action, not a permanent
+            // structural section of the screen.
+            .border_style(Style::new().fg(crate::ui::theme::ACCENT_KEY))
     );
     password_field
 }
