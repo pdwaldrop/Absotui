@@ -16,7 +16,7 @@ pub const PLAYER_KEYS: &[(&str, &str)] = &[
     ("O/I", "Spd +/−"), ("o/i", "Vol +/−"), ("T", "Real/content time"), ("S", "Stop"),
 ];
 
-pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, username: &str) {
+pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, username: &str, footer_height: u16) {
     // player_info() only pushes the full 12 fields this function indexes into on a
     // successful `Ok(Some(session))` read (see src/player/integrated/player_info.rs) -
     // a transient sqlite read error (Ok(None)/Err path, only 4 fields) shouldn't be
@@ -29,22 +29,24 @@ pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info:
         return;
     }
 
-    // This box's position is independent of the App's own layout (main.rs renders it
-    // before `frame.render_widget(&mut app, ...)`, using the raw frame area, not
-    // tui.rs's `standard_layout` split) - it has to stay aligned with that layout's
-    // reserved player-gap by hand. That gap sits right after `main_area`, which is
-    // `Constraint::Fill(1)` and so grows to absorb whatever the footer *doesn't* need -
-    // the footer is 1-3 rows depending on how much it wraps at the current width (see
-    // `standard_layout`'s dynamic `footer_height`: content rows, +1 flat once it wraps
-    // onto 2+ lines, floored at 1 - so 3 is the max for a 2-line wrap, the common case).
-    // Anchoring to the worst case (footer_height=1, meaning `main_area` is at its
-    // largest) is what makes this safe for every width: at footer_height=2 or 3 this
-    // leaves a harmless extra blank row or two above the box instead of encroaching
-    // into `main_area` and getting the app's own next frame to silently paint over
-    // this box's top border/title (confirmed live: exactly what happened when the
-    // reserved margin fell short of the actual footer height).
-    let new_y = area.y + area.height.saturating_sub(9); // the line number where player start
     let block_height = 6; // 4 content rows (spacer/title/details/key-bindings) + border top/bottom
+
+    // This box's position is independent of the App's own layout (it's drawn via a
+    // separate code path in main.rs, not as part of `Widget for &mut App`) but has
+    // to land exactly on `standard_layout`'s reserved player-gap, which sits right
+    // after `main_area` (`Constraint::Fill(1)`, so it grows or shrinks to absorb
+    // whatever the footer doesn't need) and right before `refresh_area` (always 1
+    // row) and the footer itself. `footer_height` is that frame's *actual* value
+    // (`app.last_footer_height`, set by `standard_layout` when `app` was rendered a
+    // moment earlier in the same frame - see main.rs), not a guessed worst case: a
+    // fixed guess only tolerates the footer varying across a spread of 1 row, and
+    // once wrapped-footer spacing widened that spread to 3, a guessed constant was
+    // wrong for whichever end of the range it didn't happen to cover (confirmed
+    // live: the box's own top border/title vanished under the app's next frame at
+    // one end, and the box overlapped the footer at the other). Working back from
+    // the bottom: `footer_height` rows for the footer, 1 for `refresh_area`, then
+    // this box's own `block_height` rows, landing exactly where `main_area` ends.
+    let new_y = area.y + area.height.saturating_sub(footer_height + 1 + block_height);
 
     // Full width, matching every other panel's box - no inset margin.
     let text_area = Rect::new(area.x, new_y, area.width, block_height);

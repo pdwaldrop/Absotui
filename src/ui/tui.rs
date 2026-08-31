@@ -85,7 +85,7 @@ impl App {
             theme::footer_text(&hints)
         };
 
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
@@ -321,7 +321,7 @@ impl App {
             theme::footer_text(&hints)
         };
 
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &_text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
@@ -358,7 +358,7 @@ impl App {
             theme::footer_text(&hints)
         };
 
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &_text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
@@ -379,7 +379,7 @@ impl App {
         let mut hints = vec![("h", "Back"), ("l/→", "Remove saved user")];
         hints.extend(Self::footer_trailer("Home", false));
         let text_render_footer = theme::footer_text(&hints);
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
         let [list_area, _item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
@@ -396,7 +396,7 @@ impl App {
         let mut hints = vec![("h", "Back"), ("l/→", "Switch library")];
         hints.extend(Self::footer_trailer("Home", false));
         let text_render_footer = theme::footer_text(&hints);
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
@@ -414,7 +414,7 @@ impl App {
         let mut hints = vec![("h", "Back"), ("l/→", "Apply")];
         hints.extend(Self::footer_trailer("Home", false));
         let text_render_footer = theme::footer_text(&hints);
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
@@ -446,7 +446,7 @@ impl App {
             UpdateUninstallStage::Failed(_, _) => theme::footer_text(&[("Esc", "Back")]),
         };
 
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
@@ -516,7 +516,7 @@ impl App {
         let mut hints = vec![("h", "Back"), ("l/→", "Apply")];
         hints.extend(Self::footer_trailer("Home", false));
         let text_render_footer = theme::footer_text(&hints);
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
@@ -539,7 +539,7 @@ impl App {
         let mut hints = vec![("h", "Back"), ("l/→", "Apply")];
         hints.extend(Self::footer_trailer("Home", false));
         let text_render_footer = theme::footer_text(&hints);
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
         let [list_area, item_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1),]).areas(main_area);
 
@@ -573,7 +573,7 @@ impl App {
             theme::footer_text(&hints)
         };
 
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &_text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &_text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
@@ -743,7 +743,7 @@ impl App {
         hints.extend(Self::footer_trailer("Home", true));
         let text_render_footer = theme::footer_text(&hints);
 
-        let [header_area, main_area, _player_area, _refresh_area, footer_area] = Self::standard_layout(area, &text_render_footer);
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
@@ -829,7 +829,7 @@ impl App {
         let footer_hints = [("?", "Back"), ("Tab", "Home"), ("Q/Esc", "Quit")];
         let text_render_footer = theme::footer_text(&footer_hints);
         let [header_area, main_area, _player_area, _refresh_area, footer_area] =
-            Self::standard_layout(area, &text_render_footer);
+            self.standard_layout(area, &text_render_footer);
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
@@ -1003,12 +1003,19 @@ impl App {
     /// until line 1 wrapped made line 2 disappear entirely, since a 2-row area has
     /// nowhere left to put it once line 1 alone consumes both rows). A wrapped (2+
     /// row) footer gets exactly one extra row on top of its content rows (see
-    /// `render_footer`'s single fixed gap) - capped at +1 flat, not scaling with
-    /// how many rows wrap, because `player_tui.rs`'s Now Playing box hardcodes an
-    /// assumed max footer height and needs this bounded, not open-ended.
-    fn standard_layout(area: Rect, footer_text: &Text<'static>) -> [Rect; 5] {
+    /// `render_footer`'s single fixed gap).
+    ///
+    /// Records the resulting footer height on `self.last_footer_height` - it varies
+    /// per screen and per width, and `render_player`'s Now Playing box (drawn by
+    /// main.rs from a separate, non-widget code path with no layout of its own)
+    /// needs the real value to position itself without either overlapping the
+    /// footer or leaving a gap the app's own next frame paints over (confirmed
+    /// live: a fixed worst-case guess here was wrong as soon as the footer's
+    /// actual height fell outside the one specific range it was tuned for).
+    fn standard_layout(&mut self, area: Rect, footer_text: &Text<'static>) -> [Rect; 5] {
         let content_rows = Self::footer_row_count(footer_text, area.width);
         let footer_height = if content_rows > 1 { content_rows + 1 } else { content_rows };
+        self.last_footer_height = footer_height;
         Layout::vertical([
             Constraint::Length(4),
             Constraint::Fill(1),

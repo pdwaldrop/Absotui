@@ -92,6 +92,11 @@ pub struct App {
     // are sync), so this just signals the main loop to do the same full reload/reinit
     // it already does for the `R` key, landing back on Home in the newly selected library.
     pub library_needs_reload: bool,
+    // Set by `standard_layout` every render to however many rows the current
+    // screen's footer actually used - `render_player`'s Now Playing box reads
+    // this (via main.rs) to position itself exactly against the real footer
+    // height instead of guessing a worst case. See its own doc comment.
+    pub last_footer_height: u16,
     // Whether the currently-playing book's chapter list is expanded inline under its row
     // in Continue Listening. Session-local only (not persisted) - matches the pattern used
     // by other ephemeral view toggles like `podcast_sort_newest_first`.
@@ -950,6 +955,7 @@ impl App {
         view_state,
         keymap_return_view,
         library_needs_reload: false,
+        last_footer_height: 1,
         is_chapter_list_expanded: false,
         titles_library,
         ids_library,

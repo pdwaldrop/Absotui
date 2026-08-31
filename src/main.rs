@@ -181,17 +181,23 @@ async fn main() -> Result<()> {
             }
 
             terminal.draw(|frame| {
-                if is_playing == "1" {
-                    let area = frame.area();
-                    // render for the player (automatically refreshed)
-                    render_player(area, frame.buffer_mut(), player_info, app.username.as_str());
-                }
-
-                // render widget for general app : 
+                // render widget for general app :
                 // Will be manually refresh by pressing `R`
                 // If `app` variable is reinitialized below (`app = App::new().await?`), it will be taken into account and data will be refreshed
                 // Otherwise, the current `app` variable will still be used.
+                //
+                // Drawn before the player box (below) rather than after - this frame's
+                // `standard_layout` call, part of rendering `app`, sets
+                // `app.last_footer_height` to whatever the current screen's footer
+                // actually needs, which the box below reads to position itself
+                // exactly, and draws on top so it's never clobbered.
                 frame.render_widget(&mut app, frame.area());
+
+                if is_playing == "1" {
+                    let area = frame.area();
+                    // render for the player (automatically refreshed)
+                    render_player(area, frame.buffer_mut(), player_info, app.username.as_str(), app.last_footer_height);
+                }
             })?;
 
             // Keeps the podcast "New & Unfinished" list from going stale without
