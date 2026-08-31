@@ -1,6 +1,6 @@
 [package]
 name = "absotui"
-version = "0.5.44-beta"
+version = "0.5.45-beta"
 edition = "2024"
 
 [dependencies]

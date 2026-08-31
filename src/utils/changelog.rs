@@ -985,8 +985,20 @@ let changelog_58 = "Changelog Absotui v0.5.44-beta (31/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_59 = "Changelog Absotui v0.5.45-beta (31/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - The whole screen would briefly flash (blank, then repaint) every
+           time playback started - a leftover status message being cleared up
+           could force a full-screen repaint that was landing right before a
+           short pause in the render loop, instead of right before the next
+           actual repaint.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
 
 
+    changelog.push_str(&changelog_59);
     changelog.push_str(&changelog_58);
     changelog.push_str(&changelog_57);
     changelog.push_str(&changelog_56);
