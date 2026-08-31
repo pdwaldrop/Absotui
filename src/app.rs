@@ -470,6 +470,17 @@ fn pin_now_playing_episode(data: &mut PodcastHomeData, username: &str) {
     data.embedded_cover_ino.insert(0, None);
 }
 
+// `Picker::from_query_stdio()` asks the terminal what image protocol it supports by
+// writing an escape sequence and waiting on the response - measured live at ~2s, by
+// far the single largest cost in `App::new()` (bigger than every network round-trip
+// combined). That capability can't change mid-session (same terminal, same protocol
+// support for as long as this process runs), but `App::new()` itself re-runs on every
+// `R` refresh and every library switch - querying fresh every time paid that ~2s
+// repeatedly for a value that was already known. Queried once per process and
+// cloned (`Picker` is cheap - just a handful of enum/small values) on every
+// subsequent call instead.
+static IMAGE_PICKER: std::sync::OnceLock<Option<ratatui_image::picker::Picker>> = std::sync::OnceLock::new();
+
 /// Init app
 impl App {
     pub async fn new() -> Result<Self> {
@@ -715,8 +726,10 @@ impl App {
     }
 
     // None if the terminal doesn't support any image protocol - cover images just won't
-    // be shown, falling back to text-only description panels everywhere.
-    let image_picker = ratatui_image::picker::Picker::from_query_stdio().ok();
+    // be shown, falling back to text-only description panels everywhere. See
+    // IMAGE_PICKER's doc comment for why this is cached rather than queried fresh
+    // on every `App::new()` call.
+    let image_picker = IMAGE_PICKER.get_or_init(|| ratatui_image::picker::Picker::from_query_stdio().ok()).clone();
 
     //init for `Library ` (all books  or podcasts of a Library (shelf))
     let titles_library = collect_titles_library(&all_books).await;
