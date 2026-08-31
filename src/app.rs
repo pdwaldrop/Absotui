@@ -481,6 +481,18 @@ fn pin_now_playing_episode(data: &mut PodcastHomeData, username: &str) {
 // subsequent call instead.
 static IMAGE_PICKER: std::sync::OnceLock<Option<ratatui_image::picker::Picker>> = std::sync::OnceLock::new();
 
+// Same reasoning as IMAGE_PICKER just above: `check_update()` hits GitHub's API for
+// the latest release tag, and whether this install is out of date can't change
+// during the process's own lifetime - restarting is already how every other
+// version-pinned check in this codebase (e.g. IMAGE_PICKER) expects to pick up a
+// change. Re-querying GitHub on every `R` refresh and library switch was pure
+// waste, and at high enough refresh frequency could exhaust GitHub's unauthenticated
+// rate limit (60 requests/hour per IP) for no benefit - once that happens
+// `check_update` degrades silently (its own Err branch just logs and returns None),
+// so a heavy `R` user could lose update notifications entirely without any
+// indication why. Cached the same way: computed once per process, cloned after.
+static UPDATE_CHECK: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+
 /// Init app
 impl App {
     pub async fn new() -> Result<Self> {
@@ -699,10 +711,23 @@ impl App {
     Ok::<(), color_eyre::Report>(())
     };
 
+    // See UPDATE_CHECK's doc comment - only actually hits GitHub the first time this
+    // process calls it, cloning the cached result every time after.
+    let update_fut = async {
+        match UPDATE_CHECK.get() {
+            Some(cached) => cached.clone(),
+            None => {
+                let result = check_update().await;
+                let _ = UPDATE_CHECK.set(result.clone());
+                result
+            }
+        }
+    };
+
     let (home_res, all_books_res, update_res) = tokio::join!(
         home_fut,
         get_all_books(&token, &id_selected_lib, server_address.clone()),
-        check_update(),
+        update_fut,
     );
     home_res?;
     let all_books = all_books_res?;
