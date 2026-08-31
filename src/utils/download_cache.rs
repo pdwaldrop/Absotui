@@ -169,7 +169,21 @@ pub async fn download_episode(token: String, podcast_id: String, episode_id: Str
 /// Removes a book's or episode's local download and its db row, if any.
 pub fn remove_download(username: &str, item_id: &str) -> Result<()> {
     if let Some(downloaded) = get_download(username, item_id) {
+        // `file_path` is a legacy pointer at track 0's file only (see `download_book`'s
+        // comment) - removing just that one left every other track of a multi-file
+        // book (audiobooks split across several files, per-chapter or otherwise)
+        // orphaned on disk with no db row left to ever clean them up (confirmed live:
+        // a 9-track/318MB book's download row was deleted and the UI's "downloaded"
+        // marker cleared, but only `file_path` - never any of the other 8 files -
+        // was ever a remove_file target, so all 318MB silently stayed on disk).
+        // `tracks` is empty for a podcast episode (single file, `file_path` alone is
+        // authoritative there), so removing `file_path` too keeps that case working -
+        // redundant with `tracks[0].local_path` for a book, which just no-ops the
+        // second time via the same `let _ =` used everywhere else in this file.
         let _ = std::fs::remove_file(&downloaded.file_path);
+        for track in &downloaded.tracks {
+            let _ = std::fs::remove_file(&track.local_path);
+        }
     }
     delete_download(username, item_id)?;
     Ok(())
