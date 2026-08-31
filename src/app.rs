@@ -1792,11 +1792,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                             // pkill vlc
                             pkill_vlc();
 
-                            // before open a new session, wait to close and sync previous
-                            // session. If this attempt lost a race to an overlapping
-                            // playback-start (see wait_prev_session_finished), skip
-                            // starting a track entirely rather than starting a second
-                            // VLC/session alongside the one that won.
+                            // wait to close/sync the previous session first - see
+                            // wait_prev_session_finished for what a false return means
                             if wait_prev_session_finished(username.clone()) {
 
                             // pop message
@@ -1833,11 +1830,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                             // pkill vlc
                             pkill_vlc();
 
-                            // before open a new session, wait to close and sync previous
-                            // session. If this attempt lost a race to an overlapping
-                            // playback-start (see wait_prev_session_finished), skip
-                            // starting a track entirely rather than starting a second
-                            // VLC/session alongside the one that won.
+                            // wait to close/sync the previous session first - see
+                            // wait_prev_session_finished for what a false return means
                             if wait_prev_session_finished(username.clone()) {
 
                             // pop message
@@ -1949,12 +1943,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 // pkill vlc
                                 pkill_vlc();
 
-                                // before open a new session, wait to close and sync
-                                // previous session. If this attempt lost a race to an
-                                // overlapping playback-start (see
-                                // wait_prev_session_finished), skip starting a track
-                                // entirely rather than starting a second VLC/session
-                                // alongside the one that won.
+                                // wait to close/sync the previous session first - see
+                                // wait_prev_session_finished for what a false return means
                                 if wait_prev_session_finished(username.clone()) {
 
                                 // pop message
@@ -2011,12 +2001,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                 // pkill vlc
                                 pkill_vlc();
 
-                                // before open a new session, wait to close and sync
-                                // previous session. If this attempt lost a race to an
-                                // overlapping playback-start (see
-                                // wait_prev_session_finished), skip starting a track
-                                // entirely rather than starting a second VLC/session
-                                // alongside the one that won.
+                                // wait to close/sync the previous session first - see
+                                // wait_prev_session_finished for what a false return means
                                 if wait_prev_session_finished(username.clone()) {
 
                                 // pop message
@@ -2063,12 +2049,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     // pkill vlc
                                     pkill_vlc();
 
-                                    // before open a new session, wait to close and sync
-                                    // previous session. If this attempt lost a race to
-                                    // an overlapping playback-start (see
-                                    // wait_prev_session_finished), skip starting a
-                                    // track entirely rather than starting a second
-                                    // VLC/session alongside the one that won.
+                                    // wait to close/sync the previous session first - see
+                                    // wait_prev_session_finished for what a false return means
                                     if wait_prev_session_finished(username.clone()) {
 
                                     // pop message
@@ -2112,12 +2094,8 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                                     // pkill vlc
                                     pkill_vlc();
 
-                                    // before open a new session, wait to close and sync
-                                    // previous session. If this attempt lost a race to
-                                    // an overlapping playback-start (see
-                                    // wait_prev_session_finished), skip starting a
-                                    // track entirely rather than starting a second
-                                    // VLC/session alongside the one that won.
+                                    // wait to close/sync the previous session first - see
+                                    // wait_prev_session_finished for what a false return means
                                     if wait_prev_session_finished(username.clone()) {
 
                                     // pop message
