@@ -947,8 +947,25 @@ let changelog_56 = "Changelog Absotui v0.5.42-beta (30/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_57 = "Changelog Absotui v0.5.43-beta (31/08/2026) \n\
+         \n\
+         Changed:\n\
+         - Refreshing (`R`) and switching libraries are noticeably faster - two
+           checks that used to re-run every single time (asking the terminal
+           what image protocol it supports, and checking GitHub for the latest
+           release) now only happen once per session instead.
+         \n\
+         Fixed:\n\
+         - Removing a downloaded multi-file audiobook (one uploaded as several
+           files, e.g. per-chapter) didn't actually free the disk space it
+           used - only one of the book's files ever got deleted, leaving the
+           rest behind with no way to clean them up from the app.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
 
 
+    changelog.push_str(&changelog_57);
     changelog.push_str(&changelog_56);
     changelog.push_str(&changelog_55);
     changelog.push_str(&changelog_54);
