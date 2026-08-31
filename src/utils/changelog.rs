@@ -917,8 +917,29 @@ let changelog_54 = "Changelog Absotui v0.5.40-beta (30/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_55 = "Changelog Absotui v0.5.41-beta (30/08/2026) \n\
+         \n\
+         Changed:\n\
+         - A footer that wraps onto 2+ lines now gets a little breathing room -
+           one blank row after the first line - instead of reading as a single
+           crowded block.
+         \n\
+         Fixed:\n\
+         - Starting playback could occasionally leave a \"Syncing your last
+           listening session...\" message stuck on screen indefinitely,
+           overlapping the footer/Now Playing area - it's written straight to
+           the terminal and could desync from the next redraw's own cache.
+         - Pressing the play key twice in quick succession on the same item
+           could freeze that second attempt forever, waiting on a playback
+           slot that had already been claimed and wouldn't be released again
+           for a long time - it now gives up cleanly after about 20 seconds
+           instead.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
 
 
+    changelog.push_str(&changelog_55);
     changelog.push_str(&changelog_54);
     changelog.push_str(&changelog_53);
     changelog.push_str(&changelog_52);
