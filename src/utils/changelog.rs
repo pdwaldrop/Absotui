@@ -963,8 +963,31 @@ let changelog_57 = "Changelog Absotui v0.5.43-beta (31/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_58 = "Changelog Absotui v0.5.44-beta (31/08/2026) \n\
+         \n\
+         Changed:\n\
+         - Settings menu reordered: Library, Per-Item Speed, Podcast Autoplay,
+           Auto Download, Update/Uninstall, About, Account - routine settings
+           first, Account (which can delete your saved login) last.
+         - Screens reached by taking an action (the search box, Update/Uninstall's
+           Confirm/Working/Password stages, and the Library/Per-Item
+           Speed/Podcast Autoplay/Auto Download/Account screens in Settings) are
+           now visually distinct from ordinary browsing screens via their border
+           color.
+         \n\
+         Fixed:\n\
+         - Settings > Account's \"Remove saved user\" deleted the saved account
+           (server address, token, every per-user setting) on a single
+           keypress, with no warning and no confirmation - a stray keypress
+           while browsing Settings could silently wipe a saved login with
+           nothing to undo it. The screen now always explains what removal
+           does, and l/→ asks for confirmation first.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
 
 
+    changelog.push_str(&changelog_58);
     changelog.push_str(&changelog_57);
     changelog.push_str(&changelog_56);
     changelog.push_str(&changelog_55);
