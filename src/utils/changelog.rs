@@ -937,8 +937,19 @@ let changelog_55 = "Changelog Absotui v0.5.41-beta (30/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_56 = "Changelog Absotui v0.5.42-beta (30/08/2026) \n\
+         \n\
+         Fixed:\n\
+         - The Now Playing box could lose its top border and title (on a wide
+           window with a single-line footer) or overlap the footer (on a
+           narrower one) - it now positions itself against the footer's real
+           height every frame instead of guessing.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
 
 
+    changelog.push_str(&changelog_56);
     changelog.push_str(&changelog_55);
     changelog.push_str(&changelog_54);
     changelog.push_str(&changelog_53);
