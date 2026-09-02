@@ -56,8 +56,8 @@ pub async fn post_start_playback_session_book(token: Option<&String>, id_library
             "clientName": "Absotui",
             "clientVersion": format!("v{}", VERSION),
             // Shows up as the OS in the server's user activity panel (audiobookshelf/config/users/).
-            "manufacturer": format!("{}", std::env::consts::OS),
-            "model": format!("{}", std::env::consts::ARCH),
+            "manufacturer": std::env::consts::OS,
+            "model": std::env::consts::ARCH,
         }});
 
     let response = client
@@ -138,8 +138,8 @@ pub async fn post_start_playback_session_pod(token: Option<&String>, id_library_
             "clientName": "Absotui",
             "clientVersion": format!("v{}", VERSION),
             // Shows up as the OS in the server's user activity panel (audiobookshelf/config/users/).
-            "manufacturer": format!("{}", std::env::consts::OS),
-            "model": format!("{}", std::env::consts::ARCH),
+            "manufacturer": std::env::consts::OS,
+            "model": std::env::consts::ARCH,
         }});
 
     let response = client
