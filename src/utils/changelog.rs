@@ -996,8 +996,18 @@ let changelog_59 = "Changelog Absotui v0.5.45-beta (31/08/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_60 = "Changelog Absotui v0.5.46-beta (01/09/2026) \n\
+         \n\
+         Changed:\n\
+         - Internal code cleanup only - no user-visible changes. Trimmed
+           low-value comments codebase-wide and removed a large amount of
+           duplicated code in the database layer.
+         \n\
+         Enjoy!\n
+         ####\n".to_string();
 
 
+    changelog.push_str(&changelog_60);
     changelog.push_str(&changelog_59);
     changelog.push_str(&changelog_58);
     changelog.push_str(&changelog_57);
