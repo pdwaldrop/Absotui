@@ -19,11 +19,9 @@ use std::sync::atomic::Ordering;
 // dd9a649.
 pub fn wait_prev_session_finished(username: String) -> bool {
 
-    // pop message
     let message = "Syncing your last listening session. Please wait...";
     let mut stdout = stdout();
 
-        // check if previous play is finished
         let is_vlc_first_launch = get_is_vlc_launched_first_time(&username);
         info!("[AppView::Home][is_vlc_first_launch]{is_vlc_first_launch}");
         let was_first_launch = is_vlc_first_launch == "1";
@@ -78,7 +76,6 @@ pub fn wait_prev_session_finished(username: String) -> bool {
         let value = get_is_vlc_launched_first_time(username.as_str());
         info!("[AppView::Home][update_is_vlc_first_launch]{value}");
 
-        // clear pop up message
         let _ = clear_message(&mut stdout, 3);
 
         // This function runs inside a detached `tokio::spawn`ed playback task with

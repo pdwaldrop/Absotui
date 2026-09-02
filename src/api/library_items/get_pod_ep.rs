@@ -122,21 +122,18 @@ pub async fn get_pod_ep(token: &str, server_address: String, id: &str) -> Result
     let url = format!("{server_address}/api/items/{id}");
 
 
-    // Send GET request
     let response = client
         .get(url)
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 
-    // Check response status
     if !response.status().is_success() {
         return Err(Report::new(std::io::Error::other(
                     "Failed to fetch data from the API",
         )));
     }
 
-    // Deserialize JSON response into Vec<Root>
     let item: Root = response.json().await?;
 
     Ok(item)

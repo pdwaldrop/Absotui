@@ -4,7 +4,6 @@ use std::process;
 use crossterm::cursor::Show;
 use crate::utils::scroll_wheel::restore_terminal_scroll_wheel;
 
-// exit the app
 pub fn clean_exit() {
     let _ = disable_raw_mode();
     let mut stdout = io::stdout();

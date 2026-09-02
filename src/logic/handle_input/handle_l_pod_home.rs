@@ -19,8 +19,7 @@ use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list,
 use crate::logic::handle_input::handle_l_pod_offline::handle_pod_episode_offline;
 
 
-// handle l when is_podact is true for continue listening `AppView::Home`
-
+/// Starts playback of a podcast episode from `AppView::Home`'s Continue Listening list.
 pub async fn handle_l_pod_home(
     token: Option<&String>,
     refresh_token: Option<&String>,
@@ -40,7 +39,6 @@ pub async fn handle_l_pod_home(
 
 ) {
 
-    // need to pkill VLC for macos users
     pkill_vlc();
 
     let Some(token) = token else { return; };
@@ -98,16 +96,14 @@ pub async fn handle_l_pod_home(
         }
         Ok(info_item) => {
 
-            // converting current time
             let mut current_time: u32 = info_item[0].parse::<f64>().unwrap().round() as u32;
 
             info!("[handle_l_pod_home][post_start_playback_session_pod] OK");
             info!("[handle_l_pod_home][post_start_playback_session_pod] Item {id_pod_ep} started at {current_time}s");
-            // insert variables in databse (`listening_session` table) for sync session when app is quit
             let _ = insert_listening_session(
                 info_item[3].clone(), // id_session
                 id.clone(), // (id of the podcast, not the episode)
-                current_time,  // current time
+                current_time,
                 info_item[2].clone(),
                 id_pod_ep.clone(), // id of the podcast episode
                 0, // elapsed time start at 0 seconds
@@ -119,8 +115,7 @@ pub async fn handle_l_pod_home(
             );
 
 
-            // clone otherwise, these variable will  be consumed and not available anymore
-            // for use outside start_vlc spawn
+            // Cloned so these stay available after the move into the spawned task below.
             let token_clone = token.clone();
             let port_clone = port.clone();
             let info_item_clone = info_item.clone() ;
@@ -145,9 +140,9 @@ pub async fn handle_l_pod_home(
                     address_player_clone, // player address
                     &info_item_clone[1], // content url
                     Some(&token_clone), //token
-                    info_item_clone[4].clone(), //title
+                    info_item_clone[4].clone(), // title
                     info_item_clone[5].clone(), // subtitle
-                    info_item_clone[6].clone(), //title
+                    info_item_clone[6].clone(), // author
                     server_address_clone.clone(), // server address
                     program_clone,
                     is_cvlc_clone,
@@ -175,14 +170,11 @@ pub async fn handle_l_pod_home(
             NEEDS_TERMINAL_CLEAR.store(true, Ordering::Relaxed);
 
 
-            // Important, sleep time to 1s otherwise connection to vlc player will not have time to connect
+            // Gives VLC time to accept the RC connection before polling it.
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-            // init var for decide to send 0 sec in sync session if player is in pause
-            // 3 sec is not very "pro" but it's because i'm sure for this first iteration
-            //   data_fetched_from_vlc will not be = to 3 (because a little delay is given
-            //   before sync progress, in my case 5 secs, others apps a little bit more)
-            //   futhermore, in the worst case, if data_fetched_from_vlc is equal ti 3 for
-            //   the first iteration, it will shift the progress sync to 5 secondes
+            // Seeded to a value fetch_vlc_data's first real reading is very unlikely to
+            // land on exactly, so the first poll iteration doesn't get misread as "paused"
+            // by the data_fetched_from_vlc == last_current_time check below.
             let mut last_current_time: u32 = 3;
             let mut progress_sync: u32 = 3;
 
@@ -217,7 +209,6 @@ pub async fn handle_l_pod_home(
                 match fetch_vlc_data(port.clone(), address_player.clone()).await {
                     Ok(Some(data_fetched_from_vlc)) => {
                         got_real_data = true;
-                        // println!("Fetched data: {}", data_fetched_from_vlc.to_string());
 
                         // Manually marked finished while still playing (F in the Home
                         // list) - the key handler can't touch VLC directly (this task
@@ -270,12 +261,10 @@ pub async fn handle_l_pod_home(
                                 break 'episodes;
                         }
 
-                        // update current_time in database (`listening_session` table)
                         let _ = update_current_time(data_fetched_from_vlc, info_item[3].as_str());
 
-                        // Important, sleep time to 1s minimum, otherwise connection to vlc player will not have time to connect
+                        // Paces this poll loop to once a second.
                         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                        //  println!("last_curr: {}", last_current_time);
                         if data_fetched_from_vlc == last_current_time {
                             progress_sync = 0; // the track is in pause
                         } else {
@@ -284,14 +273,9 @@ pub async fn handle_l_pod_home(
                             let current_time_adjusted = f64::from(current_time) / speed_rate;
                             let data_fetched_from_vlc_adjusted = f64::from(data_fetched_from_vlc) / speed_rate;
                             let diff = progress_time_diff(data_fetched_from_vlc_adjusted, current_time_adjusted);
-                            // if > 20 means that new current_time is not take into account
-                            // so we need to temporarly, put 1 sec if it happens (not the
-                            // most accurate...)
-                            // happen when a new jump/back of a chapter, or jump/back 10s
-                            // the difference is between data_fetched_from_vlc_adjusted,
-                            // and old currentitime_adjusted. This last one don't have time
-                            // to be the accurate version, because trigger is not equal to
-                            // 10 (so, it can't reach current_time = data_fetched_from_vlc in fetch_vlc_is_playing function bellow))
+                            // A diff this large means a chapter/10s jump rather than normal
+                            // playback advancing - clamp the sync amount to 1s instead of
+                            // reporting the raw (inaccurate) jump size.
                             if diff > 20 {
                                 progress_sync += 1;
                             } else {
@@ -300,7 +284,6 @@ pub async fn handle_l_pod_home(
                         }
                         last_current_time = data_fetched_from_vlc;
 
-                        // get current chapter
                         match vlc_tcp_stream(address_player.as_str(), port.as_str(), "chapter") {
                             Ok(response) => {
                                 let _ = update_chapter(response.as_str(), info_item[3].as_str());
@@ -315,7 +298,6 @@ pub async fn handle_l_pod_home(
                                 if trigger == 10 {
                                     let _ = update_media_progress_pod(&id, Some(&token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
                                     let _ = sync_session(Some(&token), &info_item[3],Some(data_fetched_from_vlc), progress_sync, server_address.clone()).await;
-                                    // update elapsed_time in database (`listening_session` table)
                                     let _ = update_elapsed_time(progress_sync, info_item[3].as_str());
 
                                     current_time = data_fetched_from_vlc;
@@ -328,11 +310,8 @@ pub async fn handle_l_pod_home(
                                     trigger += 0;
                                 }
                             },
-                            // `Ok(false)` means that the track is stopped but VLC still
-                            // open. Allow to track when the audio reached the end. And
-                            // differ from the case where the user just close VLC
-                            // during a playing (in this case we don't want to mark the
-                            // track as finished)
+                            // The track ended naturally but VLC is still open - distinct
+                            // from Err below, where the user closed VLC itself.
                             Ok(false) => {
                                 info!("[handle_l_pod_home][Finished] Track finished");
 
@@ -394,32 +373,24 @@ pub async fn handle_l_pod_home(
                                 let _ = update_is_loop_break("1", username.as_str());
                                 break 'episodes;
                             },
-                            // `Err` means :  VLC is close (because if VLC is not playing
-                            // anymore an error is send by `fetch_vlc_is_playing`).
-                            // The track is not finished. VLC is just stopped by the user.
-                            // Differ from the case above where the track reched the end.
+                            // fetch_vlc_is_playing errors when VLC itself is no longer
+                            // running - the user closed it, rather than the track ending.
                             Err(_e) => {
                                 let _ = update_is_vlc_running("0", username.as_str());
                                 info!("[handle_l_pod_home][Quit]");
-                                // close session when VLC is quitted
                                 let _ = close_session_without_send_prg_data(Some(&token), &info_item[3],  server_address.clone()).await;
                                 info!("[handle_l_pod_home][Quit] Session successfully closed");
-                                // send one last time media progress (bug to retrieve media
-                                // progress otherwise)
                                 let _ = update_media_progress_pod(&id, Some(&token), Some(data_fetched_from_vlc), &info_item[2], &id_pod_ep, server_address.clone()).await;
                                 info!("[handle_l_pod_home][Quit] VLC closed");
                                 info!("[handle_l_pod_home][Quit] Item {id_pod_ep} closed at {data_fetched_from_vlc}s");
 
-                                //eprintln!("Error fetching play status: {}", e);
                                 let _ = update_is_loop_break("1", username.as_str());
                                 break 'episodes;
                             }
                         }
 
                     }
-                    // when no data in fetched (generaly when VLC is launched and quit
-                    // quickly) Indeed, in this case, data does not have enough time to be
-                    // fetched
+                    // VLC was launched and quit before ever reporting a position.
                     Ok(None) => {
                         let _ = update_is_vlc_running("0", username.as_str());
                         info!("[handle_l_pod_home][None]");
@@ -434,7 +405,7 @@ pub async fn handle_l_pod_home(
                         }
 
                         let _ = update_is_loop_break("1", username.as_str());
-                        break 'episodes; // Exit if no data available
+                        break 'episodes;
                     }
                     Err(e) => {
                         error!("[handle_l_pod_home][Err(e)]{e}");
@@ -444,7 +415,7 @@ pub async fn handle_l_pod_home(
                             let _ = update_media_progress_pod(&id, Some(&token), Some(current_time), &info_item[2], &id_pod_ep, server_address.clone()).await;
                         }
                         let _ = update_is_loop_break("1", username.as_str());
-                        break 'episodes; // Exit on error
+                        break 'episodes;
                     }
                 }
             }
@@ -478,7 +449,6 @@ async fn finish_episode(
     newest_first: bool,
     current_published_at: Option<i64>,
 ) -> Option<(String, String, i64)> {
-    // update is_finished in database (`listening_session` table)
     let _ = update_is_finished("1", id_session);
 
     let _ = close_session_without_send_prg_data(Some(token), id_session, server_address.to_string()).await;

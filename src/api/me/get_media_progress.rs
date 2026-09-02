@@ -35,28 +35,24 @@ pub struct Root {
 
 /// This endpoint retrieves your media progress that is associated with the given library item ID or podcast episode ID.
 /// <https://api.audiobookshelf.org/#get-a-media-progress>
-// get progress for a book
 pub async fn get_book_progress(token: &str, book_id: &String, server_address: String) -> Result<Root> {
     let client = api_client();
     let url = format!("{server_address}/api/me/progress/{book_id}");
 
-    // Send GET request
     let response = client
         .get(url)
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 
-    // Check response status
     if !response.status().is_success() {
         return Err(Report::new(std::io::Error::other(
                     "Failed to fetch data from the API",
         )));
     }
 
-    // Deserialize JSON response into Root - fetched as text first so a failure can log
-    // the raw payload, since reqwest's own decode-error message doesn't show which field
-    // or value actually failed to parse.
+    // Fetched as text first so a parse failure can log the raw payload - reqwest's own
+    // decode-error message doesn't show which field or value actually failed to parse.
     let body_text = response.text().await?;
     match serde_json::from_str::<Root>(&body_text) {
         Ok(book_progress) => Ok(book_progress),

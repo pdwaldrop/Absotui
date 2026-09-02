@@ -11,7 +11,6 @@ use std::env;
 use std::path::PathBuf;
 
 
-// Update is_show_key_bindings
 pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -47,7 +46,6 @@ pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
 }
 
 
-// get is_show_key_bindings
 pub fn get_is_show_key_bindings(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -79,7 +77,6 @@ pub fn get_is_show_key_bindings(username: &str) -> String {
     }
 }
 
-// Update is_speed_adjusted_time
 pub fn update_is_speed_adjusted_time(value: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -115,7 +112,6 @@ pub fn update_is_speed_adjusted_time(value: &str, username: &str) -> Result<()> 
 }
 
 
-// get is_speed_adjusted_time
 pub fn get_is_speed_adjusted_time(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -147,7 +143,6 @@ pub fn get_is_speed_adjusted_time(username: &str) -> String {
     }
 }
 
-// Update is_podcast_autoplay
 pub fn update_is_podcast_autoplay(value: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -182,7 +177,6 @@ pub fn update_is_podcast_autoplay(value: &str, username: &str) -> Result<()> {
 }
 
 
-// get is_podcast_autoplay
 pub fn get_is_podcast_autoplay(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -214,7 +208,6 @@ pub fn get_is_podcast_autoplay(username: &str) -> String {
     }
 }
 
-// Update is_auto_download
 pub fn update_is_auto_download(value: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -249,7 +242,6 @@ pub fn update_is_auto_download(value: &str, username: &str) -> Result<()> {
 }
 
 
-// get is_auto_download
 pub fn get_is_auto_download(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -281,7 +273,6 @@ pub fn get_is_auto_download(username: &str) -> String {
     }
 }
 
-// Update is_vlc_running
 pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -316,7 +307,6 @@ pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
 }
 
 
-// get is_vlc_running
 pub fn get_is_vlc_running(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -348,7 +338,6 @@ pub fn get_is_vlc_running(username: &str) -> String {
     }
 }
 
-// Update speed_rate
 pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -394,7 +383,6 @@ pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {
 }
 
 
-// get speed_rate
 pub fn get_speed_rate(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -430,7 +418,6 @@ pub fn get_speed_rate(username: &str) -> String {
     }
 }
 
-// Update is_per_item_speed
 pub fn update_is_per_item_speed(value: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -476,7 +463,6 @@ pub fn update_is_per_item_speed(value: &str, username: &str) -> Result<()> {
     Ok(())
 }
 
-// get is_per_item_speed
 pub fn get_is_per_item_speed(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -767,7 +753,6 @@ pub fn list_downloaded_ids(username: &str, kind: &str) -> Result<Vec<String>> {
     Ok(ids)
 }
 
-// get listening_session
 pub fn get_listening_session() -> Result<Option<ListeningSession>> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -829,7 +814,6 @@ pub fn get_listening_session() -> Result<Option<ListeningSession>> {
     Ok(None)
 }
 
-// insert data into `listening_session` table
 pub fn insert_listening_session(
     id_session: String,
     id_item: String,
@@ -877,7 +861,6 @@ pub fn insert_listening_session(
     Ok(())
 }
 
-// Update chapter (for `listening_session` table)
 pub fn update_chapter(value: &str, id_session: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1018,7 +1001,6 @@ pub fn update_volume_down(id_session: &str) -> Result<()> {
 
     Ok(())
 }
-// Update is_playback (for `listening_session` table)
 pub fn update_is_playback(value: &str, id_session: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1051,7 +1033,6 @@ pub fn update_is_playback(value: &str, id_session: &str) -> Result<()> {
 
     Ok(())
 }
-// Update current_time (for `listening_session` table)
 pub fn update_current_time(value: u32, id_session: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1085,7 +1066,6 @@ pub fn update_current_time(value: u32, id_session: &str) -> Result<()> {
     Ok(())
 }
 
-// Update elapsed_time (for `listening_session` table)
 pub fn update_elapsed_time(value: u32, id_session: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1119,7 +1099,6 @@ pub fn update_elapsed_time(value: u32, id_session: &str) -> Result<()> {
     Ok(())
 }
 
-// Update is_finished (for `listening_session` table)
 pub fn update_is_finished(value: &str, id_session: &str) -> Result<()> {
     
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1153,7 +1132,6 @@ pub fn update_is_finished(value: &str, id_session: &str) -> Result<()> {
     Ok(())
 }
 
-// Delete an user
 pub fn delete_user(username: &str) -> Result<()> {
     
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1183,8 +1161,6 @@ pub fn delete_user(username: &str) -> Result<()> {
             let mut stdout = stdout();
             let _ = pop_message(&mut stdout, 3, message.as_str());
             info!("[delete_user] User deleted.");
-        } else {
-            //println!("No user found with this username '{}'.", username);
         }
     } else {
         let mut stdout = stdout();
@@ -1195,7 +1171,6 @@ pub fn delete_user(username: &str) -> Result<()> {
     Ok(())
 }
 
-// Update is_loop_break
 pub fn update_is_loop_break(value: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1265,7 +1240,6 @@ pub fn try_claim_playback_slot(username: &str) -> bool {
 }
 
 
-// get is_loop_break
 pub fn get_is_loop_break(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -1297,7 +1271,6 @@ pub fn get_is_loop_break(username: &str) -> String {
     }
 }
 
-// Update is_vlv_launched_first_time
 pub fn update_is_vlc_launched_first_time(value: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1330,7 +1303,6 @@ pub fn update_is_vlc_launched_first_time(value: &str, username: &str) -> Result<
 
     Ok(())
 }
-// get is_vlc_launched_first_time
 pub fn get_is_vlc_launched_first_time(username: &str) -> String {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -1361,7 +1333,6 @@ pub fn get_is_vlc_launched_first_time(username: &str) -> String {
         Err(_) => String::from("No db found"),
     }
 }
-// Update id_selected_lib
 pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1396,7 +1367,6 @@ pub fn update_id_selected_lib(id_selected_lib: &str, username: &str) -> Result<(
     Ok(())
 }
 
-// Update server_address
 pub fn update_server_address(server_address: &str, username: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1466,24 +1436,6 @@ pub fn update_user_tokens(username: &str, encrypted_access_token: &str, encrypte
     Ok(())
 }
 
-// update default user
-//pub fn update_default_user(conn: &Connection, username: &str) -> Result<()> {
-//    // Mark all user as 0 by default
-//    conn.execute(
-//        "UPDATE users SET is_default_usr = 0",
-//        [],
-//    )?;
-//
-//    // Put the desired user as default
-//    conn.execute(
-//        "UPDATE users SET is_default_usr = 1 WHERE username = ?1",
-//        params![username],
-//    )?;
-//
-//    Ok(())
-//}
-
-// Insert user in database
 pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {   
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -1527,7 +1479,6 @@ pub fn db_insert_usr(users : &Vec<User>)  -> Result<()> {
     Ok(())
 }
 
-// get others
 pub fn get_others() -> Result<Option<Others>> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1569,7 +1520,6 @@ pub fn get_others() -> Result<Option<Others>> {
 
     Ok(None)
 }
-// Update login_err (for `others` table)
 pub fn update_login_err(value: &str) -> Result<()> {
 
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
@@ -1681,7 +1631,6 @@ pub fn get_auth_in_progress() -> String {
     }
 }
 
-// Select default user
 pub fn select_default_usr() -> Result<Vec<String>> {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -1710,7 +1659,7 @@ pub fn select_default_usr() -> Result<Vec<String>> {
             username: row.get(0)?,
             server_address: row.get(1)?,
             token: row.get(2)?,
-            is_default_usr: row.get::<_, i32>(3)? != 0,  // convert 0/1 in bool
+            is_default_usr: row.get::<_, i32>(3)? != 0,
             name_selected_lib: row.get(4)?,
             id_selected_lib: row.get(5)?,
             is_loop_break: row.get(6)?,
@@ -1750,19 +1699,13 @@ pub fn select_default_usr() -> Result<Vec<String>> {
             }
             Err(e) => {
                 println!("Error occurred: {e}");
-                //return Err(rusqlite::Error::FromSqlConversionFailure(0, "Failed to map user".to_string()));
             }
         }
-    }
-
-    if result.is_empty() {
-        //println!("No default user found.");
     }
 
     Ok(result)  
 }
 
-// Init db and table if not exist
 pub fn init_db() -> Result<()> {
     let config_home_path = env::var("XDG_CONFIG_HOME").map_or_else(|_| {
             let mut path = dirs::home_dir().expect("Unable to find the user's home directory");
@@ -1778,10 +1721,8 @@ pub fn init_db() -> Result<()> {
 
     let db_path = config_home_path.join("absotui/db.sqlite3");
 
-    // Open or create db
     let conn = Connection::open(db_path)?;
 
-    //Create table `users` if there is none 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS users (
                 username TEXT PRIMARY KEY,
@@ -1860,7 +1801,6 @@ pub fn init_db() -> Result<()> {
         [],
     )?;
 
-    //Create table `listening_session` if there is none 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS listening_session (
             id_session TEXT PRIMARY KEY,
@@ -1949,7 +1889,6 @@ pub fn init_db() -> Result<()> {
         [],
     );
 
-    //Create table `others` if there is none
     conn.execute(
         "CREATE TABLE IF NOT EXISTS others (
             login_err TEXT NOT NULL DEFAULT '',

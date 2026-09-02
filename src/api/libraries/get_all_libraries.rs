@@ -62,19 +62,16 @@ pub struct Settings {
     pub podcast_search_region: Option<String>,
 }
 
-// get all libraries (shelf). A library can be a Podcast or a Book type
 pub async fn get_all_libraries(token: &str, server_address: String) -> Result<Root> {
     let client = api_client();
     let url = format!("{server_address}/api/libraries");
 
-    // Send GET request
     let response = client
         .get(url)
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 
-    // Check response status
     if !response.status().is_success() {
         let status = response.status();
         return Err(Report::new(std::io::Error::other(
@@ -82,7 +79,6 @@ pub async fn get_all_libraries(token: &str, server_address: String) -> Result<Ro
         )));
     }
 
-    // Deserialize JSON response into Vec<Root>
     let libraries: Root = response.json().await?;
 
     Ok(libraries)

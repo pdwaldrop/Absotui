@@ -94,26 +94,22 @@ pub struct Book {
     pub series_sequence: Option<String>,
 }
 
-// filter only book continue to listening from personalized view
 pub async fn get_continue_listening(token: &str, server_address: String, id_selected_lib: &String) -> Result<Vec<Root>> {
     let client = api_client();
     let url = format!("{server_address}/api/libraries/{id_selected_lib}/personalized");
 
-    // Send GET request
     let response = client
         .get(url)
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 
-    // Check response status
     if !response.status().is_success() {
         return Err(Report::new(std::io::Error::other(
                     "Failed to fetch data from the API",
         )));
     }
 
-    // Deserialize JSON response into Vec<Root>
     let libraries: Vec<Root> = response.json().await?;
 
     // Filter libraries to keep only those with label "Continue Listening"

@@ -140,7 +140,6 @@ impl AppLogin {
             // twice - whenever the server took longer than that to respond).
             let _ = update_auth_in_progress("1");
             tokio::spawn(async move {
-                //              println!("Wait...");
                 match auth_process(
                     collected_data_clone[1].as_str(), // username
                     collected_data_clone[2].as_str(), // password

@@ -36,7 +36,6 @@ pub fn find_track_index(tracks: &[AudioTrack], time: f64) -> usize {
 /// Play a Library Item or Podcast Episode
 /// This endpoint starts a playback session for a library item or podcast episode.
 /// <https://api.audiobookshelf.org/#play-a-library-item-or-podcast-episode>
-// play book
 pub async fn post_start_playback_session_book(token: Option<&String>, id_library_item: &str, server_address: String) -> Result<Vec<String>, reqwest::Error> {
     let mut vlc_version = String::new();
     match get_vlc_version().await {
@@ -48,12 +47,15 @@ pub async fn post_start_playback_session_book(token: Option<&String>, id_library
     let client = api_client();
 
     let params = json!({
-        "forceDirectPlay": true, // avoid latency load, allow view chapter, cover etc.(the .m3u8 stream the original format, ex: .m4b) when playing with vlc
+        // Streams the original file (eg. .m4b) directly with VLC, rather than
+        // transcoding to .m3u8, so chapters/cover art stay intact and there's no added
+        // transcoding latency.
+        "forceDirectPlay": true,
         "mediaPlayer": format!("VLC v{}", vlc_version),
-        "deviceInfo": {  
+        "deviceInfo": {
             "clientName": "Absotui",
             "clientVersion": format!("v{}", VERSION),
-            // to have OS displayed in user activity pannel (audiobookshelf/config/users/)
+            // Shows up as the OS in the server's user activity panel (audiobookshelf/config/users/).
             "manufacturer": format!("{}", std::env::consts::OS),
             "model": format!("{}", std::env::consts::ARCH),
         }});
@@ -68,10 +70,8 @@ pub async fn post_start_playback_session_book(token: Option<&String>, id_library
         .send()
         .await?;
 
-    // Retrieve JSON response
     let v: Value = response.json().await?;
 
-    // Retrieve data
     let current_time = v["currentTime"]
         .as_f64()
         .unwrap_or(0.0);
@@ -121,24 +121,23 @@ pub async fn post_start_playback_session_book(token: Option<&String>, id_library
 
     Ok(info_item)
 }
-// play podcast episode
 pub async fn post_start_playback_session_pod(token: Option<&String>, id_library_item: &str, pod_ep_id: &str, server_address: String) -> Result<Vec<String>, reqwest::Error> {
     let mut vlc_version = String::new();
-    match get_vlc_version().await {
-        Ok(version) => {vlc_version = version;}
-        Err(_e) => {
-            //eprintln!("{}", e),
-        }
+    if let Ok(version) = get_vlc_version().await {
+        vlc_version = version;
     }
     let client = api_client();
 
     let params = json!({
-        "forceDirectPlay": true, // avoid latency load, allow view chapter, cover etc.(the .m3u8 stream the original format, ex: .m4b) when playing with vlc
+        // Streams the original file directly with VLC, rather than transcoding to
+        // .m3u8, so chapters/cover art stay intact and there's no added transcoding
+        // latency.
+        "forceDirectPlay": true,
         "mediaPlayer": format!("VLC v{}", vlc_version),
-        "deviceInfo": {  
+        "deviceInfo": {
             "clientName": "Absotui",
             "clientVersion": format!("v{}", VERSION),
-            // to have OS displayed in user activity pannel (audiobookshelf/config/users/)
+            // Shows up as the OS in the server's user activity panel (audiobookshelf/config/users/).
             "manufacturer": format!("{}", std::env::consts::OS),
             "model": format!("{}", std::env::consts::ARCH),
         }});
@@ -153,10 +152,8 @@ pub async fn post_start_playback_session_pod(token: Option<&String>, id_library_
         .send()
         .await?;
 
-    // Retrieve JSON response
     let v: Value = response.json().await?;
 
-    // Retrieve data
     let current_time = v["currentTime"]
         .as_f64()
         .unwrap_or(0.0);

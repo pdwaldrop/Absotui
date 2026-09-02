@@ -3,7 +3,6 @@ use std::io::{self, Write};
 use log::{info, error};
 use std::process::Command;
 
-// to quit quit VLC with shutdown cmd in cvlc
 pub fn quit_vlc(address: &str, port: &str) -> io::Result<()> {
     let mut stream = TcpStream::connect(format!("{address}:{port}"))?;
 

@@ -166,21 +166,18 @@ pub async fn get_new_and_unfinished_pod(token: &str, server_address: String, id_
     let client = api_client();
     let url = format!("{server_address}/api/libraries/{id_selected_lib}/personalized");
 
-    // Send GET request
     let response = client
         .get(url)
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 
-    // Check response status
     if !response.status().is_success() {
         return Err(Report::new(std::io::Error::other(
                     "Failed to fetch data from the API",
         )));
     }
 
-    // Deserialize JSON response into Vec<Root>
     let libraries: Vec<Root> = response.json().await?;
 
     // Combine "Continue Listening" (in-progress) and "Newest Episodes" (never started)

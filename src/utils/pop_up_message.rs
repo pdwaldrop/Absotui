@@ -17,7 +17,6 @@ use crossterm::{
 // alongside its other cross-task signals (see `poll_pod_ep_fetch` and friends).
 pub static NEEDS_TERMINAL_CLEAR: AtomicBool = AtomicBool::new(false);
 
-// pop up message
 pub fn pop_message(stdout: &mut Stdout, lines_from_bottom: u16, message: &str) -> Result<()> {
     let (_cols, rows) = terminal::size()?;
     let target_row = rows.saturating_sub(lines_from_bottom);
@@ -36,7 +35,6 @@ pub fn pop_message(stdout: &mut Stdout, lines_from_bottom: u16, message: &str) -
 
 
 
-// to clear a pop up message
 pub fn clear_message(stdout: &mut Stdout, lines_from_bottom: u16) -> Result<()> {
     let (_cols, rows) = terminal::size()?;
     let target_row = rows.saturating_sub(lines_from_bottom);

@@ -92,27 +92,23 @@ pub struct CollapsedSeries {
     pub num_books: Option<i64>,
 }
 
-// get all books or podcasts
 pub async fn get_all_books(token: &str, id_selected_lib: &String, server_address: String) -> Result<Root> {
     let client = api_client();
     let url = format!("{server_address}/api/libraries/{id_selected_lib}/items?limit=0");
 
 
-    // Send GET request
     let response = client
         .get(url)
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .send()
         .await?;
 
-    // Check response status
     if !response.status().is_success() {
         return Err(Report::new(std::io::Error::other(
                     "Failed to fetch data from the API",
         )));
     }
 
-    // Deserialize JSON response into Vec<Root>
     let library: Root = response.json().await?;
 
     Ok(library)
