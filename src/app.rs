@@ -652,9 +652,9 @@ impl App {
         library_name = libraries_names[index].clone();
         media_type = media_types[index].clone();
     }
-    let lib_name_type = format!("📖 {library_name} ({media_type})");
-
     let is_podcast = media_type == "podcast";
+    let lib_icon = if is_podcast { "🎙️" } else { "📚" };
+    let lib_name_type = format!("{lib_icon} {library_name} ({media_type})");
 
     let mut _titles_cnt_list: Vec<String> = Vec::new();
     let mut auth_names_cnt_list: Vec<String> = Vec::new();
