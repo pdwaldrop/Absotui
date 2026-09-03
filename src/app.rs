@@ -1,6 +1,6 @@
 use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, collect_auth_names_cnt_list, collect_pub_year_cnt_list, collect_duration_cnt_list, collect_size_cnt_list, collect_desc_cnt_list, collect_ids_cnt_list};
 use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list, collect_progress_pod_cnt_list, collect_published_at_pod_cnt_list, collect_embedded_cover_ino_pod_cnt_list};
-use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library};
+use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library, collect_series_name_library, collect_series_sequence_library};
 use crate::api::utils::collect_get_all_collections::{collect_collection_names, collect_collection_book_indices};
 use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_pod_ep, collect_subtitles_pod_ep, collect_seasons_pod_ep, collect_episodes_pod_ep, collect_authors_pod_ep, collect_descs_pod_ep, collect_titles_pod, collect_durations_pod_ep};
 use crate::api::utils::collect_get_all_libraries::{collect_library_names, collect_media_types, collect_library_ids};
@@ -51,6 +51,16 @@ use ratatui_textarea::TextArea;
 pub enum HomeRow {
     Book(usize),
     Chapter { book_index: usize, chapter: Chapter },
+}
+
+// A single row of the Library list, once series grouping has spliced in header rows.
+// `Book`'s index is the ORIGINAL index into `titles_library`/`ids_library`/etc. - not
+// a position within this row list - kept in sync between rendering (tui.rs) and input
+// handling (this file) by always going through `App::build_library_rows`.
+#[derive(Clone)]
+pub enum LibraryRow {
+    SeriesHeader(String),
+    Book(usize),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -147,6 +157,12 @@ pub struct App {
     // Library shows everything (today's behavior). Single source of truth for whether
     // Library is filtered right now.
     pub active_collection: Option<usize>,
+    pub series_name_library: Vec<Option<String>>,
+    pub series_sequence_library: Vec<Option<f64>>,
+    // Whether Library is currently grouped by series - a display preference, not a
+    // selection, so (unlike `active_collection`) it persists across Tab navigation
+    // for the App's lifetime, same as the podcast Home `D` sort-order toggle.
+    pub is_library_grouped_by_series: bool,
     pub ids_search_book: Vec<String>,
     pub search_query: String,
     // The search box (`/`) - rendered as an overlay on top of whatever screen it was
@@ -812,6 +828,9 @@ impl App {
     let collection_names = collect_collection_names(&all_collections).await;
     let collection_book_indices = collect_collection_book_indices(&all_collections, &ids_library).await;
     let active_collection: Option<usize> = None;
+    let series_name_library = collect_series_name_library(&all_books).await;
+    let series_sequence_library = collect_series_sequence_library(&all_books).await;
+    let is_library_grouped_by_series = false;
 
     let ids_search_book: Vec<String> = Vec::new();
     let _auth_names_pod_search_book: Vec<String> = Vec::new();
@@ -1001,6 +1020,9 @@ impl App {
         collection_names,
         collection_book_indices,
         active_collection,
+        series_name_library,
+        series_sequence_library,
+        is_library_grouped_by_series,
         ids_search_book,
         is_search_active,
         search_textarea: ratatui_textarea::TextArea::default(),
@@ -1397,7 +1419,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
         }
 
         // stop playback (shuts down VLC - not the app, see Q/Esc for that)
-        KeyCode::Char('S') => {
+        KeyCode::Char('X') => {
             let _ = handle_key_player("stop", self.config.player.address.as_str(), self.config.player.port.as_str(), &mut is_playback, self.username.as_str());
         }
 
@@ -1474,6 +1496,12 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 && let Some(new_pos) = self.ids_ep_cnt_list.iter().position(|i| *i == id) {
                     self.list_state_cnt_list.select(Some(new_pos));
             }
+        }
+
+        KeyCode::Char('S') if !self.is_podcast && matches!(self.view_state, AppView::Library) => {
+            self.is_library_grouped_by_series = !self.is_library_grouped_by_series;
+            // Row layout just changed shape entirely (headers spliced in/out).
+            self.list_state_library.select(Some(0));
         }
 
         // Download (or remove the local copy of) the selected book, or podcast episode,
@@ -1736,14 +1764,12 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 self.list_state_cnt_list.selected()
             };
 
-            // Scoped to the active collection when one is filtering Library - the
-            // ListState selection is already relative to whatever's actually
-            // rendered (see render_library), so this keeps the two in sync.
-            let ids_library = match self.active_collection {
-                Some(index) => self.collection_book_indices[index].iter().map(|&i| self.ids_library[i].clone()).collect(),
-                None => self.ids_library.clone(),
-            };
-            let selected_library = self.list_state_library.selected();
+            let ids_library = self.ids_library.clone();
+            // Resolved from Library's row space (which may be collection-filtered
+            // and/or series-grouped, see build_library_rows) back to a real index
+            // into `ids_library` above - `None` for a series header row, same as
+            // nothing being selected.
+            let selected_library = self.selected_library_book_index();
 
             let ids_search_book = self.ids_search_book.clone();
             let selected_search_book = self.list_state_search_results.selected();
@@ -2185,12 +2211,61 @@ pub fn build_home_rows(&self) -> Vec<HomeRow> {
     rows
 }
 
-/// Library's row count, scoped to `active_collection` when one is filtering it -
-/// the same length `render_library` builds its title list from.
-fn library_len(&self) -> usize {
-    match self.active_collection {
-        Some(index) => self.collection_book_indices[index].len(),
-        None => self.ids_library.len(),
+/// Flattens the Library list into rows, splicing in a `SeriesHeader` row above each
+/// series' books (sorted by sequence number) when `is_library_grouped_by_series` is
+/// set, and scoping to `active_collection`'s books first when one is filtering
+/// Library. Returns plain `Book` rows 1:1 with the in-scope indices otherwise - so
+/// callers never need to special-case those situations themselves.
+pub fn build_library_rows(&self) -> Vec<LibraryRow> {
+    let indices: Vec<usize> = match self.active_collection {
+        Some(index) => self.collection_book_indices[index].clone(),
+        None => (0..self.titles_library.len()).collect(),
+    };
+
+    if !self.is_library_grouped_by_series {
+        return indices.into_iter().map(LibraryRow::Book).collect();
+    }
+
+    Self::group_library_rows(indices, &self.series_name_library, &self.series_sequence_library)
+}
+
+/// Groups `indices` into series-headed rows, sorted alphabetically by series name
+/// with each group ordered by sequence number (missing/unparsable sorts last);
+/// books with no series are appended last, in their existing order. Free function
+/// (not a method) so it's unit-testable without constructing a full `App`.
+fn group_library_rows(indices: Vec<usize>, series_names: &[Option<String>], series_sequences: &[Option<f64>]) -> Vec<LibraryRow> {
+    let mut series_groups: std::collections::BTreeMap<String, Vec<usize>> = std::collections::BTreeMap::new();
+    let mut standalone = Vec::new();
+    for i in indices {
+        match series_names.get(i).cloned().flatten() {
+            Some(name) => series_groups.entry(name).or_default().push(i),
+            None => standalone.push(i),
+        }
+    }
+
+    let mut rows = Vec::new();
+    for (name, mut members) in series_groups {
+        members.sort_by(|&a, &b| {
+            let seq_a = series_sequences.get(a).copied().flatten().unwrap_or(f64::MAX);
+            let seq_b = series_sequences.get(b).copied().flatten().unwrap_or(f64::MAX);
+            seq_a.total_cmp(&seq_b)
+        });
+        rows.push(LibraryRow::SeriesHeader(name));
+        rows.extend(members.into_iter().map(LibraryRow::Book));
+    }
+    rows.extend(standalone.into_iter().map(LibraryRow::Book));
+    rows
+}
+
+/// Resolves a raw `list_state_library` selection (a position in `build_library_rows`'
+/// row space) back to the original book index it refers to - `None` for a header row
+/// or nothing selected. Shared by rendering (Info/Description panels) and the Enter
+/// dispatch, so both agree on which row a given selection actually means.
+pub fn selected_library_book_index(&self) -> Option<usize> {
+    let selected = self.list_state_library.selected()?;
+    match self.build_library_rows().get(selected)? {
+        LibraryRow::Book(i) => Some(*i),
+        LibraryRow::SeriesHeader(_) => None,
     }
 }
 
@@ -2205,7 +2280,7 @@ pub fn select_next(&mut self) {
                 self.list_state_cnt_list.select_first();
             }}}
         AppView::Library => { if let Some(selected) = self.list_state_library.selected() {
-            if selected + 1  < self.library_len() {
+            if selected + 1  < self.build_library_rows().len() {
                 self.list_state_library.select_next();
             } else {
                 self.list_state_library.select_first();
@@ -2322,7 +2397,7 @@ pub fn select_last(&mut self) {
             self.list_state_cnt_list.select(self.build_home_rows().len().checked_sub(1));
         }
         AppView::Library => {
-            self.list_state_library.select(self.library_len().checked_sub(1));
+            self.list_state_library.select(self.build_library_rows().len().checked_sub(1));
         }
         AppView::Collections => {
             self.list_state_collections.select(self.collection_names.len().checked_sub(1));
@@ -2408,4 +2483,49 @@ pub fn new_password_field(&self) -> TextArea<'static> {
     password_field
 }
 
+}
+
+#[cfg(test)]
+mod library_row_tests {
+    use super::*;
+
+    #[test]
+    fn groups_by_series_sorted_by_sequence_with_standalone_books_last() {
+        // Indices 0-4 map to: two books in "Zeta" (out of order, one with a
+        // fractional sequence), one standalone book, two in "Alpha".
+        let series_names = vec![
+            Some("Zeta".to_string()),
+            None,
+            Some("Zeta".to_string()),
+            Some("Alpha".to_string()),
+            Some("Zeta".to_string()),
+        ];
+        let series_sequences = vec![Some(2.0), None, Some(1.0), Some(1.0), Some(1.5)];
+
+        let rows = App::group_library_rows((0..5).collect(), &series_names, &series_sequences);
+
+        let row_kinds: Vec<String> = rows.iter().map(|r| match r {
+            LibraryRow::SeriesHeader(name) => format!("H:{name}"),
+            LibraryRow::Book(i) => format!("B:{i}"),
+        }).collect();
+
+        // Alphabetical series order (Alpha before Zeta), each group sequence-sorted
+        // (Zeta: index 2 seq 1.0, then 4 seq 1.5, then 0 seq 2.0), standalone (index
+        // 1, no series) appended last.
+        assert_eq!(row_kinds, vec!["H:Alpha", "B:3", "H:Zeta", "B:2", "B:4", "B:0", "B:1"]);
+    }
+
+    #[test]
+    fn missing_sequence_sorts_last_within_its_group() {
+        let series_names = vec![Some("Solo".to_string()), Some("Solo".to_string())];
+        let series_sequences = vec![None, Some(1.0)];
+
+        let rows = App::group_library_rows(vec![0, 1], &series_names, &series_sequences);
+
+        let row_kinds: Vec<String> = rows.iter().map(|r| match r {
+            LibraryRow::SeriesHeader(name) => format!("H:{name}"),
+            LibraryRow::Book(i) => format!("B:{i}"),
+        }).collect();
+        assert_eq!(row_kinds, vec!["H:Solo", "B:1", "B:0"]);
+    }
 }

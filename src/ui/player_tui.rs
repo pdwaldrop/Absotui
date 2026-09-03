@@ -13,7 +13,7 @@ use crate::ui::theme;
 // includes these regardless of which screen it was opened from.
 pub const PLAYER_KEYS: &[(&str, &str)] = &[
     ("Spc", "Pause/play"), ("p/u", "+/−10s"), ("P/U", "Nxt/prev ch."),
-    ("O/I", "Spd +/−"), ("o/i", "Vol +/−"), ("T", "Real/content time"), ("S", "Stop"),
+    ("O/I", "Spd +/−"), ("o/i", "Vol +/−"), ("T", "Real/content time"), ("X", "Stop"),
 ];
 
 pub fn render_player(area: Rect, buf: &mut ratatui::buffer::Buffer, player_info: Vec<String>, username: &str, footer_height: u16) {

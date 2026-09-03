@@ -1,5 +1,5 @@
 use crate::App;
-use crate::app::{AppView, HomeRow, UpdateUninstallStage, SETTINGS_ABOUT, SETTINGS_UPDATE_UNINSTALL};
+use crate::app::{AppView, HomeRow, LibraryRow, UpdateUninstallStage, SETTINGS_ABOUT, SETTINGS_UPDATE_UNINSTALL};
 use crate::logic::update_uninstall::Action;
 use crate::api::libraries::get_library_perso_view_pod::Chapter;
 use ratatui::{
@@ -321,7 +321,7 @@ impl App {
             hints.extend(Self::footer_trailer(tab_target, true));
             theme::footer_text(&hints)
         } else {
-            let mut hints = vec![("l/→", "Play"), ("/", "Search")];
+            let mut hints = vec![("l/→", "Play"), ("/", "Search"), ("S", "Group by series")];
             hints.extend(back_hint);
             hints.push(Self::FOOTER_SCROLL_DESC);
             hints.extend(Self::footer_trailer(tab_target, true));
@@ -332,11 +332,22 @@ impl App {
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
-        let titles: Vec<String> = match self.active_collection {
-            Some(index) => self.collection_book_indices[index].iter().map(|&i| self.titles_library[i].clone()).collect(),
-            None => self.titles_library.clone(),
-        };
-        let items_number = titles.len();
+        let rows = self.build_library_rows();
+        let display_titles: Vec<String> = rows.iter().map(|row| match row {
+            LibraryRow::SeriesHeader(name) => format!("▸ {name}"),
+            LibraryRow::Book(i) => {
+                let title = &self.titles_library[*i];
+                if self.is_library_grouped_by_series {
+                    match self.series_sequence_library.get(*i).copied().flatten() {
+                        Some(seq) => format!("  #{seq} {title}"),
+                        None => format!("  {title}"),
+                    }
+                } else {
+                    title.clone()
+                }
+            }
+        }).collect();
+        let items_number = rows.iter().filter(|row| matches!(row, LibraryRow::Book(_))).count();
         let render_list_title = match self.active_collection {
             Some(index) => format!("{} [{items_number} items]", self.collection_names[index]),
             None => format!("Library [{items_number} items]"),
@@ -344,10 +355,15 @@ impl App {
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &_text_render_footer);
-        self.render_list(list_area, buf, &render_list_title, &titles, &mut self.list_state_library.clone(), None);
-        if !titles.is_empty() {
-            self.render_info_library(item_area1, buf, &self.list_state_library.clone());
-            self.render_desc_library(item_area2, buf, &self.list_state_library.clone());
+        self.render_list(list_area, buf, &render_list_title, &display_titles, &mut self.list_state_library.clone(), None);
+        // Resolved to the real book index behind the current row selection (a series
+        // header has nothing to show here) - see `selected_library_book_index`'s doc
+        // comment for why this can't just be `list_state_library` itself.
+        if let Some(book_index) = self.selected_library_book_index() {
+            let mut resolved_state = ListState::default();
+            resolved_state.select(Some(book_index));
+            self.render_info_library(item_area1, buf, &resolved_state);
+            self.render_desc_library(item_area2, buf, &resolved_state);
         }
         if self.is_search_active {
             self.render_search_overlay(item_area1, buf);
@@ -923,6 +939,9 @@ impl App {
                 let tab_target = if self.collection_names.is_empty() { "Home" } else { "Collections" };
                 let mut hints = vec![("l/→ Enter", if self.is_podcast { "Open episode list" } else { "Play selected book" })];
                 hints.push(("h", "Back to collections (when viewing one)"));
+                if !self.is_podcast {
+                    hints.push(("S", "Group by series"));
+                }
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer(tab_target, true));
                 hints
