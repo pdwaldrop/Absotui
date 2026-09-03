@@ -35,7 +35,7 @@ pub fn clap() {
 // there's nothing left for this binary to keep in sync.
 fn run_hello_absotui(command: &str) {
     let script = format!(
-        r#"tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" {command} && rm -f "$tmpfile""#
+        r#"tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" {command} && rm -f "$tmpfile""#
     );
     let status = std::process::Command::new("bash")
         .arg("-c")

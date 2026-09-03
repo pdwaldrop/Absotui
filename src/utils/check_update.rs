@@ -26,7 +26,7 @@ pub async fn check_update() -> Option<String> {
 pub async fn get_latest_release_gh() -> Result<String, Box<dyn std::error::Error>> {
     let client = api_client();
     let response = client
-        .get("https://api.github.com/repos/pdwaldrop/Absotui/releases/latest")
+        .get("https://api.github.com/repos/pdwaldrop/absotui/releases/latest")
         .header(USER_AGENT, "Absotui-Updater")
         .send()
         .await?;

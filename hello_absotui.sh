@@ -2,7 +2,7 @@
 # Install Absotui and dependencies automagically.
 
 # For test from the stable branch
-# bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
+# bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
 
 set -eo pipefail
 
@@ -10,12 +10,12 @@ main() {
     do_not_run_as_root
 
     # URL variables for production (do not forget to ensure that repo name and branches are correct)
-    url_config_file="https://github.com/pdwaldrop/Absotui/raw/stable/config.example.toml"
-    url_latest_release="https://api.github.com/repos/pdwaldrop/Absotui/releases/latest"
-    url_latest_binary="https://github.com/pdwaldrop/Absotui/releases/download"
-    url_cargo_install="https://github.com/pdwaldrop/Absotui"
-    url_absotui_desktop="https://raw.githubusercontent.com/pdwaldrop/Absotui/stable/linux/absotui.desktop"
-    url_absotui_icon="https://raw.githubusercontent.com/pdwaldrop/Absotui/stable/linux/absotui.svg"
+    url_config_file="https://github.com/pdwaldrop/absotui/raw/stable/config.example.toml"
+    url_latest_release="https://api.github.com/repos/pdwaldrop/absotui/releases/latest"
+    url_latest_binary="https://github.com/pdwaldrop/absotui/releases/download"
+    url_cargo_install="https://github.com/pdwaldrop/absotui"
+    url_absotui_desktop="https://raw.githubusercontent.com/pdwaldrop/absotui/stable/linux/absotui.desktop"
+    url_absotui_icon="https://raw.githubusercontent.com/pdwaldrop/absotui/stable/linux/absotui.svg"
 
     # Verifies the running script itself against the latest release's published
     # checksum - guards against a corrupted/tampered download. `$0` is whatever this
@@ -365,7 +365,7 @@ install_brew() {
 install_from_source() {
     echo "[ERROR] Could not identify OS/Distro."
     echo "Please follow the instructions here:"
-    echo "https://github.com/pdwaldrop/Absotui?tab=readme-ov-file#git"
+    echo "https://github.com/pdwaldrop/absotui?tab=readme-ov-file#git"
     exit $EXIT_UNKNOWN_OS
 }
 
@@ -895,8 +895,8 @@ EOF
    # elif [[ "$OS" == "macOS" ]]; then
    #     mkdir -p "/Applications/absotui.app/Contents"
    #     mkdir -p "/Applications/absotui.app/Contents/MacOS"
-   #     curl -L "https://raw.githubusercontent.com/pdwaldrop/Absotui/install_with_cargo/curl/Info.plist" -o "/Applications/absotui.app/Contents/Info.plist"
-   #     curl -L "https://raw.githubusercontent.com/pdwaldrop/Absotui/install_with_cargo/curl/launch.command" -o "/Applications/absotui.app/Contents/MacOS/launch.command"
+   #     curl -L "https://raw.githubusercontent.com/pdwaldrop/absotui/install_with_cargo/curl/Info.plist" -o "/Applications/absotui.app/Contents/Info.plist"
+   #     curl -L "https://raw.githubusercontent.com/pdwaldrop/absotui/install_with_cargo/curl/launch.command" -o "/Applications/absotui.app/Contents/MacOS/launch.command"
    #     chmod +x "/Applications/absotui.app/Contents/MacOS/launch.command"
    # fi
 }
@@ -1015,7 +1015,7 @@ install_absotui() {
         fi
         install_config # create ~/.config/absotui/ etc.
         install_rust # cornerstone! absotui is written by a crab
-        #cargo install --git https://github.com/pdwaldrop/Absotui --branch install_with_cargo
+        #cargo install --git https://github.com/pdwaldrop/absotui --branch install_with_cargo
         cargo install --git "$url_cargo_install" --branch stable
         echo "[INFO] Binary placed in ~.cargo/bin"
         setup_launcher

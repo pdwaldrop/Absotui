@@ -1661,8 +1661,8 @@ impl App {
         if list_state.selected() == self.settings_index(SETTINGS_ABOUT) {
             Paragraph::new(format!("Absotui v{} - Licence: GPL-3.0 - Issues: {}/issues\nSource code: {}\nWhat's new:",
                     VERSION,
-                    "https://github.com/pdwaldrop/Absotui",
-                    "https://github.com/pdwaldrop/Absotui",
+                    "https://github.com/pdwaldrop/absotui",
+                    "https://github.com/pdwaldrop/absotui",
             ))
                 .left_aligned()
                 .block(theme::section_block("Info"))
