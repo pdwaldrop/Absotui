@@ -25,8 +25,7 @@
 <p align="center">
   <a href="#-features">Features</a> •
   <a href="#-installation">Installation</a> •
-  <a href="#%EF%B8%8F-caution-beta-version">Beta status</a> •
-  <a href="#%EF%B8%8F-roadmap">Roadmap</a> •
+  <a href="#-roadmap">Roadmap</a> •
   <a href="#-notes">More info</a>
 </p>
 
@@ -35,32 +34,27 @@
 ## ✨ Features
 - **Cross-platform:** <img src=".github/tux.png" align="top" width="24" alt="Tux (Linux)"/> Linux and <img src=".github/apple.png" align="top" width="24" alt="Apple (macOS)"/> macOS
 - **Fast & lightweight:** a minimalist terminal user interface (TUI) written in Rust 🦀
-- **Books & podcasts:** full support for both, including a unified "New & Unfinished" podcast home view and instant mark-as-finished (`F`)
+- **Books & podcasts:** full support for both, including a unified "New & Unfinished" podcast home view and instant mark-as-finished (<kbd>F</kbd>)
 - **Podcast autoplay:** automatically start the next unfinished episode when one finishes
-- **Streaming or offline:** play directly, or download any book or podcast episode (`d`) for offline playback — a download is preferred automatically once you have one. Settings > Auto Download can keep your active listening downloaded automatically, and downloaded items are marked right in the list
+- **Streaming or offline:** play directly, or download any book or podcast episode (<kbd>d</kbd>) for offline playback — a download is preferred automatically once you have one. Settings > Auto Download can keep your active listening downloaded automatically, and downloaded items are marked right in the list
 - **Cover art:** book and podcast episode cover art shown inside the Description panel (terminal permitting — Kitty/Sixel/iTerm2), preferring a podcast episode's own embedded artwork over the podcast's cover when the episode's file has one
 - **Chapter navigation:** browse a book's full chapter list inline in Continue Listening, with live per-chapter progress
+- **Collections & series:** <kbd>Tab</kbd> cycles through to a Collections view whenever your library has any, and <kbd>S</kbd> on the Library screen groups your books by series, sorted in reading order
 - **Desktop integration:** a custom app icon, its own taskbar/dock window icon (on supported terminals), and a window title that shows what's currently playing
 - **In-app update / uninstall:** Settings > Update / Uninstall runs the install script for you — authenticates the same way a real terminal would (fingerprint reader first, if configured, falling back to a password prompt), streams progress live, and relaunches itself on a successful update. `absotui --update`/`--uninstall` still work unchanged as a fallback
 - **Terminal-native theming:** the whole UI renders using your terminal's own color scheme automatically — no config file or custom palette to maintain, it just matches whatever theme your terminal is set to
-- **Full keymap reference:** press `?` on any screen for a complete, always-accurate list of every key that works there — footers only show a short, curated set of the most useful hints to keep things uncluttered
+- **Full keymap reference:** press <kbd>?</kbd> on any screen for a complete, always-accurate list of every key that works there — footers only show a short, curated set of the most useful hints to keep things uncluttered
 - **Per-item playback speed:** optionally (Settings > Per-Item Speed) let each book or podcast show remember its own playback speed instead of sharing one speed across everything
 - **Reliable sync:** per-item progress bars and a now-playing marker in the Continue Listening list, accurate progress percentages even at non-1x playback speed, and a clear retry/change-server screen instead of the app just closing if Audiobookshelf is unreachable
 
 ---
 
-## ⚠️ Caution: Beta Version
-This app is still in **heavy development and contains bugs**.
-❗ Please check [known bugs](known_bugs.md) — especially **major bugs** — before using the app, so you're aware of any known issues going in. If you hit something not listed there or in [Issues](https://github.com/pdwaldrop/Absotui/issues), please open a new one.
-
-🔐 That said, you can use this app with **minimal risk** to your Audiobookshelf library. At worst, you may experience **sync issues** — there is **no risk** of data loss, deletion, or irreversible changes, since the API is only ever used to retrieve books and sync progress.
+## 📌 Project status
+Actively developed, single-maintainer project. Low-risk by design: the Audiobookshelf API is only ever used to retrieve books/podcasts and sync playback progress, so there's no destructive operation to worry about — at worst you'd see a sync hiccup, never data loss. Check [known bugs](known_bugs.md) or [open an issue](https://github.com/pdwaldrop/Absotui/issues) if something looks off.
 
 ---
 
 ## 🚀 Installation
-
->[!WARNING]
-> This is a beta app — please read [Caution: Beta Version](#%EF%B8%8F-caution-beta-version) above first, and check [Issues](https://github.com/pdwaldrop/Absotui/issues) if something goes wrong.
 
 >[!NOTE]
 > There's no AUR package for this fork yet, so `yay`/pacman won't pick up Absotui updates — use the install script below (or `absotui --update`) instead. Prebuilt binaries (Linux x86_64/aarch64, macOS universal) are available via the install script's Option 1.
@@ -148,10 +142,9 @@ Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sql
 ---
 
 ## 🛠️ Roadmap
-Recent work: audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly); a UI refresh — terminal-native theming, bordered/labeled sections, curated footers, and a full keymap reference (`?`) on every screen; and the search box (`/`) rebuilt to render as a normal part of the screen instead of a separate window, fixing display glitches around cover art and the Now Playing bar.
+Recent work: browse your library by Collections and by series (grouped, sequence-ordered) via <kbd>Tab</kbd>/<kbd>S</kbd> on the Library screen; audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly); a UI refresh — terminal-native theming, bordered/labeled sections, curated footers, and a full keymap reference (<kbd>?</kbd>) on every screen; and the search box (<kbd>/</kbd>) rebuilt to render as a normal part of the screen instead of a separate window, fixing display glitches around cover art and the Now Playing bar.
 
 **Under consideration:**
-- Playlist/Collections view
 - Ability to add new podcasts from the app
 - Stats
 
@@ -162,7 +155,7 @@ See [known bugs](known_bugs.md) for what's still outstanding.
 ## 📝 Notes
 
 ### 🐛 Issues
-Check the [issues](https://github.com/pdwaldrop/Absotui/issues) list first, then open a new one if yours isn't there. The [original project's wiki](https://github.com/AlbanDAVID/Toutui/wiki/) can still be useful for general usage help too.
+Check the [issues](https://github.com/pdwaldrop/Absotui/issues) list first, then open a new one if yours isn't there. See the [wiki](https://github.com/pdwaldrop/Absotui/wiki) for a fuller usage guide.
 
 ### 🤝 Contributing
 Contributions of code, ideas, or feedback are welcome — see the [contributing guidelines](CONTRIBUTING.md) first.

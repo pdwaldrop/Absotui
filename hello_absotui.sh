@@ -1006,8 +1006,7 @@ install_absotui() {
         elif [[ "$OS" == "macOS" ]]; then
             echo "[DONE] Install complete. Type absotui in your terminal to run it!"
         fi
-        echo "[ADVICE] Explore and try various themes: https://github.com/AlbanDAVID/Toutui-theme"
-        echo "[ADVICE] Best experience with Kitty or Alacritty terminal."
+        echo "[ADVICE] Best experience with Kitty, Ghostty, or WezTerm."
     elif [[ "$install_method" == "source" ]]; then
         echo "Compiling from source..."
         confirm_install_deps_macos
@@ -1027,8 +1026,7 @@ install_absotui() {
         elif [[ "$OS" == "macOS" ]]; then
             echo "[DONE] Install complete. Type absotui in your terminal to run it!"
         fi
-        echo "[ADVICE] Explore and try various themes: https://github.com/AlbanDAVID/Toutui-theme"
-        echo "[ADVICE] Best experience with Kitty or Alacritty terminal."
+        echo "[ADVICE] Best experience with Kitty, Ghostty, or WezTerm."
         post_install_msg # only if .env not found
     fi
 }
