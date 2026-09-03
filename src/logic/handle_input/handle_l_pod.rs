@@ -242,7 +242,9 @@ pub async fn handle_l_pod(
                                             Ok(true) => {
                                                 // to sync progress in the server each 10 seconds
                                                 if trigger == 10 {
-                                                    let _ = update_media_progress_pod(id_pod, Some(&token), Some(data_fetched_from_vlc), &info_item[2], id, server_address.clone()).await;
+                                                    // /sync alone - it already updates progress server-side and
+                                                    // triggers a websocket update other clients pick up; calling
+                                                    // /progress too on the same tick risked a race (see known_bugs.md).
                                                     let _ = sync_session(Some(&token), &info_item[3],Some(data_fetched_from_vlc), progress_sync, server_address.clone()).await;
 
                                                     let _ = update_elapsed_time(progress_sync, info_item[3].as_str());

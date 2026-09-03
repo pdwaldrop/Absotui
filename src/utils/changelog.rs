@@ -1,8 +1,3 @@
-// Unused right after a release until the next changelog entry is started - the first
-// fix/feature commit of the next cycle should add a new `format!("...v{VERSION}...")`
-// entry (like the one just frozen below it) rather than a plain string, so it keeps
-// resolving to whatever version is actually running until *that* entry gets frozen too.
-#[allow(dead_code)]
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn changelog() -> String {
@@ -1005,8 +1000,22 @@ let changelog_60 = "Changelog Absotui v0.5.46-beta (01/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
+let changelog_61 = format!(
+    "Changelog Absotui v{VERSION} (02/09/2026) \n\
+         \n\
+         Fixed:\n\
+         - Dropped a redundant server call during playback: every 10s progress
+           sync called both /sync and /progress for the same update, which
+           Audiobookshelf itself flags as a race-condition risk (items stuck
+           in Continue Listening). Now uses /sync only, the correct one for
+           periodic updates.
+         \n\
+         Enjoy!\n
+         ####\n"
+);
 
 
+    changelog.push_str(&changelog_61);
     changelog.push_str(&changelog_60);
     changelog.push_str(&changelog_59);
     changelog.push_str(&changelog_58);
