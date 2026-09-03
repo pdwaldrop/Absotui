@@ -313,8 +313,9 @@ impl App {
     /// `AppView::Library` rendering
     fn render_library(&mut self, area: Rect, buf: &mut Buffer) {
         // Library's own Tab target is the only one that depends on runtime data -
-        // Collections only exists in the ring once this library actually has any.
-        let tab_target = if self.collection_names.is_empty() { "Home" } else { "Collections" };
+        // Collections only exists in the ring once this library actually has any,
+        // in which case it - not Stats - is the next stop (see toggle_view).
+        let tab_target = if self.collection_names.is_empty() { "Stats" } else { "Collections" };
         let back_hint = self.active_collection.is_some().then_some(("h", "Back to collections"));
 
         let _text_render_footer = if self.is_podcast {
@@ -441,7 +442,7 @@ impl App {
         ];
 
         Paragraph::new(lines)
-            .block(theme::section_block("Overview"))
+            .block(theme::section_block("Stats Overview"))
             .render(area, buf);
     }
 
@@ -1043,7 +1044,7 @@ impl App {
                 hints
             }
             AppView::Library => {
-                let tab_target = if self.collection_names.is_empty() { "Home" } else { "Collections" };
+                let tab_target = if self.collection_names.is_empty() { "Stats" } else { "Collections" };
                 let mut hints = vec![("l/→ Enter", if self.is_podcast { "Open episode list" } else { "Play selected book" })];
                 hints.push(("h", "Back to collections (when viewing one)"));
                 if !self.is_podcast {
@@ -1582,11 +1583,40 @@ impl App {
         }
     }
 
-    fn render_desc_library(&self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
+    fn render_desc_library(&mut self, area: Rect, buf: &mut Buffer, list_state: &ListState) {
+        let Some(selected) = list_state.selected() else { return };
 
-        if let Some(selected) = list_state.selected() {
+        let content = self.desc_library[selected].clone();
+        let selected_id = self.ids_library.get(selected).cloned();
+        self.load_cover_for_selection(selected_id.as_deref());
 
-            Paragraph::new(html_to_lines(&self.desc_library[selected]))
+        let show_cover = selected_id.is_some() && self.cover_loaded_for_id == selected_id;
+
+        if show_cover {
+            // Same split-box layout as render_desc_home - one box around image+text
+            // together, not a bare image next to a separately-boxed panel.
+            let block = theme::section_block("Description");
+            let inner = block.inner(area);
+            block.render(area, buf);
+
+            let [image_area, _gap_area, text_area] = Layout::horizontal([
+                Constraint::Length(30),
+                Constraint::Length(3),
+                Constraint::Fill(1),
+            ]).areas(inner);
+
+            if let Some(cover) = &mut self.cover_protocol {
+                let image = ratatui_image::StatefulImage::default()
+                    .resize(ratatui_image::Resize::Fit(Some(ratatui_image::FilterType::Lanczos3)));
+                StatefulWidget::render(image, image_area, buf, cover);
+            }
+
+            Paragraph::new(html_to_lines(&content))
+                .scroll((self.scroll_offset, 0))
+                .wrap(Wrap { trim: true })
+                .render(text_area, buf);
+        } else {
+            Paragraph::new(html_to_lines(&content))
                 .scroll((self.scroll_offset, 0))
                 .wrap(Wrap { trim: true })
                 .block(theme::section_block("Description"))
