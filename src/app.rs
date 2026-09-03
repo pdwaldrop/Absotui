@@ -1,6 +1,7 @@
 use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, collect_auth_names_cnt_list, collect_pub_year_cnt_list, collect_duration_cnt_list, collect_size_cnt_list, collect_desc_cnt_list, collect_ids_cnt_list};
 use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list, collect_progress_pod_cnt_list, collect_published_at_pod_cnt_list, collect_embedded_cover_ino_pod_cnt_list};
 use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library};
+use crate::api::utils::collect_get_all_collections::{collect_collection_names, collect_collection_book_indices};
 use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_pod_ep, collect_subtitles_pod_ep, collect_seasons_pod_ep, collect_episodes_pod_ep, collect_authors_pod_ep, collect_descs_pod_ep, collect_titles_pod, collect_durations_pod_ep};
 use crate::api::utils::collect_get_all_libraries::{collect_library_names, collect_media_types, collect_library_ids};
 use crate::api::utils::collect_get_media_progress::{collect_progress_percentage_book, collect_is_finished_book, collect_current_time_prg};
@@ -9,6 +10,7 @@ use crate::api::me::update_media_progress::update_media_progress2_pod;
 use crate::api::libraries::get_library_perso_view::get_continue_listening;
 use crate::api::libraries::get_library_perso_view_pod::{get_new_and_unfinished_pod, Chapter};
 use crate::api::libraries::get_all_books::get_all_books;
+use crate::api::libraries::get_all_collections::get_all_collections;
 use crate::api::libraries::get_all_libraries::get_all_libraries;
 use crate::api::library_items::get_pod_ep::{get_pod_ep, Root as GetPodEpRoot};
 use crate::logic::handle_input::handle_l_book::handle_l_book;
@@ -69,6 +71,10 @@ pub enum AppView {
     // `keymap_return_view`) - bound to `?`, matching CLIAMP/superfile's own
     // dedicated help/keymap screens.
     Keymap,
+    // Index of the current library's collections - only reachable via the Tab ring
+    // when `collection_names` is non-empty. Selecting one filters AppView::Library
+    // via `active_collection` rather than opening a separate detail screen.
+    Collections,
 }
 
 // Sub-state for the AppView::SettingsUpdateUninstall screen. `Failed` is the only
@@ -114,6 +120,7 @@ pub struct App {
     pub should_exit: bool,
     pub list_state_cnt_list: ListState,
     pub list_state_library: ListState,
+    pub list_state_collections: ListState,
     pub list_state_search_results: ListState,
     pub list_state_pod_ep: ListState,
     pub list_state_settings: ListState,
@@ -134,6 +141,12 @@ pub struct App {
     pub titles_library: Vec<String>,
     pub ids_library: Vec<String>,
     pub auth_names_library: Vec<String>,
+    pub collection_names: Vec<String>,
+    pub collection_book_indices: Vec<Vec<usize>>,
+    // Which collection is currently filtering AppView::Library, if any - `None` means
+    // Library shows everything (today's behavior). Single source of truth for whether
+    // Library is filtered right now.
+    pub active_collection: Option<usize>,
     pub ids_search_book: Vec<String>,
     pub search_query: String,
     // The search box (`/`) - rendered as an overlay on top of whatever screen it was
@@ -743,14 +756,28 @@ impl App {
         }
     };
 
-    let (home_res, all_books_res, update_res) = tokio::join!(
+    // Collections are book-only per Audiobookshelf's own schema - skipped entirely
+    // for podcast libraries rather than firing a request that's never useful.
+    let collections_fut = async {
+        if is_podcast {
+            Ok(crate::api::libraries::get_all_collections::Root::default())
+        } else {
+            get_all_collections(&token, &id_selected_lib, server_address.clone()).await
+        }
+    };
+
+    let (home_res, all_books_res, update_res, collections_res) = tokio::join!(
         home_fut,
         get_all_books(&token, &id_selected_lib, server_address.clone()),
         update_fut,
+        collections_fut,
     );
     home_res?;
     let all_books = all_books_res?;
     let update_msg = update_res.unwrap_or_default();
+    // A failed collections fetch just means the Collections ring stop doesn't
+    // appear this session, not a hard startup failure like `all_books` above.
+    let all_collections = collections_res.unwrap_or_default();
 
     // Settings > Auto Download: keep the local download set mirroring Continue
     // Listening (books) or New & Unfinished (podcasts). Hooked in here rather than a
@@ -782,6 +809,9 @@ impl App {
     let published_year_library = collect_published_year_library(&all_books).await;
     let desc_library = collect_desc_library(&all_books).await;
     let duration_library = collect_duration_library(&all_books).await;
+    let collection_names = collect_collection_names(&all_collections).await;
+    let collection_book_indices = collect_collection_book_indices(&all_collections, &ids_library).await;
+    let active_collection: Option<usize> = None;
 
     let ids_search_book: Vec<String> = Vec::new();
     let _auth_names_pod_search_book: Vec<String> = Vec::new();
@@ -910,6 +940,8 @@ impl App {
     list_state_cnt_list.select(Some(0));
     let mut list_state_library = ListState::default();
     list_state_library.select(Some(0));
+    let mut list_state_collections = ListState::default();
+    list_state_collections.select(Some(0));
     let mut list_state_search_results = ListState::default();
     list_state_search_results.select(Some(0));
     let mut list_state_pod_ep = ListState::default();
@@ -939,6 +971,7 @@ impl App {
         should_exit: false,
         list_state_cnt_list,
         list_state_library,
+        list_state_collections,
         list_state_search_results,
         list_state_pod_ep,
         list_state_settings,
@@ -965,6 +998,9 @@ impl App {
         titles_library,
         ids_library,
         auth_names_library,
+        collection_names,
+        collection_book_indices,
+        active_collection,
         ids_search_book,
         is_search_active,
         search_textarea: ratatui_textarea::TextArea::default(),
@@ -1648,9 +1684,13 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                         self.view_state = AppView::Library;
                     }
                 }
+                AppView::Library if self.active_collection.is_some() => {
+                    self.active_collection = None;
+                    self.view_state = AppView::Collections;
+                }
                 _ => {}
             }
-        }        
+        }
         KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
             // If the chapter list is expanded under the currently-playing book, the
             // cursor may be sitting on a chapter row rather than a book row - request a
@@ -1696,7 +1736,13 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 self.list_state_cnt_list.selected()
             };
 
-            let ids_library = self.ids_library.clone();
+            // Scoped to the active collection when one is filtering Library - the
+            // ListState selection is already relative to whatever's actually
+            // rendered (see render_library), so this keeps the two in sync.
+            let ids_library = match self.active_collection {
+                Some(index) => self.collection_book_indices[index].iter().map(|&i| self.ids_library[i].clone()).collect(),
+                None => self.ids_library.clone(),
+            };
             let selected_library = self.list_state_library.selected();
 
             let ids_search_book = self.ids_search_book.clone();
@@ -1933,6 +1979,13 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                             });
                         }
                 }
+                AppView::Collections => {
+                    if let Some(index) = self.list_state_collections.selected() {
+                        self.active_collection = Some(index);
+                        self.list_state_library.select(Some(0));
+                        self.view_state = AppView::Library;
+                    }
+                }
                 AppView::SearchBook => {
                     if self.is_podcast {
                         self.is_from_search_pod = true;
@@ -2071,11 +2124,20 @@ pub fn handle_key(&mut self, key: KeyEvent) {
 }
 
 
-/// Toggle between Home and Library views
+/// Cycles Home -> Library -> Collections -> Home. Collections is skipped
+/// entirely (Home <-> Library, same 2-state toggle as before it existed) when
+/// this library has none.
 fn toggle_view(&mut self) {
     self.view_state = match self.view_state {
         AppView::Home => AppView::Library,
-        AppView::Library => AppView::Home,
+        AppView::Library => {
+            // Tab means "move to the next ring stop" - any active collection filter
+            // shouldn't silently persist once you've left Library. Only `h` is meant
+            // to preserve the "return to Collections" path.
+            self.active_collection = None;
+            if self.collection_names.is_empty() { AppView::Home } else { AppView::Collections }
+        }
+        AppView::Collections => AppView::Home,
         AppView::SearchBook => AppView::Home,
         AppView::PodcastEpisode => AppView::Home,
         AppView::Settings => AppView::Home,
@@ -2123,6 +2185,15 @@ pub fn build_home_rows(&self) -> Vec<HomeRow> {
     rows
 }
 
+/// Library's row count, scoped to `active_collection` when one is filtering it -
+/// the same length `render_library` builds its title list from.
+fn library_len(&self) -> usize {
+    match self.active_collection {
+        Some(index) => self.collection_book_indices[index].len(),
+        None => self.ids_library.len(),
+    }
+}
+
 /// Select functions that apply to both views
 /// all select functions are from `ListState` widget
 pub fn select_next(&mut self) {
@@ -2134,10 +2205,16 @@ pub fn select_next(&mut self) {
                 self.list_state_cnt_list.select_first();
             }}}
         AppView::Library => { if let Some(selected) = self.list_state_library.selected() {
-            if selected + 1  < self.ids_library.len() {
+            if selected + 1  < self.library_len() {
                 self.list_state_library.select_next();
             } else {
                 self.list_state_library.select_first();
+            }}}
+        AppView::Collections => { if let Some(selected) = self.list_state_collections.selected() {
+            if selected + 1  < self.collection_names.len() {
+                self.list_state_collections.select_next();
+            } else {
+                self.list_state_collections.select_first();
             }}}
         AppView::SearchBook => { if let Some(selected) = self.list_state_search_results.selected() {
             if selected + 1  < self.ids_search_book.len() {
@@ -2205,6 +2282,7 @@ pub fn select_previous(&mut self) {
     match self.view_state {
         AppView::Home => self.list_state_cnt_list.select_previous(),
         AppView::Library => self.list_state_library.select_previous(),
+        AppView::Collections => self.list_state_collections.select_previous(),
         AppView::SearchBook => self.list_state_search_results.select_previous(),
         AppView::PodcastEpisode => self.list_state_pod_ep.select_previous(),
         AppView::Settings => self.list_state_settings.select_previous(),
@@ -2223,6 +2301,7 @@ pub fn select_first(&mut self) {
     match self.view_state {
         AppView::Home => self.list_state_cnt_list.select_first(),
         AppView::Library => self.list_state_library.select_first(),
+        AppView::Collections => self.list_state_collections.select_first(),
         AppView::SearchBook => self.list_state_search_results.select_first(),
         AppView::PodcastEpisode => self.list_state_pod_ep.select_first(),
         AppView::Settings => self.list_state_settings.select_first(),
@@ -2243,7 +2322,10 @@ pub fn select_last(&mut self) {
             self.list_state_cnt_list.select(self.build_home_rows().len().checked_sub(1));
         }
         AppView::Library => {
-            self.list_state_library.select(self.ids_library.len().checked_sub(1));
+            self.list_state_library.select(self.library_len().checked_sub(1));
+        }
+        AppView::Collections => {
+            self.list_state_collections.select(self.collection_names.len().checked_sub(1));
         }
         AppView::SearchBook => {
             self.list_state_search_results.select(self.ids_search_book.len().checked_sub(1));

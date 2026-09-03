@@ -56,6 +56,7 @@ impl Widget for &mut App {
             AppView::SettingsPerItemSpeed => self.render_settings_per_item_speed(area, buf),
             AppView::SettingsAutoDownload => self.render_settings_auto_download(area, buf),
             AppView::Keymap => self.render_keymap(area, buf),
+            AppView::Collections => self.render_collections(area, buf),
         }
         // Home/Library/Settings/SearchBook/PodcastEpisode render the overlay
         // themselves, anchored to their own Info box - see render_search_overlay's
@@ -308,15 +309,22 @@ impl App {
 
     /// `AppView::Library` rendering
     fn render_library(&mut self, area: Rect, buf: &mut Buffer) {
+        // Library's own Tab target is the only one that depends on runtime data -
+        // Collections only exists in the ring once this library actually has any.
+        let tab_target = if self.collection_names.is_empty() { "Home" } else { "Collections" };
+        let back_hint = self.active_collection.is_some().then_some(("h", "Back to collections"));
+
         let _text_render_footer = if self.is_podcast {
             let mut hints = vec![("l/→", "Episodes"), ("/", "Search")];
+            hints.extend(back_hint);
             hints.push(Self::FOOTER_SCROLL_DESC);
-            hints.extend(Self::footer_trailer("Home", true));
+            hints.extend(Self::footer_trailer(tab_target, true));
             theme::footer_text(&hints)
         } else {
             let mut hints = vec![("l/→", "Play"), ("/", "Search")];
+            hints.extend(back_hint);
             hints.push(Self::FOOTER_SCROLL_DESC);
-            hints.extend(Self::footer_trailer("Home", true));
+            hints.extend(Self::footer_trailer(tab_target, true));
             theme::footer_text(&hints)
         };
 
@@ -324,19 +332,46 @@ impl App {
 
         let [list_area, item_area1, item_area2] = Layout::vertical([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)]).areas(main_area);
 
-        let items_number = self.titles_library.len();
-        let render_list_title = format!("Library [{items_number} items]");
+        let titles: Vec<String> = match self.active_collection {
+            Some(index) => self.collection_book_indices[index].iter().map(|&i| self.titles_library[i].clone()).collect(),
+            None => self.titles_library.clone(),
+        };
+        let items_number = titles.len();
+        let render_list_title = match self.active_collection {
+            Some(index) => format!("{} [{items_number} items]", self.collection_names[index]),
+            None => format!("Library [{items_number} items]"),
+        };
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &_text_render_footer);
-        self.render_list(list_area, buf, &render_list_title, &self.titles_library.clone(), &mut self.list_state_library.clone(), None);
-        if !&self.titles_library.is_empty() {
+        self.render_list(list_area, buf, &render_list_title, &titles, &mut self.list_state_library.clone(), None);
+        if !titles.is_empty() {
             self.render_info_library(item_area1, buf, &self.list_state_library.clone());
             self.render_desc_library(item_area2, buf, &self.list_state_library.clone());
         }
         if self.is_search_active {
             self.render_search_overlay(item_area1, buf);
         }
+    }
+
+    /// `AppView::Collections` rendering - the index list only. Selecting one filters
+    /// `AppView::Library` via `active_collection` rather than opening its own detail
+    /// screen (see `render_library`).
+    fn render_collections(&mut self, area: Rect, buf: &mut Buffer) {
+        let mut hints = vec![("l/→ Enter", "Open collection")];
+        hints.extend(Self::footer_trailer("Home", true));
+        let _text_render_footer = theme::footer_text(&hints);
+
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &_text_render_footer);
+
+        let render_list_title = "Collections";
+        let rows: Vec<String> = self.collection_names.iter().enumerate()
+            .map(|(index, name)| format!("{name} ({} books)", self.collection_book_indices[index].len()))
+            .collect();
+
+        App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
+        App::render_footer(footer_area, buf, &_text_render_footer);
+        self.render_list(main_area, buf, render_list_title, &rows, &mut self.list_state_collections.clone(), None);
     }
 
     /// `AppView::Settings` rendering
@@ -885,7 +920,15 @@ impl App {
                 hints
             }
             AppView::Library => {
+                let tab_target = if self.collection_names.is_empty() { "Home" } else { "Collections" };
                 let mut hints = vec![("l/→ Enter", if self.is_podcast { "Open episode list" } else { "Play selected book" })];
+                hints.push(("h", "Back to collections (when viewing one)"));
+                hints.extend(globals);
+                hints.extend(Self::footer_trailer(tab_target, true));
+                hints
+            }
+            AppView::Collections => {
+                let mut hints = vec![("l/→ Enter", "Open collection")];
                 hints.extend(globals);
                 hints.extend(Self::footer_trailer("Home", true));
                 hints
