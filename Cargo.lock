@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "absotui"
-version = "0.5.46-beta"
+version = "0.5.47-beta"
 dependencies = [
  "base64",
  "chrono",

@@ -1000,8 +1000,7 @@ let changelog_60 = "Changelog Absotui v0.5.46-beta (01/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_61 = format!(
-    "Changelog Absotui v{VERSION} (02/09/2026) \n\
+let changelog_61 = "Changelog Absotui v0.5.46-beta (02/09/2026) \n\
          \n\
          Fixed:\n\
          - Dropped a redundant server call during playback: every 10s progress
@@ -1011,10 +1010,29 @@ let changelog_61 = format!(
            periodic updates.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_62 = format!(
+    "Changelog Absotui v{VERSION} (02/09/2026) \n\
+         \n\
+         New:\n\
+         - Browse by Collections - Tab now cycles Home -> Library ->
+           Collections -> Home whenever the current library actually has any
+           Audiobookshelf collections. Selecting one filters the Library list
+           down to just its books.
+         - Group Library by series - press S on the Library screen (book
+           libraries only) to group the list by series, sorted by sequence
+           number.
+         \n\
+         Changed:\n\
+         - \"Stop playback\" moved from S to X, freeing up S for the new
+           series-grouping toggle above.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_62);
     changelog.push_str(&changelog_61);
     changelog.push_str(&changelog_60);
     changelog.push_str(&changelog_59);
