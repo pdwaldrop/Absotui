@@ -24,13 +24,13 @@ enum UpdateError {
 
 // Runs the same hello_absotui.sh flow `absotui --update`/`--uninstall` already runs
 // (see clap.rs's run_hello_absotui), but from inside a live TUI session instead of a
-// fresh CLI invocation: authenticate sudo the same way a real terminal would (fingerprint
-// reader first if the system has one configured, falling back to a typed password only if
-// that doesn't pan out), then drive the script's own interactive prompts with scripted
-// stdin answers and stream its output back line by line instead of letting it own the
-// terminal directly. Returns a channel to push typed passwords back in on ProgressEvent::
-// NeedPassword, since unlike the script phase, we don't know up front whether one will
-// even be asked for.
+// fresh CLI invocation: drive the script's own interactive prompts with scripted stdin
+// answers, stream its output back line by line instead of letting it own the terminal
+// directly, and detect+relay whatever sudo prompt (fingerprint reader first if the system
+// has one configured, falling back to a typed password) its own internal `sudo` calls
+// happen to trigger along the way. Returns a channel to push typed passwords back in on
+// ProgressEvent::NeedPassword, since we don't know up front whether one will even be
+// asked for.
 pub fn spawn(action: Action) -> (UnboundedReceiver<ProgressEvent>, UnboundedSender<String>) {
     let (tx, rx) = mpsc::unbounded_channel();
     let (password_tx, password_rx) = mpsc::unbounded_channel();
@@ -69,78 +69,31 @@ fn install_script(action: Action) -> String {
     )
 }
 
-#[cfg(not(target_os = "macos"))]
+// Previously pre-validated sudo (`sudo -k -v`) on its own pty/process before spawning the
+// script, then raced a periodic `sudo -n -v` "keepalive" alongside it to stop that
+// credential expiring before the script's own `sudo` calls got to it - meant to fix a
+// real double-fingerprint-prompt report. It didn't: `spawn_borrowed` makes *every* process
+// it spawns call `setsid()` + claim the pty as its controlling terminal (necessary so a
+// second command can reuse a pty after the first one's fully exited), but the keepalive
+// called it *while the script's own session was still alive* on that same pty - a live
+// session's controlling terminal can't be silently stolen out from under it, so every
+// keepalive spawn failed, and `if let Ok(...)` swallowed that failure silently. It was a
+// no-op from the day it shipped - confirmed by reading `spawn_borrowed`'s own
+// implementation, not by reproducing the prompt live (no fingerprint reader here, and
+// entering a real sudo password is off-limits regardless).
+//
+// Simplest fix, not a patch: don't pre-validate at all. Just run the script; its own
+// first internal `sudo` call (early - see hello_absotui.sh's `dl_handle_compressed_binary`)
+// naturally triggers the same `NeedPassword` prompt via `negotiate` below, exactly once,
+// with nothing else ever competing for that pty's controlling terminal. This also fixes
+// macOS's previously-accepted "known limitation" (it used to open a *second*, separately-
+// ticketed pty for the script phase - two ptys means two tickets means a real second
+// prompt was always possible there, not just theoretical).
 async fn run_update_or_uninstall(
     action: Action,
     password_rx: &mut UnboundedReceiver<String>,
     tx: &UnboundedSender<ProgressEvent>,
 ) -> Result<(), UpdateError> {
-    let (mut pty, pts) = pty_process::open().map_err(|e| UpdateError::Other(format!("Couldn't open a pty: {e}")))?;
-
-    let mut validate_cmd = PtyCommand::new("sudo");
-    validate_cmd = validate_cmd.args(["-k", "-v"]);
-    let mut validate_child = validate_cmd
-        .spawn_borrowed(&pts)
-        .map_err(|e| UpdateError::Other(format!("Failed to launch sudo: {e}")))?;
-    validate_sudo(&mut pty, &mut validate_child, password_rx, tx).await?;
-
-    // Reuses the same pty (`spawn_borrowed` instead of `spawn`, which would consume
-    // `pts`) rather than opening a fresh one for the script - sudo's timestamp cache is
-    // scoped per controlling-terminal (`tty_tickets`, on by default on most distros), so
-    // the credentials just validated above only carry silently into the script's own
-    // internal `sudo` calls if both phases share a tty. Confirmed live: without this, a
-    // system with a fingerprint reader configured got asked to scan twice - once here,
-    // once again partway through the script.
-    let mut script_cmd = PtyCommand::new("bash");
-    script_cmd = script_cmd.args(["-c", &install_script(action)]);
-    let mut script_child = script_cmd
-        .spawn_borrowed(&pts)
-        .map_err(|e| UpdateError::Other(format!("Failed to launch installer: {e}")))?;
-
-    // Sharing the pty (above) makes the credential available to the script's own `sudo`
-    // calls, but doesn't stop it from expiring (sudo's default timestamp_timeout is ~5
-    // minutes) before the script actually gets there - dependency installs or a slow
-    // download can easily eat that, forcing a real second prompt. Racing a periodic
-    // `sudo -n -v` refresh alongside the script (rather than a separately spawned task -
-    // `Pts` isn't `Clone` or `'static`-movable) keeps that credential alive for as long
-    // as the script runs, so only the one prompt above is ever needed.
-    let script_fut = finish_script(&mut pty, &mut script_child, action, password_rx, tx);
-    tokio::pin!(script_fut);
-    loop {
-        tokio::select! {
-            result = &mut script_fut => break result,
-            () = tokio::time::sleep(Duration::from_secs(60)) => {
-                let mut keepalive_cmd = PtyCommand::new("sudo");
-                keepalive_cmd = keepalive_cmd.args(["-n", "-v"]);
-                if let Ok(mut keepalive_child) = keepalive_cmd.spawn_borrowed(&pts) {
-                    let _ = keepalive_child.wait().await;
-                }
-            }
-        }
-    }
-}
-
-// `spawn_borrowed` (the call above that lets both phases share one pty) isn't available
-// on macOS, so each phase gets its own independent pty here instead - same shape this
-// feature originally had. A script-internal `sudo` call could still re-prompt there; no
-// better or worse than before this file started sharing tickets on other platforms.
-#[cfg(target_os = "macos")]
-async fn run_update_or_uninstall(
-    action: Action,
-    password_rx: &mut UnboundedReceiver<String>,
-    tx: &UnboundedSender<ProgressEvent>,
-) -> Result<(), UpdateError> {
-    let (mut pty, pts) = pty_process::open().map_err(|e| UpdateError::Other(format!("Couldn't open a pty: {e}")))?;
-    let mut validate_cmd = PtyCommand::new("sudo");
-    validate_cmd = validate_cmd.args(["-k", "-v"]);
-    let mut validate_child = validate_cmd
-        .spawn(pts)
-        .map_err(|e| UpdateError::Other(format!("Failed to launch sudo: {e}")))?;
-    validate_sudo(&mut pty, &mut validate_child, password_rx, tx).await?;
-
-    // Shadowing `pty`/`pts` here drops the validate-phase pty/child before opening a
-    // fresh pair - macOS has no `spawn_borrowed` to share one pty across both phases
-    // (see the non-macOS variant above), so there's nothing to keep them alive for.
     let (mut pty, pts) = pty_process::open().map_err(|e| UpdateError::Other(format!("Couldn't open a pty: {e}")))?;
     let mut script_cmd = PtyCommand::new("bash");
     script_cmd = script_cmd.args(["-c", &install_script(action)]);
@@ -149,24 +102,6 @@ async fn run_update_or_uninstall(
         .map_err(|e| UpdateError::Other(format!("Failed to launch installer: {e}")))?;
 
     finish_script(&mut pty, &mut script_child, action, password_rx, tx).await
-}
-
-async fn validate_sudo(
-    pty: &mut pty_process::Pty,
-    child: &mut tokio::process::Child,
-    password_rx: &mut UnboundedReceiver<String>,
-    tx: &UnboundedSender<ProgressEvent>,
-) -> Result<(), UpdateError> {
-    // 300s, not 150s: measured live (see the session notes around this feature) that a
-    // single cold-started fprintd cycle alone can take ~65s across two internal PAM
-    // retries with no user-visible progress in between - there's no hard guarantee that
-    // was the worst case, and this only matters once (per invocation), so erring toward
-    // "never fails" over "fails fast" is the right tradeoff here.
-    match negotiate(pty, child, password_rx, tx, Duration::from_secs(300), "authenticating").await {
-        Ok(status) if status.success() => Ok(()),
-        Ok(_) => Err(UpdateError::AuthFailed),
-        Err(e) => Err(UpdateError::Other(e)),
-    }
 }
 
 async fn finish_script(
@@ -196,11 +131,16 @@ async fn finish_script(
     // apart from a genuine hang. 180s turned out too tight for a normal download over a
     // home connection (confirmed live: killed a real update mid-download). Bumped well
     // above what a slow-but-healthy download/extract/install should ever need.
-    let status = negotiate(pty, child, password_rx, tx, Duration::from_secs(1800), "running the installer")
+    let (status, saw_prompt) = negotiate(pty, child, password_rx, tx, Duration::from_secs(1800), "running the installer")
         .await
         .map_err(UpdateError::Other)?;
     if status.success() {
         Ok(())
+    } else if saw_prompt {
+        // A prompt appeared and the script still failed - sudo gave up after repeated
+        // wrong-password/fingerprint attempts, same shape as the old dedicated
+        // pre-validation call used to detect (see the comment on `negotiate` above).
+        Err(UpdateError::AuthFailed)
     } else {
         let code = status
             .code()
@@ -210,8 +150,12 @@ async fn finish_script(
     }
 }
 
-// Shared read/prompt/answer loop for both phases above. Loops rather than asking once:
-// covers sudo retrying after a wrong password the same way a real terminal would.
+// Read/prompt/answer loop for the script phase above. Loops rather than asking once:
+// covers sudo retrying after a wrong password the same way a real terminal would. Also
+// reports whether a password/fingerprint prompt was ever actually shown - the child here
+// is the whole install script, not a bare `sudo`, so a non-zero exit is ambiguous between
+// "auth genuinely failed" and "the script failed for an unrelated reason" (both exit 1 -
+// see hello_absotui.sh's own EXIT_FAIL); the caller needs this flag to tell them apart.
 async fn negotiate(
     pty: &mut pty_process::Pty,
     child: &mut tokio::process::Child,
@@ -219,9 +163,10 @@ async fn negotiate(
     tx: &UnboundedSender<ProgressEvent>,
     chunk_timeout: Duration,
     phase: &str,
-) -> Result<std::process::ExitStatus, String> {
+) -> Result<(std::process::ExitStatus, bool), String> {
     let mut partial = String::new();
     let mut buf = [0u8; 1024];
+    let mut saw_prompt = false;
 
     loop {
         // Only wraps the machine-paced waiting below - once we're actually waiting on
@@ -237,12 +182,17 @@ async fn negotiate(
                 return Err(format!("Couldn't talk to sudo: {e}"));
             }
             Ok(Ok(ReadOutcome::Eof)) => {
-                return child.wait().await.map_err(|e| format!("sudo process error: {e}"));
+                return child
+                    .wait()
+                    .await
+                    .map(|status| (status, saw_prompt))
+                    .map_err(|e| format!("sudo process error: {e}"));
             }
             Ok(Ok(ReadOutcome::ChildExited(status))) => {
-                return Ok(status);
+                return Ok((status, saw_prompt));
             }
             Ok(Ok(ReadOutcome::Prompt)) => {
+                saw_prompt = true;
                 let _ = tx.send(ProgressEvent::NeedPassword);
                 match password_rx.recv().await {
                     Some(password) => {

@@ -1057,8 +1057,7 @@ let changelog_63 = "Changelog Absotui v0.6.0 (03/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_64 = format!(
-    "Changelog Absotui v{VERSION} (03/09/2026) \n\
+let changelog_64 = "Changelog Absotui v0.7.0 (03/09/2026) \n\
          \n\
          New:\n\
          - A Stats page - press Tab to cycle to it alongside Home/Library.
@@ -1073,10 +1072,23 @@ let changelog_64 = format!(
            as Home already did.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_65 = format!(
+    "Changelog Absotui v{VERSION} (03/09/2026) \n\
+         \n\
+         Fixed:\n\
+         - The \"ask for your password/fingerprint only once\" fix from v0.6.0
+           didn't actually work - a race in how it kept your authorization
+           alive meant it silently never ran, so updating or uninstalling
+           could still prompt twice. Rebuilt so there's nothing left to race:
+           only one prompt is ever shown now, right when it's actually needed.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_65);
     changelog.push_str(&changelog_64);
     changelog.push_str(&changelog_63);
     changelog.push_str(&changelog_62);
