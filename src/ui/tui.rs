@@ -18,6 +18,7 @@ use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::utils::html_to_text::html_to_lines;
 use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_and_cache_episode_cover};
+use crate::utils::changelog::latest_changelog_entry;
 use crate::ui::theme;
 use crate::ui::player_tui;
 
@@ -536,9 +537,20 @@ impl App {
     fn render_update_uninstall_content(&self, area: Rect, buf: &mut Buffer) {
         match &self.update_uninstall_stage {
             UpdateUninstallStage::Instructions => {
-                Paragraph::new(UPDATE_UNINSTALL_INSTRUCTIONS)
+                // Shows what's actually in the pending update before the user commits to
+                // it - only when one is available (self.update_msg), since "what's new"
+                // framing doesn't make sense when already on the latest version.
+                let (title, text) = if self.update_msg.is_empty() {
+                    ("Instructions", UPDATE_UNINSTALL_INSTRUCTIONS.to_string())
+                } else {
+                    (
+                        "What's New",
+                        format!("{}\n\n{}", latest_changelog_entry(), UPDATE_UNINSTALL_INSTRUCTIONS),
+                    )
+                };
+                Paragraph::new(text)
                     .wrap(Wrap { trim: true })
-                    .block(theme::section_block("Instructions"))
+                    .block(theme::section_block(title))
                     .render(area, buf);
             }
             UpdateUninstallStage::Confirm(action) => {

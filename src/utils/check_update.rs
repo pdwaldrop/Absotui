@@ -13,9 +13,7 @@ pub async fn check_update() -> Option<String> {
                 log::warn!(
                     "You are not up-to-date. Current: {LOCAL_VERSION} / Available: {latest_version_gh}"
                 );
-                Some(format!(
-                    "🔄 Update to v{latest_version_gh} available (go to settings > update)"
-                ))
+                Some(format!("🔄 v{latest_version_gh} available - Settings > Update"))
             }
         }
         Err(e) => {

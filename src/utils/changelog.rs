@@ -1,5 +1,19 @@
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+// The newest entry from `changelog()` (they're assembled newest-first), trimmed of its
+// "Changelog Absotui vX.Y.Z (date)" header and "Enjoy!" sign-off - both are redundant
+// once shown as a "what's new" preview next to the version number itself.
+pub fn latest_changelog_entry() -> String {
+    let full = changelog();
+    let Some(entry) = full.split("####").next() else {
+        return String::new();
+    };
+    let Some((_header, rest)) = entry.split_once('\n') else {
+        return String::new();
+    };
+    rest.trim().trim_end_matches("Enjoy!").trim().to_string()
+}
+
 pub fn changelog() -> String {
     let mut changelog = String::new();
 
@@ -1011,8 +1025,7 @@ let changelog_61 = "Changelog Absotui v0.5.46-beta (02/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_62 = format!(
-    "Changelog Absotui v{VERSION} (02/09/2026) \n\
+let changelog_62 = "Changelog Absotui v0.5.47-beta (02/09/2026) \n\
          \n\
          New:\n\
          - Browse by Collections - Tab now cycles Home -> Library ->
@@ -1028,10 +1041,27 @@ let changelog_62 = format!(
            series-grouping toggle above.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_63 = format!(
+    "Changelog Absotui v{VERSION} (03/09/2026) \n\
+         \n\
+         Changed:\n\
+         - Update/Uninstall now shows what's actually in a pending update
+           (New/Changed/Fixed) before you commit to it, instead of just a
+           blank confirmation.
+         - The update-available notice is shorter and easier to scan.
+         \n\
+         Fixed:\n\
+         - Updating or uninstalling could ask for your password twice - once
+           up front, once partway through - if the install took long enough
+           for the first authorization to expire. Now asks once.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_63);
     changelog.push_str(&changelog_62);
     changelog.push_str(&changelog_61);
     changelog.push_str(&changelog_60);

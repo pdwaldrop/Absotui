@@ -97,7 +97,27 @@ async fn run_update_or_uninstall(
         .spawn_borrowed(&pts)
         .map_err(|e| UpdateError::Other(format!("Failed to launch installer: {e}")))?;
 
-    finish_script(&mut pty, &mut script_child, action, password_rx, tx).await
+    // Sharing the pty (above) makes the credential available to the script's own `sudo`
+    // calls, but doesn't stop it from expiring (sudo's default timestamp_timeout is ~5
+    // minutes) before the script actually gets there - dependency installs or a slow
+    // download can easily eat that, forcing a real second prompt. Racing a periodic
+    // `sudo -n -v` refresh alongside the script (rather than a separately spawned task -
+    // `Pts` isn't `Clone` or `'static`-movable) keeps that credential alive for as long
+    // as the script runs, so only the one prompt above is ever needed.
+    let script_fut = finish_script(&mut pty, &mut script_child, action, password_rx, tx);
+    tokio::pin!(script_fut);
+    loop {
+        tokio::select! {
+            result = &mut script_fut => break result,
+            () = tokio::time::sleep(Duration::from_secs(60)) => {
+                let mut keepalive_cmd = PtyCommand::new("sudo");
+                keepalive_cmd = keepalive_cmd.args(["-n", "-v"]);
+                if let Ok(mut keepalive_child) = keepalive_cmd.spawn_borrowed(&pts) {
+                    let _ = keepalive_child.wait().await;
+                }
+            }
+        }
+    }
 }
 
 // `spawn_borrowed` (the call above that lets both phases share one pty) isn't available
