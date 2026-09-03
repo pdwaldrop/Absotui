@@ -33,13 +33,10 @@ There is no CI test/lint workflow (`.github/workflows/` only has `release.yml`, 
 
 ### Cutting a release
 
-Manual process, no script:
-1. Bump the version in both `Cargo.toml` and `Cargo.lock` (the `absotui` package entry).
-2. Add a new entry to `src/utils/changelog.rs` (in-app changelog, shown in Settings). The *current* entry uses `format!(... v{VERSION} ...)` with `CARGO_PKG_VERSION` baked in dynamically - freeze that one to a plain string and add a new dynamic entry for the version being released.
-3. Commit ("Bump to X.Y.Z-beta: ..."), push to `main`.
-4. Fast-forward `stable` to match: `git push origin main:stable`. This matters - `hello_absotui.sh` (the install/update script) pulls `config.example.toml`, `absotui.desktop`, and itself from the `stable` branch, not `main`.
-5. Tag the release commit (`vX.Y.Z-beta`), push the tag, then `gh release create` with release notes. This fires `release.yml`, which builds Linux (aarch64/x86_64) and macOS (universal) binaries and attaches them along with a `SHA256SUMS.txt` generated from the actual uploaded assets (so the install script never has stale hardcoded checksums).
-6. The release workflow fires twice per release (both the `created` and `published` events match its trigger) - expected, not a bug.
+1. Add a new entry to `src/utils/changelog.rs` (in-app changelog, shown in Settings). The *current* entry uses `format!(... v{VERSION} ...)` with `CARGO_PKG_VERSION` baked in dynamically - freeze that one to a plain string and add a new dynamic entry for the version being released. Commit and push to `main`. This part is still manual on purpose - it's real user-facing prose, not something to generate.
+2. Run the `Cut Release` workflow (`.github/workflows/cut-release.yml`, `workflow_dispatch`) with a `bump` choice (patch/minor/major) and a one-line `summary`: `gh workflow run cut-release.yml -f bump=patch -f summary="..."`, or via the Actions tab. It computes the next version from `Cargo.toml` (dropping any `-beta`-style suffix - versions are plain `X.Y.Z` now), bumps `Cargo.toml`/`Cargo.lock`, commits, tags, pushes to `main`, fast-forwards `stable` to match (`hello_absotui.sh` installs from `stable`, not `main`), and creates the GitHub release.
+3. Creating the release fires the existing `release.yml`, which builds Linux (aarch64/x86_64) and macOS (universal) binaries and attaches them along with a `SHA256SUMS.txt` generated from the actual uploaded assets (so the install script never has stale hardcoded checksums). It fires twice per release (both the `created` and `published` events match its trigger) - expected, not a bug.
+4. `gh run watch <id> --exit-status` on the resulting run(s) to confirm the binaries actually landed (`gh release view vX.Y.Z --json assets`).
 
 ## Architecture
 

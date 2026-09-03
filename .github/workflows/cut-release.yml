@@ -1,0 +1,107 @@
+name: Cut Release
+
+# Automates the mechanical part of cutting a release (bump the version,
+# commit, tag, sync `stable`, create the GitHub release) - it does NOT build
+# or attach binaries. Creating the release below fires the existing
+# release.yml exactly as `gh release create` does today, which builds and
+# attaches the binaries/checksums as it always has.
+#
+# Before running this: make sure the changelog.rs entry for this release is
+# already written and committed to main (freeze the previous dynamic entry,
+# add the new one) - that's real user-facing prose, not something this
+# workflow generates.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version component to increment
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      summary:
+        description: One-line summary of what's in this release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  cut-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          current=$(grep -m1 '^version = "' Cargo.toml | sed -E 's/^version = "([^"]*)"$/\1/')
+          core="${current%%-*}"
+          IFS='.' read -r major minor patch <<< "$core"
+
+          case "$BUMP" in
+            major) major=$((major+1)); minor=0; patch=0 ;;
+            minor) minor=$((minor+1)); patch=0 ;;
+            patch) patch=$((patch+1)) ;;
+          esac
+
+          new_version="$major.$minor.$patch"
+          echo "Current version: $current -> New version: $new_version"
+          echo "version=$new_version" >> "$GITHUB_OUTPUT"
+
+      - name: Bump Cargo.toml and Cargo.lock
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sed -i -E "s/^version = \"[^\"]*\"$/version = \"$NEW_VERSION\"/" Cargo.toml
+
+          # Only the absotui package's own [[package]] block in Cargo.lock -
+          # not any dependency (none happen to share the name today, but this
+          # keeps the substitution scoped regardless).
+          sed -i -E "/^name = \"absotui\"\$/,/^version = / s/^version = \"[^\"]*\"\$/version = \"$NEW_VERSION\"/" Cargo.lock
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Sanity-check the bump
+        run: cargo check --locked
+
+      - name: Commit, tag, and push
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+          SUMMARY: ${{ inputs.summary }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add Cargo.toml Cargo.lock
+          git commit -m "Bump to $NEW_VERSION: $SUMMARY"
+          git tag -a "v$NEW_VERSION" -m "v$NEW_VERSION"
+          git push origin main
+          git push origin "v$NEW_VERSION"
+
+      - name: Fast-forward stable
+        run: git push origin main:stable
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+          SUMMARY: ${{ inputs.summary }}
+        run: |
+          gh release create "v$NEW_VERSION" \
+            --title "v$NEW_VERSION" \
+            --notes "$SUMMARY
+
+          See Settings > Update in the app for the full changelog."
