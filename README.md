@@ -7,7 +7,7 @@
 <h1 align="center">
   <img src="linux/absotui.svg" width="50" valign="middle" alt="Absotui icon"> Absotui
 </h1>
-<p align="center"><strong>A TUI Audiobookshelf client for Linux and macOS</strong></p>
+<p align="center"><strong>Your whole audiobook and podcast library, at the speed of the keyboard.</strong></p>
 
 <p align="center">
     <em>"ABS" (Audiobookshelf) + "TUI" (terminal user interface) — read it like "absolutely."</em>
@@ -18,8 +18,8 @@
 </p>
 
 <p align="center">
-    A fast, keyboard-driven terminal client for your self-hosted <a href="https://www.audiobookshelf.org/">Audiobookshelf</a> server —
-    browse your library, track chapters, and keep listening progress in sync, all without leaving the terminal.
+    A fast, gorgeous, keyboard-driven terminal client for your self-hosted <a href="https://www.audiobookshelf.org/">Audiobookshelf</a> server.
+    Browse by library, series, or collection, blow through chapters, and never lose your place — no mouse, no browser tab, no leaving the terminal.
 </p>
 
 <p align="center">
@@ -32,20 +32,21 @@
 ---
 
 ## ✨ Features
-- **Cross-platform:** <img src=".github/tux.png" align="top" width="24" alt="Tux (Linux)"/> Linux and <img src=".github/apple.png" align="top" width="24" alt="Apple (macOS)"/> macOS
-- **Fast & lightweight:** a minimalist terminal user interface (TUI) written in Rust 🦀
-- **Books & podcasts:** full support for both, including a unified "New & Unfinished" podcast home view and instant mark-as-finished (<kbd>F</kbd>)
-- **Podcast autoplay:** automatically start the next unfinished episode when one finishes
-- **Streaming or offline:** play directly, or download any book or podcast episode (<kbd>d</kbd>) for offline playback — a download is preferred automatically once you have one. Settings > Auto Download can keep your active listening downloaded automatically, and downloaded items are marked right in the list
-- **Cover art:** book and podcast episode cover art shown inside the Description panel (terminal permitting — Kitty/Sixel/iTerm2), preferring a podcast episode's own embedded artwork over the podcast's cover when the episode's file has one
-- **Chapter navigation:** browse a book's full chapter list inline in Continue Listening, with live per-chapter progress
-- **Collections & series:** <kbd>Tab</kbd> cycles through to a Collections view whenever your library has any, and <kbd>S</kbd> on the Library screen groups your books by series, sorted in reading order
-- **Desktop integration:** a custom app icon, its own taskbar/dock window icon (on supported terminals), and a window title that shows what's currently playing
-- **In-app update / uninstall:** Settings > Update / Uninstall runs the install script for you — authenticates the same way a real terminal would (fingerprint reader first, if configured, falling back to a password prompt), streams progress live, and relaunches itself on a successful update. `absotui --update`/`--uninstall` still work unchanged as a fallback
-- **Terminal-native theming:** the whole UI renders using your terminal's own color scheme automatically — no config file or custom palette to maintain, it just matches whatever theme your terminal is set to
-- **Full keymap reference:** press <kbd>?</kbd> on any screen for a complete, always-accurate list of every key that works there — footers only show a short, curated set of the most useful hints to keep things uncluttered
-- **Per-item playback speed:** optionally (Settings > Per-Item Speed) let each book or podcast show remember its own playback speed instead of sharing one speed across everything
-- **Reliable sync:** per-item progress bars and a now-playing marker in the Continue Listening list, accurate progress percentages even at non-1x playback speed, and a clear retry/change-server screen instead of the app just closing if Audiobookshelf is unreachable
+
+**Never touch a mouse.** Every screen, every action — browsing, playing, searching, downloading, sorting your whole library — is one keypress away, with a complete, always-accurate reference a single <kbd>?</kbd> away too.
+
+**Genuinely fast.** A minimalist Rust 🦀 TUI that opens instantly and stays that way, even against a huge library.
+
+- **Books & podcasts, both first-class:** a unified "New & Unfinished" podcast home, instant mark-as-finished (<kbd>F</kbd>), and autoplay straight into the next unfinished episode
+- **Browse it your way:** flip through your full Library, or jump to Collections and series — grouped, sequence-ordered, one <kbd>Tab</kbd>/<kbd>S</kbd> away
+- **Stream or take it offline:** download (<kbd>d</kbd>) any book or episode for offline listening, with a downloaded copy preferred automatically the moment you have one — Auto Download can keep your active listens ready without you thinking about it
+- **Real cover art, right in your terminal:** book and episode artwork rendered inline (Kitty/Sixel/iTerm2 terminals), not just text
+- **Chapter-level navigation:** browse a book's full chapter list inline in Continue Listening, with live per-chapter progress
+- **Feels like a real desktop app:** its own icon, a taskbar/dock icon on supported terminals, and a window title that shows what's playing
+- **Matches your terminal, automatically:** no theme file to maintain — the whole UI just uses whatever color scheme your terminal is already set to
+- **Updates itself:** Settings > Update / Uninstall runs the whole install flow for you — live progress, fingerprint-or-password auth, and a relaunch on success
+- **Plays at your speed:** per-item playback speed (Settings > Per-Item Speed) so different books and podcasts can each remember their own pace
+- **Rock-solid sync:** accurate progress bars even at non-1x speed, a live now-playing marker, and a graceful retry screen instead of the app just closing if your server's briefly unreachable
 
 ---
 
@@ -155,7 +156,7 @@ See [known bugs](known_bugs.md) for what's still outstanding.
 ## 📝 Notes
 
 ### 🐛 Issues
-Check the [issues](https://github.com/pdwaldrop/Absotui/issues) list first, then open a new one if yours isn't there. See the [wiki](https://github.com/pdwaldrop/Absotui/wiki) for a fuller usage guide.
+Check the [issues](https://github.com/pdwaldrop/Absotui/issues) list first, then open a new one if yours isn't there.
 
 ### 🤝 Contributing
 Contributions of code, ideas, or feedback are welcome — see the [contributing guidelines](CONTRIBUTING.md) first.
