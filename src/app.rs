@@ -2,6 +2,7 @@ use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, coll
 use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list, collect_progress_pod_cnt_list, collect_published_at_pod_cnt_list, collect_embedded_cover_ino_pod_cnt_list};
 use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library, collect_series_name_library, collect_series_sequence_library};
 use crate::api::utils::collect_get_all_collections::{collect_collection_names, collect_collection_book_indices};
+use crate::api::utils::collect_get_listening_stats::{collect_stats_summary, StatsSummary};
 use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_pod_ep, collect_subtitles_pod_ep, collect_seasons_pod_ep, collect_episodes_pod_ep, collect_authors_pod_ep, collect_descs_pod_ep, collect_titles_pod, collect_durations_pod_ep};
 use crate::api::utils::collect_get_all_libraries::{collect_library_names, collect_media_types, collect_library_ids};
 use crate::api::utils::collect_get_media_progress::{collect_progress_percentage_book, collect_is_finished_book, collect_current_time_prg};
@@ -11,6 +12,7 @@ use crate::api::libraries::get_library_perso_view::get_continue_listening;
 use crate::api::libraries::get_library_perso_view_pod::{get_new_and_unfinished_pod, Chapter};
 use crate::api::libraries::get_all_books::get_all_books;
 use crate::api::libraries::get_all_collections::get_all_collections;
+use crate::api::me::get_listening_stats::get_listening_stats;
 use crate::api::libraries::get_all_libraries::get_all_libraries;
 use crate::api::library_items::get_pod_ep::{get_pod_ep, Root as GetPodEpRoot};
 use crate::logic::handle_input::handle_l_book::handle_l_book;
@@ -85,6 +87,9 @@ pub enum AppView {
     // when `collection_names` is non-empty. Selecting one filters AppView::Library
     // via `active_collection` rather than opening a separate detail screen.
     Collections,
+    // Read-only listening-stats dashboard - user-level (not scoped to the current
+    // library), same as the Audiobookshelf endpoint it's built from.
+    Stats,
 }
 
 // Sub-state for the AppView::SettingsUpdateUninstall screen. `Failed` is the only
@@ -163,6 +168,9 @@ pub struct App {
     // selection, so (unlike `active_collection`) it persists across Tab navigation
     // for the App's lifetime, same as the podcast Home `D` sort-order toggle.
     pub is_library_grouped_by_series: bool,
+    // User-level listening stats (AppView::Stats) - not scoped to the current
+    // library, same as the Audiobookshelf endpoint it's built from.
+    pub stats_summary: StatsSummary,
     pub ids_search_book: Vec<String>,
     pub search_query: String,
     // The search box (`/`) - rendered as an overlay on top of whatever screen it was
@@ -782,11 +790,12 @@ impl App {
         }
     };
 
-    let (home_res, all_books_res, update_res, collections_res) = tokio::join!(
+    let (home_res, all_books_res, update_res, collections_res, listening_stats_res) = tokio::join!(
         home_fut,
         get_all_books(&token, &id_selected_lib, server_address.clone()),
         update_fut,
         collections_fut,
+        get_listening_stats(&token, server_address.clone()),
     );
     home_res?;
     let all_books = all_books_res?;
@@ -794,6 +803,12 @@ impl App {
     // A failed collections fetch just means the Collections ring stop doesn't
     // appear this session, not a hard startup failure like `all_books` above.
     let all_collections = collections_res.unwrap_or_default();
+    // Same tolerance as collections above - a failed stats fetch just means an
+    // all-zero AppView::Stats screen this session, not a startup failure.
+    let stats_summary = match listening_stats_res {
+        Ok(stats) => collect_stats_summary(&stats, chrono::Local::now().date_naive()).await,
+        Err(_) => StatsSummary::default(),
+    };
 
     // Settings > Auto Download: keep the local download set mirroring Continue
     // Listening (books) or New & Unfinished (podcasts). Hooked in here rather than a
@@ -1023,6 +1038,7 @@ impl App {
         series_name_library,
         series_sequence_library,
         is_library_grouped_by_series,
+        stats_summary,
         ids_search_book,
         is_search_active,
         search_textarea: ratatui_textarea::TextArea::default(),
@@ -1950,6 +1966,7 @@ pub fn handle_key(&mut self, key: KeyEvent) {
                 // Unreachable in practice - the Keymap guard earlier in handle_key
                 // returns before this match is ever reached while Keymap is active.
                 AppView::Keymap => {}
+                AppView::Stats => {}
                 AppView::Library => {
                     if self.is_podcast {
                         if let Some(index) = selected_library {
@@ -2161,9 +2178,10 @@ fn toggle_view(&mut self) {
             // shouldn't silently persist once you've left Library. Only `h` is meant
             // to preserve the "return to Collections" path.
             self.active_collection = None;
-            if self.collection_names.is_empty() { AppView::Home } else { AppView::Collections }
+            if self.collection_names.is_empty() { AppView::Stats } else { AppView::Collections }
         }
-        AppView::Collections => AppView::Home,
+        AppView::Collections => AppView::Stats,
+        AppView::Stats => AppView::Home,
         AppView::SearchBook => AppView::Home,
         AppView::PodcastEpisode => AppView::Home,
         AppView::Settings => AppView::Home,
@@ -2350,6 +2368,7 @@ pub fn select_next(&mut self) {
             }}}
         // Unreachable - j/Down never reach this while Keymap is active.
         AppView::Keymap => {}
+        AppView::Stats => {}
     }
 }
 
@@ -2369,6 +2388,7 @@ pub fn select_previous(&mut self) {
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select_previous(),
         AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select_previous(),
         AppView::Keymap => {}
+        AppView::Stats => {}
     }
 }
 
@@ -2388,6 +2408,7 @@ pub fn select_first(&mut self) {
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select_first(),
         AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select_first(),
         AppView::Keymap => {}
+        AppView::Stats => {}
     }
 }
 
@@ -2424,6 +2445,7 @@ pub fn select_last(&mut self) {
         AppView::SettingsPerItemSpeed => self.list_state_settings_per_item_speed.select(Some(1)),
         AppView::SettingsAutoDownload => self.list_state_settings_auto_download.select(Some(1)),
         AppView::Keymap => {}
+        AppView::Stats => {}
     }
 }
 

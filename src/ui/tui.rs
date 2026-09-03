@@ -8,7 +8,7 @@ use ratatui::{
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{
-        Block, Borders, Cell, HighlightSpacing, List, ListItem , ListState,  Paragraph, Row,
+        Bar, BarChart, BarGroup, Block, Borders, Cell, HighlightSpacing, List, ListItem , ListState,  Paragraph, Row,
         StatefulWidget, Table, Widget, Wrap
     },
 };
@@ -19,6 +19,7 @@ use crate::player::integrated::player_info::{format_time, find_current_chapter};
 use crate::utils::html_to_text::html_to_lines;
 use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_and_cache_episode_cover};
 use crate::utils::changelog::latest_changelog_entry;
+use chrono::Datelike;
 use crate::ui::theme;
 use crate::ui::player_tui;
 
@@ -58,6 +59,7 @@ impl Widget for &mut App {
             AppView::SettingsAutoDownload => self.render_settings_auto_download(area, buf),
             AppView::Keymap => self.render_keymap(area, buf),
             AppView::Collections => self.render_collections(area, buf),
+            AppView::Stats => self.render_stats(area, buf),
         }
         // Home/Library/Settings/SearchBook/PodcastEpisode render the overlay
         // themselves, anchored to their own Info box - see render_search_overlay's
@@ -389,6 +391,99 @@ impl App {
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &_text_render_footer);
         self.render_list(main_area, buf, render_list_title, &rows, &mut self.list_state_collections.clone(), None);
+    }
+
+    /// `AppView::Stats` rendering - a read-only dashboard built from `self.stats_summary`
+    /// (see `collect_stats_summary`), itself built from Audiobookshelf's per-user
+    /// `/api/me/listening-stats` - not scoped to the currently selected library.
+    fn render_stats(&mut self, area: Rect, buf: &mut Buffer) {
+        let text_render_footer = theme::footer_text(&Self::footer_trailer("Home", true));
+
+        let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
+
+        let [overview_area, chart_area, lists_area] = Layout::vertical([
+            Constraint::Length(5),
+            Constraint::Length(10),
+            Constraint::Fill(1),
+        ]).areas(main_area);
+
+        App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
+        App::render_footer(footer_area, buf, &text_render_footer);
+
+        self.render_stats_overview(overview_area, buf);
+        self.render_stats_chart(chart_area, buf);
+
+        let [left_area, right_area] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(lists_area);
+        let [most_listened_area, genres_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(left_area);
+        let [authors_area, narrators_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(right_area);
+
+        Self::render_stats_ranking(most_listened_area, buf, "Most Listened", &self.stats_summary.top_items);
+        Self::render_stats_ranking(genres_area, buf, "Top Genres", &self.stats_summary.top_genres);
+        Self::render_stats_ranking(authors_area, buf, "Top Authors", &self.stats_summary.top_authors);
+        Self::render_stats_ranking(narrators_area, buf, "Top Narrators", &self.stats_summary.top_narrators);
+    }
+
+    fn render_stats_overview(&self, area: Rect, buf: &mut Buffer) {
+        let s = &self.stats_summary;
+        let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+
+        let lines = vec![
+            Line::from(format!(
+                "Total: {}    Today: {}    This week: {}    This month: {}",
+                fmt(s.total_time), fmt(s.today), fmt(s.this_week), fmt(s.this_month),
+            )),
+            Line::from(format!(
+                "Current streak: {} day{}    Best streak: {} day{}    Days active: {}",
+                s.current_streak, if s.current_streak == 1 { "" } else { "s" },
+                s.best_streak, if s.best_streak == 1 { "" } else { "s" },
+                s.days_active,
+            )),
+        ];
+
+        Paragraph::new(lines)
+            .block(theme::section_block("Overview"))
+            .render(area, buf);
+    }
+
+    fn render_stats_chart(&self, area: Rect, buf: &mut Buffer) {
+        let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+        let bars: Vec<Bar> = self.stats_summary.last_7_days.iter()
+            .map(|(date, seconds)| {
+                // Minutes, not seconds - BarChart's value drives bar height, and a whole
+                // day's worth of seconds would dwarf everything into a rounding error at
+                // typical terminal heights.
+                let minutes = (seconds / 60.0).round() as u64;
+                Bar::default()
+                    .label(Line::from(format!("{}", date.weekday())))
+                    .value(minutes)
+                    .text_value(if *seconds > 0.0 { fmt(*seconds) } else { String::new() })
+            })
+            .collect();
+
+        BarChart::default()
+            .data(BarGroup::default().bars(&bars))
+            .bar_width(6)
+            .bar_gap(1)
+            .bar_style(Style::new().fg(theme::ACCENT_STRUCTURE))
+            .value_style(Style::new().fg(theme::ACCENT_STRUCTURE).add_modifier(Modifier::REVERSED))
+            .block(theme::section_block("Last 7 Days"))
+            .render(area, buf);
+    }
+
+    fn render_stats_ranking(area: Rect, buf: &mut Buffer, title: &str, entries: &[(String, f64)]) {
+        let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+        let lines: Vec<Line> = if entries.is_empty() {
+            vec![Line::from("Nothing yet")]
+        } else {
+            entries.iter().enumerate()
+                .map(|(i, (name, seconds))| Line::from(format!("{}. {name} — {}", i + 1, fmt(*seconds))))
+                .collect()
+        };
+
+        Paragraph::new(lines)
+            .wrap(Wrap { trim: true })
+            .block(theme::section_block(title))
+            .render(area, buf);
     }
 
     /// `AppView::Settings` rendering
@@ -961,6 +1056,11 @@ impl App {
             AppView::Collections => {
                 let mut hints = vec![("l/→ Enter", "Open collection")];
                 hints.extend(globals);
+                hints.extend(Self::footer_trailer("Home", true));
+                hints
+            }
+            AppView::Stats => {
+                let mut hints = globals;
                 hints.extend(Self::footer_trailer("Home", true));
                 hints
             }
