@@ -146,8 +146,8 @@ Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sql
 Recent work: browse your library by Collections and by series (grouped, sequence-ordered) via <kbd>Tab</kbd>/<kbd>S</kbd> on the Library screen; audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly); a UI refresh — terminal-native theming, bordered/labeled sections, curated footers, and a full keymap reference (<kbd>?</kbd>) on every screen; and the search box (<kbd>/</kbd>) rebuilt to render as a normal part of the screen instead of a separate window, fixing display glitches around cover art and the Now Playing bar.
 
 **Under consideration:**
-- Ability to add new podcasts from the app
-- Stats
+- Managing podcast subscriptions from the app (add/remove)
+- A stats page
 
 See [known bugs](known_bugs.md) for what's still outstanding.
 
