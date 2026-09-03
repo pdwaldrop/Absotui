@@ -1042,8 +1042,7 @@ let changelog_62 = "Changelog Absotui v0.5.47-beta (02/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_63 = format!(
-    "Changelog Absotui v{VERSION} (03/09/2026) \n\
+let changelog_63 = "Changelog Absotui v0.6.0 (03/09/2026) \n\
          \n\
          Changed:\n\
          - Update/Uninstall now shows what's actually in a pending update
@@ -1057,10 +1056,28 @@ let changelog_63 = format!(
            for the first authorization to expire. Now asks once.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_64 = format!(
+    "Changelog Absotui v{VERSION} (03/09/2026) \n\
+         \n\
+         New:\n\
+         - A Stats page - press Tab to cycle to it alongside Home/Library.
+           Total/today/week/month listening time, current and best streaks,
+           a 7-day chart, and top-5 rankings for most-listened items,
+           authors, genres, and narrators.
+         \n\
+         Changed:\n\
+         - Podcast and audiobook libraries now show different icons in the
+           header (a microphone vs. a stack of books) instead of sharing one.
+         - The Library screen's Description panel now shows cover art, same
+           as Home already did.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_64);
     changelog.push_str(&changelog_63);
     changelog.push_str(&changelog_62);
     changelog.push_str(&changelog_61);
