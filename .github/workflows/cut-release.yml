@@ -105,3 +105,18 @@ jobs:
             --notes "$SUMMARY
 
           See Settings > Update in the app for the full changelog."
+
+      # A release created via the default GITHUB_TOKEN (above) does NOT fire other
+      # workflows' `on: release` triggers - GitHub's deliberate anti-recursion
+      # safeguard against a token-authored event re-triggering more workflows. Without
+      # this, release.yml (which builds and attaches the actual binaries) would never
+      # run on its own, silently leaving every automated release binary-less until
+      # someone noticed and dispatched it by hand (confirmed live: v0.5.48 sat with
+      # zero assets until manually triggered). An explicit `gh workflow run` call,
+      # unlike the implicit event from creating the release, isn't subject to that
+      # same restriction.
+      - name: Trigger binary build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+        run: gh workflow run release.yml --ref "v$NEW_VERSION"
