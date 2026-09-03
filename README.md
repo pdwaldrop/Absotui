@@ -57,9 +57,6 @@ Actively developed, single-maintainer project. Low-risk by design: the Audiobook
 
 ## 🚀 Installation
 
->[!NOTE]
-> There's no AUR package for this fork yet, so `yay`/pacman won't pick up Absotui updates — use the install script below (or `absotui --update`) instead. Prebuilt binaries (Linux x86_64/aarch64, macOS universal) are available via the install script's Option 1.
-
 ### ⚡ Easy installation (install script)
 
 **Run the following in your terminal, then follow the on-screen instructions:**
