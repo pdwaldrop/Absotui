@@ -337,6 +337,7 @@ get_distro() {
         *" fedora "*|*" rhel "*)   distro="fedora";;
         *" centos "*)              distro="centos";;
         *" suse "*|*" opensuse "*) distro="opensuse";;
+        *" solus "*)               distro="solus";;
     esac
 
     # Fall back to the older display-name matching if os-release didn't give us
@@ -351,6 +352,7 @@ get_distro() {
             Fedora*) distro="fedora";;
             CentOS*) distro="centos";;
             OpenSUSE*) distro="opensuse";;
+            Solus*) distro="solus";;
             *) distro="unknown";;
         esac
     fi
@@ -495,7 +497,15 @@ install_packages() {
                 fedora*) sudo dnf install -y ${dep[@]} || pkg_mgr_status=$?;;
                 centos*) sudo yum install -y ${dep[@]} || pkg_mgr_status=$?;;
                 opensuse*) sudo zypper install -y ${dep[@]} || pkg_mgr_status=$?;;
-                *) install_from_source;;
+                solus*) sudo eopkg install -y ${dep[@]} || pkg_mgr_status=$?;;
+                # Linux was identified fine - only the package manager wasn't (an
+                # unlisted distro, e.g. NixOS, Void, Alpine, Gentoo). Confirmed live
+                # on Solus before it had its own case above: this used to call
+                # install_from_source, which prints "Could not identify OS/Distro"
+                # and aborts the ENTIRE install - wrong error for "known OS, unknown
+                # package manager", and needlessly fatal since nothing past this
+                # point actually depends on these packages being auto-installable.
+                *) echo "[WARNING] Don't know this Linux distro's package manager (${dep[@]})."; pkg_mgr_status=1;;
     	    esac ;;
         macOS)
             if command -v brew >/dev/null 2>&1; then
@@ -649,6 +659,7 @@ dep_already_installed() {
             fedora*)   (rpm -q "$pkg_name" &>/dev/null)2>/dev/null && installed="true";;
             centos*)   (yum list installed "$pkg_name" &>/dev/null)2>/dev/null && installed="true";;
             opensuse*) (zypper se --installed-only "$pkg_name" &>/dev/null)2>/dev/null && installed="true";;
+            solus*)    (eopkg list-installed | grep -qw "^${pkg_name}")2>/dev/null && installed="true";;
         esac
     elif [[ $OS == "macOS" ]]; then
         (brew list | grep $pkg_name) && installed="true"
