@@ -1084,8 +1084,7 @@ let changelog_65 = "Changelog Absotui v0.7.1 (03/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_66 = format!(
-    "Changelog Absotui v{VERSION} (03/09/2026) \n\
+let changelog_66 = "Changelog Absotui v0.8.0 (03/09/2026) \n\
          \n\
          New:\n\
          - The Stats page now shows an average-by-day-of-week chart, a
@@ -1095,10 +1094,36 @@ let changelog_66 = format!(
            as long descriptions elsewhere.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_67 = format!(
+    "Changelog Absotui v{VERSION} (04/09/2026) \n\
+         \n\
+         New:\n\
+         - Refreshed the app icon with a new vector rework.
+         \n\
+         Fixed:\n\
+         - A multi-file audiobook could resume playback at the wrong
+           position/track if the server ever left out a file's index.
+         - Settings > Update could show \"Incorrect password\" for a
+           completely unrelated failure (network drop, disk full) after
+           you'd already authenticated correctly.
+         - Library could attribute the wrong series/sequence to a book
+           once \"group by series\" was on, if any item in your library
+           had missing metadata.
+         - The new Stats page could open already scrolled down if you'd
+           just scrolled a description elsewhere.
+         \n\
+         Changed:\n\
+         - Several internal performance and code-quality improvements
+           from a full review pass - Library and the Stats heatmap both
+           do noticeably less repeated work now.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_67);
     changelog.push_str(&changelog_66);
     changelog.push_str(&changelog_65);
     changelog.push_str(&changelog_64);

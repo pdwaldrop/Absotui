@@ -141,7 +141,7 @@ Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sql
 ---
 
 ## 🛠️ Roadmap
-Recent work: a Stats page (<kbd>Tab</kbd> cycles to it) — total/streak/daily-average listening time, a day-of-week chart, a year-long activity heatmap, a Recent Sessions list, book/episode counts, and top-5 rankings for items, authors, genres, and narrators; browsing your library by Collections and by series (grouped, sequence-ordered) via <kbd>Tab</kbd>/<kbd>S</kbd> on the Library screen; and per-library-type icons and cover art in the Library screen's Description panel.
+Recent work: a refreshed app icon; and a broad bug/optimization pass across the Stats and Collections/Series screens — fixed a book-playback position bug, a misleading "Incorrect password" error during Update, a Library series-grouping display bug, plus several efficiency and code-quality cleanups.
 
 **Under consideration:**
 - Managing podcast subscriptions from the app (add/remove)
