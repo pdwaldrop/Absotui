@@ -40,6 +40,10 @@ pub struct MediaMetadata {
     pub author: Option<String>,
     pub narrator_name: Option<String>,
     pub genres: Option<Vec<String>>,
+    // Only ever present on podcast episode metadata (an RSS feed concept that
+    // structurally can't apply to a book) - the one reliable book-vs-episode signal
+    // this endpoint's `items` map gives us, since it carries no explicit type field.
+    pub feed_url: Option<String>,
 }
 
 impl MediaMetadata {
@@ -53,6 +57,10 @@ impl MediaMetadata {
 
     pub fn narrator_names(&self) -> Vec<String> {
         split_joined_names(self.narrator_name.as_deref())
+    }
+
+    pub fn is_podcast_episode(&self) -> bool {
+        self.feed_url.is_some()
     }
 }
 

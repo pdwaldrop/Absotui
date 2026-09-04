@@ -20,6 +20,7 @@ use crate::utils::html_to_text::html_to_lines;
 use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_and_cache_episode_cover};
 use crate::utils::changelog::latest_changelog_entry;
 use chrono::Datelike;
+use std::collections::HashMap;
 use crate::ui::theme;
 use crate::ui::player_tui;
 
@@ -397,48 +398,92 @@ impl App {
     /// `AppView::Stats` rendering - a read-only dashboard built from `self.stats_summary`
     /// (see `collect_stats_summary`), itself built from Audiobookshelf's per-user
     /// `/api/me/listening-stats` - not scoped to the currently selected library.
+    // Panel heights for the virtual canvas below - kept as named constants since
+    // both the canvas's total height and each panel's Layout::vertical slice need
+    // to agree on them.
+    const STATS_OVERVIEW_H: u16 = 6;
+    const STATS_CHART_H: u16 = 10;
+    const STATS_DAY_OF_WEEK_H: u16 = 10;
+    const STATS_HEATMAP_H: u16 = 11;
+    const STATS_RANKINGS_H: u16 = 16;
+    const STATS_RECENT_SESSIONS_H: u16 = 10;
+
+    /// The Stats screen has more content than fits most terminal heights at once, so
+    /// unlike every other screen it renders into a tall off-screen `Buffer` (sized to
+    /// every panel's natural height) and copies a `scroll_offset`-shifted window of
+    /// that into the real visible area - the same technique `render_footer` already
+    /// uses for its own variable-height content, just applied to a whole screen of
+    /// mixed widgets instead of one wrapped `Paragraph`.
     fn render_stats(&mut self, area: Rect, buf: &mut Buffer) {
-        let text_render_footer = theme::footer_text(&Self::footer_trailer("Home", true));
+        let mut hints = vec![("J/K/H", "Scroll stats")];
+        hints.extend(Self::footer_trailer("Home", true));
+        let text_render_footer = theme::footer_text(&hints);
 
         let [header_area, main_area, _player_area, _refresh_area, footer_area] = self.standard_layout(area, &text_render_footer);
-
-        let [overview_area, chart_area, lists_area] = Layout::vertical([
-            Constraint::Length(5),
-            Constraint::Length(10),
-            Constraint::Fill(1),
-        ]).areas(main_area);
 
         App::render_header(header_area, buf, self.lib_name_type.clone(), &self.username, &self.server_address_pretty, VERSION, &self.update_msg);
         App::render_footer(footer_area, buf, &text_render_footer);
 
-        self.render_stats_overview(overview_area, buf);
-        self.render_stats_chart(chart_area, buf);
+        let total_h = Self::STATS_OVERVIEW_H + Self::STATS_CHART_H + Self::STATS_DAY_OF_WEEK_H
+            + Self::STATS_HEATMAP_H + Self::STATS_RANKINGS_H + Self::STATS_RECENT_SESSIONS_H;
+        let canvas_area = Rect::new(0, 0, main_area.width, total_h);
+        let mut canvas = Buffer::empty(canvas_area);
 
-        let [left_area, right_area] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(lists_area);
+        let [overview_area, chart_area, dow_area, heatmap_area, rankings_area, sessions_area] = Layout::vertical([
+            Constraint::Length(Self::STATS_OVERVIEW_H),
+            Constraint::Length(Self::STATS_CHART_H),
+            Constraint::Length(Self::STATS_DAY_OF_WEEK_H),
+            Constraint::Length(Self::STATS_HEATMAP_H),
+            Constraint::Length(Self::STATS_RANKINGS_H),
+            Constraint::Length(Self::STATS_RECENT_SESSIONS_H),
+        ]).areas(canvas_area);
+
+        self.render_stats_overview(overview_area, &mut canvas);
+        self.render_stats_chart(chart_area, &mut canvas);
+        self.render_stats_day_of_week(dow_area, &mut canvas);
+        self.render_stats_heatmap(heatmap_area, &mut canvas);
+
+        let [left_area, right_area] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(rankings_area);
         let [most_listened_area, genres_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(left_area);
         let [authors_area, narrators_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(right_area);
+        Self::render_stats_ranking(most_listened_area, &mut canvas, "Most Listened", &self.stats_summary.top_items);
+        Self::render_stats_ranking(genres_area, &mut canvas, "Top Genres", &self.stats_summary.top_genres);
+        Self::render_stats_ranking(authors_area, &mut canvas, "Top Authors", &self.stats_summary.top_authors);
+        Self::render_stats_ranking(narrators_area, &mut canvas, "Top Narrators", &self.stats_summary.top_narrators);
 
-        Self::render_stats_ranking(most_listened_area, buf, "Most Listened", &self.stats_summary.top_items);
-        Self::render_stats_ranking(genres_area, buf, "Top Genres", &self.stats_summary.top_genres);
-        Self::render_stats_ranking(authors_area, buf, "Top Authors", &self.stats_summary.top_authors);
-        Self::render_stats_ranking(narrators_area, buf, "Top Narrators", &self.stats_summary.top_narrators);
+        self.render_stats_recent_sessions(sessions_area, &mut canvas);
+
+        let max_scroll = total_h.saturating_sub(main_area.height);
+        let scroll = self.scroll_offset.min(max_scroll);
+        for row in 0..main_area.height {
+            let source_y = scroll + row;
+            if source_y >= total_h {
+                break;
+            }
+            for x in 0..main_area.width {
+                buf[(main_area.x + x, main_area.y + row)] = canvas[(x, source_y)].clone();
+            }
+        }
     }
 
     fn render_stats_overview(&self, area: Rect, buf: &mut Buffer) {
         let s = &self.stats_summary;
         let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+        let days_of_audio = s.total_time / 86400.0;
+        let daily_average = if s.days_active > 0 { s.total_time / s.days_active as f64 } else { 0.0 };
 
         let lines = vec![
             Line::from(format!(
-                "Total: {}    Today: {}    This week: {}    This month: {}",
+                "Total: {} (~{days_of_audio:.1} days of audio)    Today: {}    This week: {}    This month: {}",
                 fmt(s.total_time), fmt(s.today), fmt(s.this_week), fmt(s.this_month),
             )),
             Line::from(format!(
-                "Current streak: {} day{}    Best streak: {} day{}    Days active: {}",
+                "🔥 Streak: {} day{}    🏆 Best: {} day{}    📅 Days active: {}    ⏱️ Daily avg: {}",
                 s.current_streak, if s.current_streak == 1 { "" } else { "s" },
                 s.best_streak, if s.best_streak == 1 { "" } else { "s" },
-                s.days_active,
+                s.days_active, fmt(daily_average),
             )),
+            Line::from(format!("📚 Books: {}    🎧 Episodes: {}", s.books_count, s.episodes_count)),
         ];
 
         Paragraph::new(lines)
@@ -471,6 +516,93 @@ impl App {
             .render(area, buf);
     }
 
+    /// `day_of_week_avg` is Monday-first already (see `collect_stats_summary`) -
+    /// same `BarChart` construction as `render_stats_chart`, just fed the weekly
+    /// average per weekday instead of the literal last 7 days.
+    fn render_stats_day_of_week(&self, area: Rect, buf: &mut Buffer) {
+        let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+        let bars: Vec<Bar> = self.stats_summary.day_of_week_avg.iter()
+            .map(|(weekday, seconds)| {
+                let minutes = (seconds / 60.0).round() as u64;
+                Bar::default()
+                    .label(Line::from(format!("{weekday}")))
+                    .value(minutes)
+                    .text_value(if *seconds > 0.0 { fmt(*seconds) } else { String::new() })
+            })
+            .collect();
+
+        BarChart::default()
+            .data(BarGroup::default().bars(&bars))
+            .bar_width(6)
+            .bar_gap(1)
+            .bar_style(Style::new().fg(theme::ACCENT_STRUCTURE))
+            .value_style(Style::new().fg(theme::ACCENT_STRUCTURE).add_modifier(Modifier::REVERSED))
+            .block(theme::section_block("Average by Day of Week"))
+            .render(area, buf);
+    }
+
+    /// Hand-painted GitHub-style contribution graph - no ratatui widget fits this
+    /// shape. Cell intensity is bucketed relative to the *user's own* max single-day
+    /// value in the visible window (not a fixed absolute threshold), and uses
+    /// character density at one accent color rather than a custom RGB gradient,
+    /// matching this app's terminal-native-theming principle (no palette to
+    /// maintain) - the same choice the bar charts above already make.
+    fn render_stats_heatmap(&self, area: Rect, buf: &mut Buffer) {
+        let block = theme::section_block("Activity");
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        let daily_totals = &self.stats_summary.daily_totals;
+        if daily_totals.is_empty() || inner.height < 8 {
+            return;
+        }
+
+        const LABEL_WIDTH: u16 = 4;
+        let week_columns = ((inner.width.saturating_sub(LABEL_WIDTH)) / 2).clamp(1, 52) as usize;
+
+        let today = daily_totals.last().map(|&(d, _)| d).unwrap_or_default();
+        let window_start = today - chrono::Duration::weeks(week_columns as i64) + chrono::Duration::days(1);
+        let by_date: HashMap<chrono::NaiveDate, f64> = daily_totals.iter().copied().collect();
+        let max_in_window = daily_totals.iter()
+            .filter(|&&(d, _)| d >= window_start && d <= today)
+            .map(|&(_, s)| s)
+            .fold(0.0_f64, f64::max);
+
+        let cell_char = |seconds: f64| -> char {
+            if max_in_window <= 0.0 || seconds <= 0.0 { return ' '; }
+            match seconds / max_in_window {
+                r if r > 0.75 => '█',
+                r if r > 0.50 => '▓',
+                r if r > 0.25 => '▒',
+                _ => '░',
+            }
+        };
+
+        let weekday_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        for (row, label) in weekday_labels.iter().enumerate() {
+            buf.set_string(inner.x, inner.y + row as u16, label, Style::new().fg(theme::ACCENT_STRUCTURE));
+            for week in 0..week_columns {
+                // window_start is a Monday-aligned start (see below) - `week`
+                // columns run oldest to newest, left to right.
+                let date = window_start + chrono::Duration::days((week * 7 + row) as i64);
+                if date > today {
+                    continue;
+                }
+                let seconds = by_date.get(&date).copied().unwrap_or(0.0);
+                let ch = cell_char(seconds);
+                let x = inner.x + LABEL_WIDTH + (week as u16) * 2;
+                if x < inner.x + inner.width {
+                    buf.set_string(x, inner.y + row as u16, ch.to_string(), Style::new().fg(theme::ACCENT_STRUCTURE));
+                }
+            }
+        }
+
+        let legend_y = inner.y + 7;
+        if legend_y < inner.y + inner.height {
+            buf.set_string(inner.x, legend_y, "Less ░▒▓█ More", Style::new().fg(theme::ACCENT_STRUCTURE));
+        }
+    }
+
     fn render_stats_ranking(area: Rect, buf: &mut Buffer, title: &str, entries: &[(String, f64)]) {
         let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
         let lines: Vec<Line> = if entries.is_empty() {
@@ -484,6 +616,28 @@ impl App {
         Paragraph::new(lines)
             .wrap(Wrap { trim: true })
             .block(theme::section_block(title))
+            .render(area, buf);
+    }
+
+    fn render_stats_recent_sessions(&self, area: Rect, buf: &mut Buffer) {
+        let lines: Vec<Line> = if self.stats_summary.recent_sessions.is_empty() {
+            vec![Line::from("Nothing yet")]
+        } else {
+            self.stats_summary.recent_sessions.iter()
+                .map(|session| {
+                    let title = session.display_title.as_deref().unwrap_or("Unknown");
+                    let author = session.display_author.as_deref().unwrap_or("");
+                    let seconds = session.time_listening.unwrap_or(0.0);
+                    let duration = convert_seconds(vec![seconds]).into_iter().next().unwrap_or_default();
+                    let date = session.date.as_deref().unwrap_or("");
+                    Line::from(format!("{title} — {author} ({duration}, {date})"))
+                })
+                .collect()
+        };
+
+        Paragraph::new(lines)
+            .wrap(Wrap { trim: true })
+            .block(theme::section_block("Recent Sessions"))
             .render(area, buf);
     }
 
@@ -1060,8 +1214,13 @@ impl App {
                 hints.extend(Self::footer_trailer("Home", true));
                 hints
             }
+            // Doesn't reuse `globals` wholesale - Stats has no list/selection, so
+            // FOOTER_MOVE/FOOTER_LIST_JUMP would be actively misleading here (j/k/g/G
+            // are genuinely inert on this screen), and its own scroll hint is for the
+            // whole page, not a description panel.
             AppView::Stats => {
-                let mut hints = globals;
+                let mut hints = vec![("J/K/H", "Scroll stats"), ("/", "Search"), ("B", "Toggle player key-bindings legend")];
+                hints.extend(player_tui::PLAYER_KEYS.iter().copied());
                 hints.extend(Self::footer_trailer("Home", true));
                 hints
             }
