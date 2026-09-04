@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Absotui is a TUI (terminal UI) client for Audiobookshelf, written in Rust with `ratatui`. It's a fork of the archived [Toutui](https://github.com/AlbanDAVID/Toutui) project, currently in beta, maintained solo. See `README.md` for the feature list and `known_bugs.md` for known issues.
+Absotui is a TUI (terminal UI) client for Audiobookshelf, written in Rust with `ratatui`, currently in beta, maintained solo. See `README.md` for the feature list and `known_bugs.md` for known issues.
 
 ## Commands
 

@@ -1,6 +1,6 @@
 <!--
 Thanks for your PR :)
-Do not forget to read the guidelines: https://github.com/pdwaldrop/Absotui/blob/main/CONTRIBUTING.md
+Do not forget to read the guidelines: https://github.com/pdwaldrop/absotui/blob/main/CONTRIBUTING.md
 This project follows this branching workflow: https://gist.github.com/digitaljhelms/4287848
 -->
 

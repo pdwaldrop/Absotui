@@ -1,5 +1,5 @@
-[![GitHub release](https://img.shields.io/github/v/release/pdwaldrop/Absotui?label=Latest%20Release&color=green&cacheSeconds=3600)](https://github.com/pdwaldrop/Absotui/releases/latest)
-[![Release](https://github.com/pdwaldrop/Absotui/actions/workflows/release.yml/badge.svg)](https://github.com/pdwaldrop/Absotui/actions/workflows/release.yml)
+[![GitHub release](https://img.shields.io/github/v/release/pdwaldrop/absotui?label=Latest%20Release&color=green&cacheSeconds=3600)](https://github.com/pdwaldrop/absotui/releases/latest)
+[![Release](https://github.com/pdwaldrop/absotui/actions/workflows/release.yml/badge.svg)](https://github.com/pdwaldrop/absotui/actions/workflows/release.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-CE422B?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-informational)
@@ -39,6 +39,7 @@
 
 - **Books & podcasts, both first-class:** a unified "New & Unfinished" podcast home, instant mark-as-finished (<kbd>F</kbd>), and autoplay straight into the next unfinished episode
 - **Browse it your way:** flip through your full Library, or jump to Collections and series — grouped, sequence-ordered, one <kbd>Tab</kbd>/<kbd>S</kbd> away
+- **See your listening habits:** a full Stats page — streaks, a day-of-week chart, a year-long activity heatmap, recent sessions, and top rankings for what and who you listen to most
 - **Stream or take it offline:** download (<kbd>d</kbd>) any book or episode for offline listening, with a downloaded copy preferred automatically the moment you have one — Auto Download can keep your active listens ready without you thinking about it
 - **Real cover art, right in your terminal:** book and episode artwork rendered inline (Kitty/Sixel/iTerm2 terminals), not just text
 - **Chapter-level navigation:** browse a book's full chapter list inline in Continue Listening, with live per-chapter progress
@@ -51,7 +52,7 @@
 ---
 
 ## 📌 Project status
-Actively developed, single-maintainer project. Low-risk by design: the Audiobookshelf API is only ever used to retrieve books/podcasts and sync playback progress, so there's no destructive operation to worry about — at worst you'd see a sync hiccup, never data loss. Check [known bugs](known_bugs.md) or [open an issue](https://github.com/pdwaldrop/Absotui/issues) if something looks off.
+Actively developed, single-maintainer project. Low-risk by design: the Audiobookshelf API is only ever used to retrieve books/podcasts and sync playback progress, so there's no destructive operation to worry about — at worst you'd see a sync hiccup, never data loss. Check [known bugs](known_bugs.md) or [open an issue](https://github.com/pdwaldrop/absotui/issues) if something looks off.
 
 ---
 
@@ -62,21 +63,21 @@ Actively developed, single-maintainer project. Low-risk by design: the Audiobook
 **Run the following in your terminal, then follow the on-screen instructions:**
 
 ```bash
-bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
+bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" install && rm -f "$tmpfile"'
 ```
 
 #### Update
 Run `absotui --update`, or quit the app and run the following in your terminal:
 
 ```bash
-bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
+bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" update && rm -f "$tmpfile"'
 ```
 
 #### Uninstall
 Run `absotui --uninstall`, or quit the app and run the following in your terminal:
 
 ```bash
-bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/Absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
+bash -c 'tmpfile=$(mktemp) && curl -LsSf https://github.com/pdwaldrop/absotui/raw/stable/hello_absotui.sh -o "$tmpfile" && bash "$tmpfile" uninstall && rm -f "$tmpfile"'
 ```
 
 #### Files installed
@@ -101,11 +102,11 @@ In `~/.local/share/applications` (Linux):
 
 <sub>Optional: the `cvlc_term` config setting (off by default) opens a terminal to control `cvlc` directly, which additionally needs the `kitty` terminal installed.</sub>
 
-Note: `main` might be unstable — prefer `git clone --branch stable --single-branch https://github.com/pdwaldrop/Absotui` if you want the last stable release.
+Note: `main` might be unstable — prefer `git clone --branch stable --single-branch https://github.com/pdwaldrop/absotui` if you want the last stable release.
 
 ```bash
-git clone https://github.com/pdwaldrop/Absotui
-cd Absotui/
+git clone https://github.com/pdwaldrop/absotui
+cd absotui/
 mkdir -p ~/.config/absotui
 cp config.example.toml ~/.config/absotui/config.toml
 ```
@@ -122,7 +123,7 @@ cargo run --release
 #### Update
 When a new release is available:
 ```bash
-git pull https://github.com/pdwaldrop/Absotui
+git pull https://github.com/pdwaldrop/absotui
 cargo run --release
 ```
 
@@ -140,11 +141,10 @@ Files installed — same as above (`.env`, `config.toml`, `absotui.log`, `db.sql
 ---
 
 ## 🛠️ Roadmap
-Recent work: browse your library by Collections and by series (grouped, sequence-ordered) via <kbd>Tab</kbd>/<kbd>S</kbd> on the Library screen; audiobooks split across multiple files now play, navigate chapters, and download correctly across every file, not just the first; app startup with a large podcast library is dramatically faster (roughly 17s down to 4-5s); a more reliable playback session lifecycle (quitting, switching tracks, and recovering from a crash all sync and close sessions correctly); a UI refresh — terminal-native theming, bordered/labeled sections, curated footers, and a full keymap reference (<kbd>?</kbd>) on every screen; and the search box (<kbd>/</kbd>) rebuilt to render as a normal part of the screen instead of a separate window, fixing display glitches around cover art and the Now Playing bar.
+Recent work: a Stats page (<kbd>Tab</kbd> cycles to it) — total/streak/daily-average listening time, a day-of-week chart, a year-long activity heatmap, a Recent Sessions list, book/episode counts, and top-5 rankings for items, authors, genres, and narrators; browsing your library by Collections and by series (grouped, sequence-ordered) via <kbd>Tab</kbd>/<kbd>S</kbd> on the Library screen; and per-library-type icons and cover art in the Library screen's Description panel.
 
 **Under consideration:**
 - Managing podcast subscriptions from the app (add/remove)
-- A stats page
 
 See [known bugs](known_bugs.md) for what's still outstanding.
 
@@ -153,7 +153,7 @@ See [known bugs](known_bugs.md) for what's still outstanding.
 ## 📝 Notes
 
 ### 🐛 Issues
-Check the [issues](https://github.com/pdwaldrop/Absotui/issues) list first, then open a new one if yours isn't there.
+Check the [issues](https://github.com/pdwaldrop/absotui/issues) list first, then open a new one if yours isn't there.
 
 ### 🤝 Contributing
 Contributions of code, ideas, or feedback are welcome — see the [contributing guidelines](CONTRIBUTING.md) first.
