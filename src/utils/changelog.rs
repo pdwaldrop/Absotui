@@ -1073,8 +1073,7 @@ let changelog_64 = "Changelog Absotui v0.7.0 (03/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_65 = format!(
-    "Changelog Absotui v{VERSION} (03/09/2026) \n\
+let changelog_65 = "Changelog Absotui v0.7.1 (03/09/2026) \n\
          \n\
          Fixed:\n\
          - The \"ask for your password/fingerprint only once\" fix from v0.6.0
@@ -1084,10 +1083,23 @@ let changelog_65 = format!(
            only one prompt is ever shown now, right when it's actually needed.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_66 = format!(
+    "Changelog Absotui v{VERSION} (03/09/2026) \n\
+         \n\
+         New:\n\
+         - The Stats page now shows an average-by-day-of-week chart, a
+           year-long activity heatmap (with month labels), a Recent
+           Sessions list, and book/episode counts - alongside what v0.7.0
+           already had. It's grown enough to need scrolling (J/K/H), same
+           as long descriptions elsewhere.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_66);
     changelog.push_str(&changelog_65);
     changelog.push_str(&changelog_64);
     changelog.push_str(&changelog_63);
