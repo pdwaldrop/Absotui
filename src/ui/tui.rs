@@ -404,7 +404,7 @@ impl App {
     const STATS_OVERVIEW_H: u16 = 6;
     const STATS_CHART_H: u16 = 10;
     const STATS_DAY_OF_WEEK_H: u16 = 10;
-    const STATS_HEATMAP_H: u16 = 11;
+    const STATS_HEATMAP_H: u16 = 12;
     const STATS_RANKINGS_H: u16 = 16;
     const STATS_RECENT_SESSIONS_H: u16 = 10;
 
@@ -553,7 +553,7 @@ impl App {
         block.render(area, buf);
 
         let daily_totals = &self.stats_summary.daily_totals;
-        if daily_totals.is_empty() || inner.height < 8 {
+        if daily_totals.is_empty() || inner.height < 9 {
             return;
         }
 
@@ -561,7 +561,12 @@ impl App {
         let week_columns = ((inner.width.saturating_sub(LABEL_WIDTH)) / 2).clamp(1, 52) as usize;
 
         let today = daily_totals.last().map(|&(d, _)| d).unwrap_or_default();
-        let window_start = today - chrono::Duration::weeks(week_columns as i64) + chrono::Duration::days(1);
+        // Monday of *this* week, not just "7*N days back" - today isn't necessarily
+        // a Sunday, so subtracting whole weeks from it doesn't land on a Monday on
+        // its own (confirmed live: with today a Thursday, that math put the grid's
+        // "Mon" row on an actual Friday).
+        let this_week_start = today - chrono::Duration::days(i64::from(today.weekday().num_days_from_monday()));
+        let window_start = this_week_start - chrono::Duration::weeks((week_columns - 1) as i64);
         let by_date: HashMap<chrono::NaiveDate, f64> = daily_totals.iter().copied().collect();
         let max_in_window = daily_totals.iter()
             .filter(|&&(d, _)| d >= window_start && d <= today)
@@ -578,12 +583,30 @@ impl App {
             }
         };
 
+        // Month labels first, so the grid drawn after can overwrite the cells they
+        // sit above without needing to dodge them - a label only ever occupies the
+        // row above the grid, never the grid itself.
+        let month_row_y = inner.y;
+        let mut last_labeled_month: Option<u32> = None;
+        for week in 0..week_columns {
+            let week_start_date = window_start + chrono::Duration::weeks(week as i64);
+            if Some(week_start_date.month()) == last_labeled_month {
+                continue;
+            }
+            last_labeled_month = Some(week_start_date.month());
+            let x = inner.x + LABEL_WIDTH + (week as u16) * 2;
+            if x < inner.x + inner.width {
+                buf.set_string(x, month_row_y, week_start_date.format("%b").to_string(), Style::new().fg(theme::ACCENT_STRUCTURE));
+            }
+        }
+
+        let grid_y = inner.y + 1;
         let weekday_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         for (row, label) in weekday_labels.iter().enumerate() {
-            buf.set_string(inner.x, inner.y + row as u16, label, Style::new().fg(theme::ACCENT_STRUCTURE));
+            buf.set_string(inner.x, grid_y + row as u16, label, Style::new().fg(theme::ACCENT_STRUCTURE));
             for week in 0..week_columns {
-                // window_start is a Monday-aligned start (see below) - `week`
-                // columns run oldest to newest, left to right.
+                // `week` columns run oldest to newest, left to right; `window_start`
+                // is a real Monday, so `+ week*7 + row` lands on the matching weekday.
                 let date = window_start + chrono::Duration::days((week * 7 + row) as i64);
                 if date > today {
                     continue;
@@ -592,12 +615,12 @@ impl App {
                 let ch = cell_char(seconds);
                 let x = inner.x + LABEL_WIDTH + (week as u16) * 2;
                 if x < inner.x + inner.width {
-                    buf.set_string(x, inner.y + row as u16, ch.to_string(), Style::new().fg(theme::ACCENT_STRUCTURE));
+                    buf.set_string(x, grid_y + row as u16, ch.to_string(), Style::new().fg(theme::ACCENT_STRUCTURE));
                 }
             }
         }
 
-        let legend_y = inner.y + 7;
+        let legend_y = grid_y + 7;
         if legend_y < inner.y + inner.height {
             buf.set_string(inner.x, legend_y, "Less ░▒▓█ More", Style::new().fg(theme::ACCENT_STRUCTURE));
         }
