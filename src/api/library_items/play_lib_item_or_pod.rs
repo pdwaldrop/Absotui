@@ -20,6 +20,10 @@ pub struct AudioTrack {
     pub content_url: String,
     pub duration: f64,
     pub start_offset: f64,
+    /// This track's position within the session's own `audioTracks[]` - needed (not
+    /// just `content_url`) to build the `/public/session/:id/track/:index` URL VLC
+    /// actually streams from. See `post_start_playback_session_book`'s doc comment.
+    pub index: i64,
 }
 
 /// Which track a book-wide `time` (seconds) falls into - the first track whose span
@@ -160,6 +164,12 @@ pub async fn post_start_playback_session_pod(token: Option<&String>, id_library_
     let content_url = v["audioTracks"][0]["contentUrl"]
         .as_str()
         .unwrap_or("");
+    // Falls back to 0 if absent - the server explicitly tolerates that for podcasts
+    // (its own comment: "handles old episodes pre-v2.21.0 having null index"), so this
+    // is a safe default, not a guess.
+    let track_index = v["audioTracks"][0]["index"]
+        .as_i64()
+        .unwrap_or(0);
     let duration = v["audioTracks"][0]["duration"]
         .as_f64()
         .unwrap_or(0.0);
@@ -178,13 +188,14 @@ pub async fn post_start_playback_session_pod(token: Option<&String>, id_library_
         .unwrap_or("N/A");
 
     let info_item = vec![
-        current_time.to_string(), 
-        content_url.to_string(), 
-        duration.to_string(), 
-        id_session.to_string(), 
-        title.to_string(), 
-        subtitle.to_string(), 
-        author.to_string()
+        current_time.to_string(),
+        content_url.to_string(),
+        duration.to_string(),
+        id_session.to_string(),
+        title.to_string(),
+        subtitle.to_string(),
+        author.to_string(),
+        track_index.to_string(),
     ];
 
     Ok(info_item)

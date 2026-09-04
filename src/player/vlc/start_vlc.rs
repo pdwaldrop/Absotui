@@ -29,8 +29,8 @@ pub async fn start_vlc(
     current_time: &str,
     port: &str,
     address: String,
-    content_url: &String,
-    token: Option<&String>,
+    id_session: &str,
+    track_index: i64,
     title: String,
     subtitle: String,
     author: String,
@@ -48,7 +48,19 @@ pub async fn start_vlc(
     // src/utils/download_cache.rs), point VLC straight at the local file instead of
     // streaming from the server - works whether or not the server is actually
     // reachable right now.
-    let source = local_file_path.unwrap_or_else(|| format!("{}{}?token={}", server_address, content_url, token.unwrap()));
+    //
+    // Otherwise, streams from the session-scoped `/public/session/:id/track/:index`
+    // endpoint rather than the raw `/api/items/:id/file/:ino` one with the user's own
+    // access token tacked on as `?token=...` (the previous approach) - flagged by an
+    // Audiobookshelf contributor (see known_bugs.md/issue #6) as the older, less secure
+    // pattern: that token ends up in VLC's own history, this process's argv, and any
+    // server-side access log, all for a credential that's otherwise never exposed
+    // outside an Authorization header. Confirmed against the server's own source
+    // (server/routers/PublicRouter.js -> SessionController.getTrack): this route needs
+    // no token at all, only a live, currently-open session id - which is exactly what
+    // `id_session` already is - so nothing has to be transmitted here at all. This is
+    // also what the official web client does (client/players/AudioTrack.js).
+    let source = local_file_path.unwrap_or_else(|| format!("{server_address}/public/session/{id_session}/track/{track_index}"));
 
     // Own copies of the borrowed params so the blocking closure below can be
     // 'static, as spawn_blocking requires.

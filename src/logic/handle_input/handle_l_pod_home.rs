@@ -116,7 +116,6 @@ pub async fn handle_l_pod_home(
 
 
             // Cloned so these stay available after the move into the spawned task below.
-            let token_clone = token.clone();
             let port_clone = port.clone();
             let info_item_clone = info_item.clone() ;
             let server_address_clone = server_address.clone() ;
@@ -138,8 +137,8 @@ pub async fn handle_l_pod_home(
                     &info_item_clone[0], // current_time
                     &port_clone, // player port
                     address_player_clone, // player address
-                    &info_item_clone[1], // content url
-                    Some(&token_clone), //token
+                    &info_item_clone[3], // id_session
+                    info_item_clone[7].parse().unwrap_or(0), // track_index
                     info_item_clone[4].clone(), // title
                     info_item_clone[5].clone(), // subtitle
                     info_item_clone[6].clone(), // author

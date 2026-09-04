@@ -68,14 +68,14 @@ pub async fn handle_pod_episode_offline(
 
     tokio::spawn(async move {
         info!("[handle_pod_episode_offline][start_vlc] VLC launched against local file (offline)");
-        // content_url/token/server_address are unused whenever local_file_path is
+        // id_session/track_index/server_address are unused whenever local_file_path is
         // Some - see start_vlc's `source` resolution.
         if let Err(e) = start_vlc(
             &current_time_str,
             &port_clone,
             address_player_clone,
-            &String::new(),
-            None,
+            "",
+            0,
             title.clone(),
             title,
             String::new(),

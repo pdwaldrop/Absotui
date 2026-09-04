@@ -29,8 +29,8 @@ fn spawn_track_vlc(
     relative_start: u32,
     port: String,
     address_player: String,
-    content_url: String,
-    token: Option<String>,
+    id_session: String,
+    track_index: i64,
     title: String,
     subtitle: String,
     author: String,
@@ -48,8 +48,8 @@ fn spawn_track_vlc(
             &relative_start.to_string(),
             &port,
             address_player,
-            &content_url,
-            token.as_ref(),
+            &id_session,
+            track_index,
             title,
             subtitle,
             author,
@@ -171,8 +171,8 @@ pub async fn handle_l_book(
                         initial_relative_start,
                         port.clone(),
                         address_player.clone(),
-                        info_item[1].clone(), // content url (starting track)
-                        Some(token.clone()),
+                        info_item[3].clone(), // id_session
+                        tracks.get(current_track_idx).map(|t| t.index).unwrap_or(0),
                         info_item[4].clone(), // title
                         info_item[5].clone(), // subtitle
                         info_item[6].clone(), // author
@@ -263,7 +263,7 @@ pub async fn handle_l_book(
 
                                     current_track_idx = target_track_idx;
                                     track_base_offset = target_track_base;
-                                    let content_url = tracks.get(current_track_idx).map(|t| t.content_url.clone()).unwrap_or_default();
+                                    let track_index = tracks.get(current_track_idx).map(|t| t.index).unwrap_or(0);
                                     let local_file_path = local_tracks.get(current_track_idx).cloned();
 
                                     spawn_track_vlc(
@@ -271,8 +271,8 @@ pub async fn handle_l_book(
                                         relative_target,
                                         port.clone(),
                                         address_player.clone(),
-                                        content_url,
-                                        Some(token.clone()),
+                                        info_item[3].clone(), // id_session
+                                        track_index,
                                         info_item[4].clone(),
                                         info_item[5].clone(),
                                         info_item[6].clone(),
@@ -367,7 +367,7 @@ pub async fn handle_l_book(
 
                                             current_track_idx += 1;
                                             track_base_offset = tracks[current_track_idx].start_offset.round() as u32;
-                                            let content_url = tracks[current_track_idx].content_url.clone();
+                                            let track_index = tracks[current_track_idx].index;
                                             let local_file_path = local_tracks.get(current_track_idx).cloned();
 
                                             spawn_track_vlc(
@@ -375,8 +375,8 @@ pub async fn handle_l_book(
                                                 0,
                                                 port.clone(),
                                                 address_player.clone(),
-                                                content_url,
-                                                Some(token.clone()),
+                                                info_item[3].clone(), // id_session
+                                                track_index,
                                                 info_item[4].clone(),
                                                 info_item[5].clone(),
                                                 info_item[6].clone(),
@@ -525,15 +525,15 @@ async fn handle_l_book_offline(
     let initial_relative_start = current_time.saturating_sub(track_base_offset);
     let initial_local_file_path = downloaded.tracks.get(current_track_idx).map(|t| t.local_path.clone());
 
-    // content_url/token/server_address are unused whenever local_file_path is Some -
-    // see start_vlc's `source` resolution.
+    // id_session/track_index/server_address are unused whenever local_file_path is
+    // Some - see start_vlc's `source` resolution.
     spawn_track_vlc(
         "handle_l_book_offline",
         initial_relative_start,
         port.clone(),
         address_player.clone(),
         String::new(),
-        None,
+        0,
         title.clone(),
         title.clone(),
         author.clone(),
@@ -602,7 +602,7 @@ async fn handle_l_book_offline(
                         port.clone(),
                         address_player.clone(),
                         String::new(),
-                        None,
+                        0,
                         title.clone(),
                         title.clone(),
                         author.clone(),
@@ -654,7 +654,7 @@ async fn handle_l_book_offline(
                                 port.clone(),
                                 address_player.clone(),
                                 String::new(),
-                                None,
+                                0,
                                 title.clone(),
                                 title.clone(),
                                 author.clone(),
