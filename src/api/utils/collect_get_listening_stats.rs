@@ -22,6 +22,11 @@ pub struct StatsSummary {
     /// Oldest to newest - the calendar heatmap widens/narrows its own window to fit,
     /// rather than this being pre-trimmed to any fixed range.
     pub daily_totals: Vec<(NaiveDate, f64)>,
+    /// Same data as `daily_totals`, pre-indexed by date - the heatmap looks up one
+    /// day's total per grid cell every render, and the render loop redraws on a
+    /// ~200ms poll regardless of whether this data actually changed, so this is built
+    /// once here rather than rebuilt from `daily_totals` on every frame.
+    pub daily_totals_by_date: HashMap<NaiveDate, f64>,
     pub top_items: Vec<(String, f64)>,
     pub top_authors: Vec<(String, f64)>,
     pub top_narrators: Vec<(String, f64)>,
@@ -49,6 +54,7 @@ impl Default for StatsSummary {
             last_7_days: Vec::new(),
             day_of_week_avg: order.map(|wd| (wd, 0.0)),
             daily_totals: Vec::new(),
+            daily_totals_by_date: HashMap::new(),
             top_items: Vec::new(),
             top_authors: Vec::new(),
             top_narrators: Vec::new(),
@@ -93,6 +99,7 @@ pub async fn collect_stats_summary(stats: &Root, today: NaiveDate) -> StatsSumma
         top_narrators: top_by_person(&items, MediaMetadata::narrator_names),
         top_genres: top_genres(&items),
         recent_sessions,
+        daily_totals_by_date: days,
     }
 }
 
@@ -227,18 +234,7 @@ fn top_by_person(items: &HashMap<String, StatItem>, extract: impl Fn(&MediaMetad
 }
 
 fn top_genres(items: &HashMap<String, StatItem>) -> Vec<(String, f64)> {
-    let mut totals: HashMap<String, f64> = HashMap::new();
-    for item in items.values() {
-        let Some(meta) = &item.media_metadata else { continue };
-        let seconds = item.time_listening.unwrap_or(0.0);
-        for genre in meta.genres.clone().unwrap_or_default() {
-            *totals.entry(genre).or_insert(0.0) += seconds;
-        }
-    }
-    let mut v: Vec<(String, f64)> = totals.into_iter().collect();
-    v.sort_by(|a, b| b.1.total_cmp(&a.1));
-    v.truncate(TOP_N);
-    v
+    top_by_person(items, |m| m.genres.clone().unwrap_or_default())
 }
 
 #[cfg(test)]

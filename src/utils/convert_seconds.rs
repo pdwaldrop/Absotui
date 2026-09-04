@@ -1,19 +1,20 @@
 pub fn convert_seconds(vec_seconds: Vec<f64>) -> Vec<String> {
-    vec_seconds.iter()
-        .map(|&s| {
-            let total_minutes = (s / 60.0).round() as i64;
-            let hours = total_minutes / 60;
-            let minutes = total_minutes % 60;
+    vec_seconds.iter().map(|&s| format_duration(s)).collect()
+}
 
-            if hours == 0 {
-                format!("{minutes}m")
-            } else if minutes == 0 {
-                format!("{hours}h")
-            } else {
-                format!("{hours}h{minutes}m")
-            }
-        })
-        .collect()
+/// Single-value form of `convert_seconds` - for a lone duration rather than a batch.
+pub fn format_duration(seconds: f64) -> String {
+    let total_minutes = (seconds / 60.0).round() as i64;
+    let hours = total_minutes / 60;
+    let minutes = total_minutes % 60;
+
+    if hours == 0 {
+        format!("{minutes}m")
+    } else if minutes == 0 {
+        format!("{hours}h")
+    } else {
+        format!("{hours}h{minutes}m")
+    }
 }
 
 

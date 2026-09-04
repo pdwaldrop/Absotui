@@ -12,7 +12,7 @@ use ratatui::{
         StatefulWidget, Table, Widget, Wrap
     },
 };
-use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age};
+use crate::utils::convert_seconds::{convert_seconds, convert_seconds_for_prg, format_age, format_duration};
 use crate::utils::format_size::format_sizes;
 use crate::db::crud::{get_listening_session, get_is_podcast_autoplay, get_is_vlc_running, get_is_per_item_speed, get_is_auto_download};
 use crate::player::integrated::player_info::{format_time, find_current_chapter};
@@ -20,7 +20,6 @@ use crate::utils::html_to_text::html_to_lines;
 use crate::utils::cover_cache::{cover_cache_path, fetch_and_cache_cover, fetch_and_cache_episode_cover};
 use crate::utils::changelog::latest_changelog_entry;
 use chrono::Datelike;
-use std::collections::HashMap;
 use crate::ui::theme;
 use crate::ui::player_tui;
 
@@ -363,8 +362,10 @@ impl App {
         self.render_list(list_area, buf, &render_list_title, &display_titles, &mut self.list_state_library.clone(), None);
         // Resolved to the real book index behind the current row selection (a series
         // header has nothing to show here) - see `selected_library_book_index`'s doc
-        // comment for why this can't just be `list_state_library` itself.
-        if let Some(book_index) = self.selected_library_book_index() {
+        // comment for why this can't just be `list_state_library` itself. Resolved
+        // against `rows` (already built above for display) rather than calling
+        // `selected_library_book_index()`, which would redo the same grouping/sort pass.
+        if let Some(book_index) = App::resolve_library_book_index(self.list_state_library.selected(), &rows) {
             let mut resolved_state = ListState::default();
             resolved_state.select(Some(book_index));
             self.render_info_library(item_area1, buf, &resolved_state);
@@ -468,7 +469,7 @@ impl App {
 
     fn render_stats_overview(&self, area: Rect, buf: &mut Buffer) {
         let s = &self.stats_summary;
-        let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+        let fmt = format_duration;
         let days_of_audio = s.total_time / 86400.0;
         let daily_average = if s.days_active > 0 { s.total_time / s.days_active as f64 } else { 0.0 };
 
@@ -492,7 +493,7 @@ impl App {
     }
 
     fn render_stats_chart(&self, area: Rect, buf: &mut Buffer) {
-        let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+        let fmt = format_duration;
         let bars: Vec<Bar> = self.stats_summary.last_7_days.iter()
             .map(|(date, seconds)| {
                 // Minutes, not seconds - BarChart's value drives bar height, and a whole
@@ -520,7 +521,7 @@ impl App {
     /// same `BarChart` construction as `render_stats_chart`, just fed the weekly
     /// average per weekday instead of the literal last 7 days.
     fn render_stats_day_of_week(&self, area: Rect, buf: &mut Buffer) {
-        let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+        let fmt = format_duration;
         let bars: Vec<Bar> = self.stats_summary.day_of_week_avg.iter()
             .map(|(weekday, seconds)| {
                 let minutes = (seconds / 60.0).round() as u64;
@@ -567,7 +568,7 @@ impl App {
         // "Mon" row on an actual Friday).
         let this_week_start = today - chrono::Duration::days(i64::from(today.weekday().num_days_from_monday()));
         let window_start = this_week_start - chrono::Duration::weeks((week_columns - 1) as i64);
-        let by_date: HashMap<chrono::NaiveDate, f64> = daily_totals.iter().copied().collect();
+        let by_date = &self.stats_summary.daily_totals_by_date;
         let max_in_window = daily_totals.iter()
             .filter(|&&(d, _)| d >= window_start && d <= today)
             .map(|&(_, s)| s)
@@ -627,7 +628,7 @@ impl App {
     }
 
     fn render_stats_ranking(area: Rect, buf: &mut Buffer, title: &str, entries: &[(String, f64)]) {
-        let fmt = |secs: f64| convert_seconds(vec![secs]).into_iter().next().unwrap_or_default();
+        let fmt = format_duration;
         let lines: Vec<Line> = if entries.is_empty() {
             vec![Line::from("Nothing yet")]
         } else {
@@ -651,7 +652,7 @@ impl App {
                     let title = session.display_title.as_deref().unwrap_or("Unknown");
                     let author = session.display_author.as_deref().unwrap_or("");
                     let seconds = session.time_listening.unwrap_or(0.0);
-                    let duration = convert_seconds(vec![seconds]).into_iter().next().unwrap_or_default();
+                    let duration = format_duration(seconds);
                     let date = session.date.as_deref().unwrap_or("");
                     Line::from(format!("{title} — {author} ({duration}, {date})"))
                 })

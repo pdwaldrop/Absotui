@@ -23,7 +23,18 @@ pub struct AudioTrack {
     /// This track's position within the session's own `audioTracks[]` - needed (not
     /// just `content_url`) to build the `/public/session/:id/track/:index` URL VLC
     /// actually streams from. See `post_start_playback_session_book`'s doc comment.
+    /// Missing or null (older items, per Audiobookshelf's own pre-v2.21.0 caveat -
+    /// see `post_start_playback_session_pod`'s identical tolerance) falls back to 0
+    /// rather than failing this track's whole containing array to deserialize.
+    #[serde(default, deserialize_with = "index_or_default")]
     pub index: i64,
+}
+
+fn index_or_default<'de, D>(deserializer: D) -> std::result::Result<i64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Option::<i64>::deserialize(deserializer)?.unwrap_or(0))
 }
 
 /// Which track a book-wide `time` (seconds) falls into - the first track whose span

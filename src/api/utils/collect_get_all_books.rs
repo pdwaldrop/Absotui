@@ -1,19 +1,19 @@
 use crate::api::libraries::get_all_books::{Root, Metadata};
 
-/// collect titles
+/// collect titles - always one entry per `results` item (an item with missing
+/// media/metadata still gets a placeholder), same as `collect_ids_library` -
+/// callers index this array in lockstep with several others built the same way
+/// (see CLAUDE.md's parallel-arrays warning), so skipping an item here instead
+/// of the sibling arrays would silently misalign every index after it.
 pub async fn collect_titles_library(library: &Root) -> Vec<String> {
     let mut titles_library = Vec::new();
 
     if let Some(results) = &library.results {
         for item in results {
-            if let Some(media) = &item.media
-                && let Some(metadata) = &media.metadata {
-                    if let Some(title) = &metadata.title {
-                        titles_library.push(title.clone());
-                    } else {
-                        titles_library.push("N/A".to_string());
-                    }
-                }
+            let title = item.media.as_ref()
+                .and_then(|media| media.metadata.as_ref())
+                .and_then(|metadata| metadata.title.clone());
+            titles_library.push(title.unwrap_or_else(|| "N/A".to_string()));
         }
     }
 
@@ -38,82 +38,67 @@ pub async fn collect_ids_library(library: &Root) -> Vec<String> {
     ids_library
 }
 
-/// collect author name for book
+/// collect author name for book - always one entry per `results` item, see
+/// `collect_titles_library`'s doc comment.
 pub async fn collect_auth_names_library(library: &Root) -> Vec<String> {
     let mut auth_names_library = Vec::new();
 
     if let Some(results) = &library.results {
         for item in results {
-            if let Some(media) = &item.media
-                && let Some(metadata) = &media.metadata {
-                    if let Some(author_name) = &metadata.author_name {
-                        auth_names_library.push(author_name.clone());
-                    } else {
-                        auth_names_library.push("N/A".to_string());
-                    }
-
-                }
+            let author_name = item.media.as_ref()
+                .and_then(|media| media.metadata.as_ref())
+                .and_then(|metadata| metadata.author_name.clone());
+            auth_names_library.push(author_name.unwrap_or_else(|| "N/A".to_string()));
         }
     }
 
     auth_names_library
 }
 
-/// collect author name for podcast
+/// collect author name for podcast - always one entry per `results` item, see
+/// `collect_titles_library`'s doc comment.
 pub async fn collect_auth_names_library_pod(library: &Root) -> Vec<String> {
     let mut auth_names_library_pod = Vec::new();
 
     if let Some(results) = &library.results {
         for item in results {
-            if let Some(media) = &item.media
-                && let Some(metadata) = &media.metadata {
-                    if let Some(author) = &metadata.author {
-                        auth_names_library_pod.push(author.clone());
-                    } else {
-                        auth_names_library_pod.push("N/A".to_string());
-                    }
-
-                }
+            let author = item.media.as_ref()
+                .and_then(|media| media.metadata.as_ref())
+                .and_then(|metadata| metadata.author.clone());
+            auth_names_library_pod.push(author.unwrap_or_else(|| "N/A".to_string()));
         }
     }
 
     auth_names_library_pod
 }
-/// collect published year
+/// collect published year - always one entry per `results` item, see
+/// `collect_titles_library`'s doc comment.
 pub async fn collect_published_year_library(library: &Root) -> Vec<String> {
     let mut published_year_library = Vec::new();
 
     if let Some(results) = &library.results {
         for item in results {
-            if let Some(media) = &item.media
-                && let Some(metadata) = &media.metadata {
-                    if let Some(pub_year) = &metadata.published_year {
-                        published_year_library.push(pub_year.clone());
-                    } else {
-                        published_year_library.push("N/A".to_string());
-                    }
-
-                }
+            let pub_year = item.media.as_ref()
+                .and_then(|media| media.metadata.as_ref())
+                .and_then(|metadata| metadata.published_year.clone());
+            published_year_library.push(pub_year.unwrap_or_else(|| "N/A".to_string()));
         }
     }
 
     published_year_library
 }
 
-/// collect description
+/// collect description - always one entry per `results` item, see
+/// `collect_titles_library`'s doc comment.
 pub async fn collect_desc_library(library: &Root) -> Vec<String> {
     let mut desc_library = Vec::new();
 
     if let Some(results) = &library.results {
         for item in results {
-            if let Some(media) = &item.media
-                && let Some(metadata) = &media.metadata {
-                    if let Some(desc) = &metadata.description {
-                        desc_library.push(desc.clone());
-                    } else {
-                        desc_library.push("No description available".to_string());
-                    }
-                }
+            let desc = item.media.as_ref()
+                .and_then(|media| media.metadata.as_ref())
+                .and_then(|metadata| metadata.description.clone());
+            desc_library.push(desc.unwrap_or_else(|| "No description available".to_string()));
         }
     }
 
@@ -141,55 +126,38 @@ fn resolve_series(metadata: &Metadata) -> (Option<String>, Option<f64>) {
     }
 }
 
-/// collect each book's primary series name (first entry, if any)
-pub async fn collect_series_name_library(library: &Root) -> Vec<Option<String>> {
+/// collect each book's primary series name and sequence number (sequence parsed to
+/// `f64` so a group sorts numerically - "2.5" between "2" and "3" - rather than
+/// lexically) in one pass, since both come from the same `resolve_series` call per
+/// book - collecting them separately would re-parse the same packed `seriesName`
+/// string for every book twice.
+pub async fn collect_series_library(library: &Root) -> (Vec<Option<String>>, Vec<Option<f64>>) {
     let mut series_name_library = Vec::new();
-
-    if let Some(results) = &library.results {
-        for item in results {
-            let name = item.media.as_ref()
-                .and_then(|media| media.metadata.as_ref())
-                .map(resolve_series)
-                .and_then(|(name, _)| name);
-            series_name_library.push(name);
-        }
-    }
-
-    series_name_library
-}
-
-/// collect each book's primary series sequence number, parsed to `f64` so a group
-/// sorts numerically ("2.5" between "2" and "3") rather than lexically
-pub async fn collect_series_sequence_library(library: &Root) -> Vec<Option<f64>> {
     let mut series_sequence_library = Vec::new();
 
     if let Some(results) = &library.results {
         for item in results {
-            let sequence = item.media.as_ref()
+            let (name, sequence) = item.media.as_ref()
                 .and_then(|media| media.metadata.as_ref())
                 .map(resolve_series)
-                .and_then(|(_, sequence)| sequence);
+                .unwrap_or((None, None));
+            series_name_library.push(name);
             series_sequence_library.push(sequence);
         }
     }
 
-    series_sequence_library
+    (series_name_library, series_sequence_library)
 }
 
-/// collect duration
+/// collect duration - always one entry per `results` item, see
+/// `collect_titles_library`'s doc comment.
 pub async fn collect_duration_library(library: &Root) -> Vec<f64> {
     let mut duration = vec![];
 
     if let Some(results) = &library.results {
         for item in results {
-            if let Some(media) = &item.media {
-                if let Some(dur) = &media.duration {
-                    duration.push(*dur);
-                } else {
-                    duration.push(0.0);
-                }
-
-            }
+            let dur = item.media.as_ref().and_then(|media| media.duration);
+            duration.push(dur.unwrap_or(0.0));
         }
     }
 
@@ -237,14 +205,12 @@ mod tests {
             ..Default::default()
         };
 
+        let (names, sequences) = collect_series_library(&root).await;
         assert_eq!(
-            collect_series_name_library(&root).await,
+            names,
             vec![Some("Main Series".to_string()), None, Some("Odd Series".to_string())],
         );
-        assert_eq!(
-            collect_series_sequence_library(&root).await,
-            vec![Some(2.5), None, None],
-        );
+        assert_eq!(sequences, vec![Some(2.5), None, None]);
     }
 
     #[tokio::test]
@@ -262,8 +228,9 @@ mod tests {
             ..Default::default()
         };
 
+        let (names, sequences) = collect_series_library(&root).await;
         assert_eq!(
-            collect_series_name_library(&root).await,
+            names,
             vec![
                 Some("The Wheel of Time".to_string()),
                 Some("Harry Potter".to_string()),
@@ -271,10 +238,7 @@ mod tests {
                 None,
             ],
         );
-        assert_eq!(
-            collect_series_sequence_library(&root).await,
-            vec![Some(3.0), Some(7.0), None, None],
-        );
+        assert_eq!(sequences, vec![Some(3.0), Some(7.0), None, None]);
     }
 
     #[tokio::test]
@@ -294,7 +258,8 @@ mod tests {
             ..Default::default()
         };
 
-        assert_eq!(collect_series_name_library(&root).await, vec![Some("Array Series".to_string())]);
-        assert_eq!(collect_series_sequence_library(&root).await, vec![Some(1.0)]);
+        let (names, sequences) = collect_series_library(&root).await;
+        assert_eq!(names, vec![Some("Array Series".to_string())]);
+        assert_eq!(sequences, vec![Some(1.0)]);
     }
 }

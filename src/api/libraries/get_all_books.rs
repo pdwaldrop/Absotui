@@ -76,9 +76,8 @@ pub struct Metadata {
     // Wheel of Time #3", or "Harry Potter #7, Wizarding World Collection #7" for a
     // book in more than one series (comma-separated). `series` above is kept too
     // (it's what Audiobookshelf's own API docs describe) in case a different server
-    // version sends the structured form - see collect_series_name_library/
-    // collect_series_sequence_library, which prefer `series` and fall back to
-    // parsing this.
+    // version sends the structured form - see collect_series_library, which
+    // prefers `series` and falls back to parsing this.
     pub series_name: Option<String>,
     pub genres: Option<Vec<String>>,
     pub published_year: Option<String>,
@@ -92,8 +91,8 @@ pub struct Metadata {
 }
 
 // A book can belong to more than one series - only the first entry is used
-// (see collect_series_name_library/collect_series_sequence_library), matching
-// how Audiobookshelf's own UI surfaces a single "primary" series badge.
+// (see collect_series_library), matching how Audiobookshelf's own UI surfaces
+// a single "primary" series badge.
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Series {

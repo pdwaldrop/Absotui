@@ -26,29 +26,29 @@ fn default_db_path() -> PathBuf {
     config_home_path.join("absotui/db.sqlite3")
 }
 
-pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
-
+// Shared bodies for the get/update pairs below - identical apart from which `users`
+// column they touch. `column` is always a hardcoded literal passed by a caller in
+// this file, never external input, so interpolating it into the SQL string is safe.
+fn update_user_text_column(value: &str, username: &str, column: &str, log_tag: &str) -> Result<()> {
     let db_path = default_db_path();
 
     let err_message = "Error connecting to the database.";
 
     if let Ok(conn) = Connection::open(db_path) {
-
         conn.execute(
-            "UPDATE users SET is_show_key_bindings = ?1 WHERE username = ?2",
+            &format!("UPDATE users SET {column} = ?1 WHERE username = ?2"),
             params![value, username],
         )?;
     } else {
         let mut stdout = stdout();
         let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_show_key_bindings] {err_message}");
+        error!("[{log_tag}] {err_message}");
     }
 
     Ok(())
 }
 
-
-pub fn get_is_show_key_bindings(username: &str) -> String {
+fn get_user_text_column(username: &str, column: &str) -> String {
     let db_path = default_db_path();
 
     let conn = match Connection::open(db_path) {
@@ -56,7 +56,7 @@ pub fn get_is_show_key_bindings(username: &str) -> String {
         Err(_) => return String::from("Error: unable open database"),
     };
 
-    let mut stmt = match conn.prepare("SELECT is_show_key_bindings FROM users WHERE username = ?1") {
+    let mut stmt = match conn.prepare(&format!("SELECT {column} FROM users WHERE username = ?1")) {
         Ok(s) => s,
         Err(_) => return String::from("Error to prepare reqwest"),
     };
@@ -65,170 +65,46 @@ pub fn get_is_show_key_bindings(username: &str) -> String {
         Ok(id) => id.clone(),
         Err(_) => String::from("No db found"),
     }
+}
+
+pub fn update_is_show_key_bindings(value: &str, username: &str) -> Result<()> {
+    update_user_text_column(value, username, "is_show_key_bindings", "update_is_show_key_bindings")
+}
+
+pub fn get_is_show_key_bindings(username: &str) -> String {
+    get_user_text_column(username, "is_show_key_bindings")
 }
 
 pub fn update_is_speed_adjusted_time(value: &str, username: &str) -> Result<()> {
-
-    let db_path = default_db_path();
-
-    let err_message = "Error connecting to the database.";
-
-    if let Ok(conn) = Connection::open(db_path) {
-
-        conn.execute(
-            "UPDATE users SET is_speed_adjusted_time = ?1 WHERE username = ?2",
-            params![value, username],
-        )?;
-    } else {
-        let mut stdout = stdout();
-        let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_speed_adjusted_time] {err_message}");
-    }
-
-    Ok(())
+    update_user_text_column(value, username, "is_speed_adjusted_time", "update_is_speed_adjusted_time")
 }
 
-
 pub fn get_is_speed_adjusted_time(username: &str) -> String {
-    let db_path = default_db_path();
-
-    let conn = match Connection::open(db_path) {
-        Ok(c) => c,
-        Err(_) => return String::from("Error: unable open database"),
-    };
-
-    let mut stmt = match conn.prepare("SELECT is_speed_adjusted_time FROM users WHERE username = ?1") {
-        Ok(s) => s,
-        Err(_) => return String::from("Error to prepare reqwest"),
-    };
-
-    match stmt.query_row(params![username], |row| row.get::<_, String>(0)) {
-        Ok(id) => id.clone(),
-        Err(_) => String::from("No db found"),
-    }
+    get_user_text_column(username, "is_speed_adjusted_time")
 }
 
 pub fn update_is_podcast_autoplay(value: &str, username: &str) -> Result<()> {
-
-    let db_path = default_db_path();
-
-    let err_message = "Error connecting to the database.";
-
-    if let Ok(conn) = Connection::open(db_path) {
-
-        conn.execute(
-            "UPDATE users SET is_podcast_autoplay = ?1 WHERE username = ?2",
-            params![value, username],
-        )?;
-    } else {
-        let mut stdout = stdout();
-        let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_podcast_autoplay] {err_message}");
-    }
-
-    Ok(())
+    update_user_text_column(value, username, "is_podcast_autoplay", "update_is_podcast_autoplay")
 }
 
-
 pub fn get_is_podcast_autoplay(username: &str) -> String {
-    let db_path = default_db_path();
-
-    let conn = match Connection::open(db_path) {
-        Ok(c) => c,
-        Err(_) => return String::from("Error: unable open database"),
-    };
-
-    let mut stmt = match conn.prepare("SELECT is_podcast_autoplay FROM users WHERE username = ?1") {
-        Ok(s) => s,
-        Err(_) => return String::from("Error to prepare reqwest"),
-    };
-
-    match stmt.query_row(params![username], |row| row.get::<_, String>(0)) {
-        Ok(id) => id.clone(),
-        Err(_) => String::from("No db found"),
-    }
+    get_user_text_column(username, "is_podcast_autoplay")
 }
 
 pub fn update_is_auto_download(value: &str, username: &str) -> Result<()> {
-
-    let db_path = default_db_path();
-
-    let err_message = "Error connecting to the database.";
-
-    if let Ok(conn) = Connection::open(db_path) {
-
-        conn.execute(
-            "UPDATE users SET is_auto_download = ?1 WHERE username = ?2",
-            params![value, username],
-        )?;
-    } else {
-        let mut stdout = stdout();
-        let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_auto_download] {err_message}");
-    }
-
-    Ok(())
+    update_user_text_column(value, username, "is_auto_download", "update_is_auto_download")
 }
 
-
 pub fn get_is_auto_download(username: &str) -> String {
-    let db_path = default_db_path();
-
-    let conn = match Connection::open(db_path) {
-        Ok(c) => c,
-        Err(_) => return String::from("Error: unable open database"),
-    };
-
-    let mut stmt = match conn.prepare("SELECT is_auto_download FROM users WHERE username = ?1") {
-        Ok(s) => s,
-        Err(_) => return String::from("Error to prepare reqwest"),
-    };
-
-    match stmt.query_row(params![username], |row| row.get::<_, String>(0)) {
-        Ok(id) => id.clone(),
-        Err(_) => String::from("No db found"),
-    }
+    get_user_text_column(username, "is_auto_download")
 }
 
 pub fn update_is_vlc_running(value: &str, username: &str) -> Result<()> {
-
-    let db_path = default_db_path();
-
-    let err_message = "Error connecting to the database.";
-
-    if let Ok(conn) = Connection::open(db_path) {
-
-        conn.execute(
-            "UPDATE users SET is_vlc_running = ?1 WHERE username = ?2",
-            params![value, username],
-        )?;
-    } else {
-        let mut stdout = stdout();
-        let _ = pop_message(&mut stdout, 3, err_message);
-        error!("[update_is_vlc_running] {err_message}");
-    }
-
-    Ok(())
+    update_user_text_column(value, username, "is_vlc_running", "update_is_vlc_running")
 }
 
-
 pub fn get_is_vlc_running(username: &str) -> String {
-    let db_path = default_db_path();
-
-    let conn = match Connection::open(db_path) {
-        Ok(c) => c,
-        Err(_) => return String::from("Error: unable open database"),
-    };
-
-    let mut stmt = match conn.prepare("SELECT is_vlc_running FROM users WHERE username = ?1") {
-        Ok(s) => s,
-        Err(_) => return String::from("Error to prepare reqwest"),
-    };
-
-    match stmt.query_row(params![username], |row| row.get::<_, String>(0)) {
-        Ok(id) => id.clone(),
-        Err(_) => String::from("No db found"),
-    }
+    get_user_text_column(username, "is_vlc_running")
 }
 
 pub fn update_speed_rate(username: &str, is_speed_rate_up: bool) -> Result<()> {

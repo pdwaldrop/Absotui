@@ -69,26 +69,12 @@ fn install_script(action: Action) -> String {
     )
 }
 
-// Previously pre-validated sudo (`sudo -k -v`) on its own pty/process before spawning the
-// script, then raced a periodic `sudo -n -v` "keepalive" alongside it to stop that
-// credential expiring before the script's own `sudo` calls got to it - meant to fix a
-// real double-fingerprint-prompt report. It didn't: `spawn_borrowed` makes *every* process
-// it spawns call `setsid()` + claim the pty as its controlling terminal (necessary so a
-// second command can reuse a pty after the first one's fully exited), but the keepalive
-// called it *while the script's own session was still alive* on that same pty - a live
-// session's controlling terminal can't be silently stolen out from under it, so every
-// keepalive spawn failed, and `if let Ok(...)` swallowed that failure silently. It was a
-// no-op from the day it shipped - confirmed by reading `spawn_borrowed`'s own
-// implementation, not by reproducing the prompt live (no fingerprint reader here, and
-// entering a real sudo password is off-limits regardless).
-//
-// Simplest fix, not a patch: don't pre-validate at all. Just run the script; its own
-// first internal `sudo` call (early - see hello_absotui.sh's `dl_handle_compressed_binary`)
-// naturally triggers the same `NeedPassword` prompt via `negotiate` below, exactly once,
-// with nothing else ever competing for that pty's controlling terminal. This also fixes
-// macOS's previously-accepted "known limitation" (it used to open a *second*, separately-
-// ticketed pty for the script phase - two ptys means two tickets means a real second
-// prompt was always possible there, not just theoretical).
+// No separate sudo pre-validation/keepalive here on purpose (a prior version had one,
+// and it was a silent no-op: `spawn_borrowed` makes every process it spawns claim the
+// pty as its controlling terminal, which fails while the script's own session already
+// holds it). Just run the script - its own first internal `sudo` call triggers the
+// same `NeedPassword` prompt via `negotiate` below, with nothing competing for the pty.
+// Also fixes macOS, which used to need a second, separately-ticketed pty for this.
 async fn run_update_or_uninstall(
     action: Action,
     password_rx: &mut UnboundedReceiver<String>,
@@ -150,12 +136,11 @@ async fn finish_script(
     }
 }
 
-// Read/prompt/answer loop for the script phase above. Loops rather than asking once:
-// covers sudo retrying after a wrong password the same way a real terminal would. Also
-// reports whether a password/fingerprint prompt was ever actually shown - the child here
-// is the whole install script, not a bare `sudo`, so a non-zero exit is ambiguous between
-// "auth genuinely failed" and "the script failed for an unrelated reason" (both exit 1 -
-// see hello_absotui.sh's own EXIT_FAIL); the caller needs this flag to tell them apart.
+// Read/prompt/answer loop for the script phase above - loops rather than asking once,
+// to cover sudo retrying after a wrong password. Also reports whether the failure looks
+// like an auth failure: a prompt alone isn't enough, since a correctly-answered one sets
+// it too, so `progressed_since_prompt` requires no further script output afterward
+// before treating a non-zero exit as auth-related rather than an unrelated failure.
 async fn negotiate(
     pty: &mut pty_process::Pty,
     child: &mut tokio::process::Child,
@@ -167,12 +152,13 @@ async fn negotiate(
     let mut partial = String::new();
     let mut buf = [0u8; 1024];
     let mut saw_prompt = false;
+    let mut progressed_since_prompt = false;
 
     loop {
         // Only wraps the machine-paced waiting below - once we're actually waiting on
         // the user to type something, there's no clock running (see the
         // `password_rx.recv()` branch further down), so a slow typist can't get cut off.
-        match timeout(chunk_timeout, read_until_idle_or_eof(pty, child, &mut buf, &mut partial, tx)).await {
+        match timeout(chunk_timeout, read_until_idle_or_eof(pty, child, &mut buf, &mut partial, tx, &mut progressed_since_prompt)).await {
             Err(_) => {
                 let _ = child.start_kill();
                 return Err(format!("Timed out {phase}"));
@@ -185,14 +171,15 @@ async fn negotiate(
                 return child
                     .wait()
                     .await
-                    .map(|status| (status, saw_prompt))
+                    .map(|status| (status, saw_prompt && !progressed_since_prompt))
                     .map_err(|e| format!("sudo process error: {e}"));
             }
             Ok(Ok(ReadOutcome::ChildExited(status))) => {
-                return Ok((status, saw_prompt));
+                return Ok((status, saw_prompt && !progressed_since_prompt));
             }
             Ok(Ok(ReadOutcome::Prompt)) => {
                 saw_prompt = true;
+                progressed_since_prompt = false;
                 let _ = tx.send(ProgressEvent::NeedPassword);
                 match password_rx.recv().await {
                     Some(password) => {
@@ -252,6 +239,7 @@ async fn read_until_idle_or_eof(
     buf: &mut [u8],
     partial: &mut String,
     tx: &UnboundedSender<ProgressEvent>,
+    progressed_since_prompt: &mut bool,
 ) -> std::io::Result<ReadOutcome> {
     loop {
         tokio::select! {
@@ -268,6 +256,7 @@ async fn read_until_idle_or_eof(
                             let line: String = partial.drain(..=pos).collect();
                             let line = line.trim_end_matches(['\r', '\n']);
                             if !line.trim().is_empty() {
+                                *progressed_since_prompt = true;
                                 let _ = tx.send(ProgressEvent::Line(line.to_string()));
                             }
                         }

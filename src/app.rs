@@ -1,6 +1,6 @@
 use crate::api::utils::collect_personalized_view::{collect_titles_cnt_list, collect_auth_names_cnt_list, collect_pub_year_cnt_list, collect_duration_cnt_list, collect_size_cnt_list, collect_desc_cnt_list, collect_ids_cnt_list};
 use crate::api::utils::collect_personalized_view_pod::{collect_ids_pod_cnt_list, collect_titles_cnt_list_pod, collect_ids_ep_pod_cnt_list, collect_subtitles_pod_cnt_list, collect_nums_ep_pod_cnt_list, collect_seasons_pod_cnt_list, collect_authors_pod_cnt_list, collect_descs_pod_cnt_list, collect_titles_pod_cnt_list, collect_durations_pod_cnt_list, collect_progress_pod_cnt_list, collect_published_at_pod_cnt_list, collect_embedded_cover_ino_pod_cnt_list};
-use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library, collect_series_name_library, collect_series_sequence_library};
+use crate::api::utils::collect_get_all_books::{collect_titles_library, collect_ids_library, collect_auth_names_library, collect_auth_names_library_pod, collect_published_year_library, collect_desc_library, collect_duration_library, collect_series_library};
 use crate::api::utils::collect_get_all_collections::{collect_collection_names, collect_collection_book_indices};
 use crate::api::utils::collect_get_listening_stats::{collect_stats_summary, StatsSummary};
 use crate::api::utils::collect_get_pod_ep::{collect_titles_pod_ep, collect_ids_pod_ep, collect_subtitles_pod_ep, collect_seasons_pod_ep, collect_episodes_pod_ep, collect_authors_pod_ep, collect_descs_pod_ep, collect_titles_pod, collect_durations_pod_ep};
@@ -843,8 +843,7 @@ impl App {
     let collection_names = collect_collection_names(&all_collections).await;
     let collection_book_indices = collect_collection_book_indices(&all_collections, &ids_library).await;
     let active_collection: Option<usize> = None;
-    let series_name_library = collect_series_name_library(&all_books).await;
-    let series_sequence_library = collect_series_sequence_library(&all_books).await;
+    let (series_name_library, series_sequence_library) = collect_series_library(&all_books).await;
     let is_library_grouped_by_series = false;
 
     let ids_search_book: Vec<String> = Vec::new();
@@ -2197,6 +2196,14 @@ fn toggle_view(&mut self) {
         AppView::Keymap => AppView::Home,
 
     };
+
+    // Stats reuses `scroll_offset` for its own whole-page scroll (see render_stats),
+    // the same field Description-panel scrolling (J/K/H) uses elsewhere - without this,
+    // arriving here with a leftover Description scroll position renders Stats already
+    // scrolled down for no visible reason. Same reset `?`/Keymap already does on entry.
+    if self.view_state == AppView::Stats {
+        self.scroll_offset = 0;
+    }
 }
 
 /// Flattens the Continue Listening list into individual rows, splicing indented chapter
@@ -2280,8 +2287,15 @@ fn group_library_rows(indices: Vec<usize>, series_names: &[Option<String>], seri
 /// or nothing selected. Shared by rendering (Info/Description panels) and the Enter
 /// dispatch, so both agree on which row a given selection actually means.
 pub fn selected_library_book_index(&self) -> Option<usize> {
-    let selected = self.list_state_library.selected()?;
-    match self.build_library_rows().get(selected)? {
+    Self::resolve_library_book_index(self.list_state_library.selected(), &self.build_library_rows())
+}
+
+/// Same resolution as `selected_library_book_index`, but against already-computed
+/// rows - `render_library` already has to build them for display, and series
+/// grouping's grouping+sort pass isn't cheap enough to redo a second time per frame
+/// just to resolve the selection too.
+pub fn resolve_library_book_index(selected: Option<usize>, rows: &[LibraryRow]) -> Option<usize> {
+    match rows.get(selected?)? {
         LibraryRow::Book(i) => Some(*i),
         LibraryRow::SeriesHeader(_) => None,
     }

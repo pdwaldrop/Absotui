@@ -44,22 +44,11 @@ pub async fn start_vlc(
 
     let speed_rate = resolve_speed_rate(username.as_str(), id_item.as_str());
 
-    // When a book has been downloaded for offline playback (see
-    // src/utils/download_cache.rs), point VLC straight at the local file instead of
-    // streaming from the server - works whether or not the server is actually
-    // reachable right now.
-    //
-    // Otherwise, streams from the session-scoped `/public/session/:id/track/:index`
-    // endpoint rather than the raw `/api/items/:id/file/:ino` one with the user's own
-    // access token tacked on as `?token=...` (the previous approach) - flagged by an
-    // Audiobookshelf contributor (see known_bugs.md/issue #6) as the older, less secure
-    // pattern: that token ends up in VLC's own history, this process's argv, and any
-    // server-side access log, all for a credential that's otherwise never exposed
-    // outside an Authorization header. Confirmed against the server's own source
-    // (server/routers/PublicRouter.js -> SessionController.getTrack): this route needs
-    // no token at all, only a live, currently-open session id - which is exactly what
-    // `id_session` already is - so nothing has to be transmitted here at all. This is
-    // also what the official web client does (client/players/AudioTrack.js).
+    // Downloaded books play straight from the local file (src/utils/download_cache.rs)
+    // regardless of server reachability. Otherwise streams from the session-scoped
+    // `/public/session/:id/track/:index` endpoint, which needs no token at all (unlike
+    // the old `?token=...` approach - see known_bugs.md bug_id b81f4a) - confirmed
+    // against the server's own source that a live session id is all it checks.
     let source = local_file_path.unwrap_or_else(|| format!("{server_address}/public/session/{id_session}/track/{track_index}"));
 
     // Own copies of the borrowed params so the blocking closure below can be
