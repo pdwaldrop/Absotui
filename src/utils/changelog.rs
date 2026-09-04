@@ -1095,8 +1095,7 @@ let changelog_66 = "Changelog Absotui v0.8.0 (03/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_67 = format!(
-    "Changelog Absotui v{VERSION} (04/09/2026) \n\
+let changelog_67 = "Changelog Absotui v0.8.1 (04/09/2026) \n\
          \n\
          New:\n\
          - Refreshed the app icon with a new vector rework.
@@ -1119,10 +1118,24 @@ let changelog_67 = format!(
            do noticeably less repeated work now.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_68 = format!(
+    "Changelog Absotui v{VERSION} (04/09/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install/update script didn't recognize Solus at all, and
+           on any other unlisted Linux distro it aborted the whole
+           install instead of just skipping what it couldn't
+           auto-install - both now work: Solus gets real support, and
+           an unlisted distro degrades to \"install this yourself\"
+           instead of refusing to install Absotui at all.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_68);
     changelog.push_str(&changelog_67);
     changelog.push_str(&changelog_66);
     changelog.push_str(&changelog_65);
