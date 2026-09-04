@@ -5,7 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-informational)
 
 <h1 align="center">
-  <img src="linux/absotui.svg" width="50" valign="middle" alt="Absotui icon"> Absotui
+  <img src="linux/absotui.svg" width="70" valign="middle" alt="Absotui icon"> Absotui
 </h1>
 <p align="center"><strong>Your whole audiobook and podcast library, at the speed of the keyboard.</strong></p>
 
