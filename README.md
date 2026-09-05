@@ -43,10 +43,10 @@
 - **Stream or take it offline:** download (<kbd>d</kbd>) any book or episode for offline listening, with a downloaded copy preferred automatically the moment you have one — Auto Download can keep your active listens ready without you thinking about it
 - **Real cover art, right in your terminal:** book and episode artwork rendered inline (Kitty/Sixel/iTerm2 terminals), not just text
 - **Chapter-level navigation:** browse a book's full chapter list inline in Continue Listening, with live per-chapter progress
-- **Feels like a real desktop app:** its own icon, a taskbar/dock icon on supported terminals, and a window title that shows what's playing
+- **Desktop integration:** a custom app icon, a taskbar/dock icon on supported terminals, and a window title showing what's playing
 - **Matches your terminal, automatically:** no theme file to maintain — the whole UI just uses whatever color scheme your terminal is already set to
-- **Updates itself:** Settings > Update / Uninstall runs the whole install flow for you — live progress, fingerprint-or-password auth, and a relaunch on success
-- **Plays at your speed:** per-item playback speed (Settings > Per-Item Speed) so different books and podcasts can each remember their own pace
+- **In-app updates:** Settings > Update / Uninstall runs the whole install flow — live progress, fingerprint-or-password auth, and a relaunch on success
+- **Per-item playback speed:** optionally (Settings > Per-Item Speed) save a separate speed for each book or podcast instead of sharing one across everything
 - **Rock-solid sync:** accurate progress bars even at non-1x speed, a live now-playing marker, and a graceful retry screen instead of the app just closing if your server's briefly unreachable
 
 ---
