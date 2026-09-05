@@ -1131,8 +1131,7 @@ let changelog_68 = "Changelog Absotui v0.8.2 (04/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_69 = format!(
-    "Changelog Absotui v{VERSION} (04/09/2026) \n\
+let changelog_69 = "Changelog Absotui v0.8.3 (04/09/2026) \n\
          \n\
          Changed:\n\
          - Another app icon refresh - a new mascot rework, sized to fill
@@ -1140,10 +1139,24 @@ let changelog_69 = format!(
            sizes (taskbar, favicon).
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_70 = format!(
+    "Changelog Absotui v{VERSION} (05/09/2026) \n\
+         \n\
+         Fixed:\n\
+         - The install script could wrongly claim Absotui was \"already
+           installed\" (blocking a clean install behind an extra
+           confirmation) whenever a leftover config directory existed
+           with no binary actually in place - most likely to happen
+           after an earlier failed/partial install. It now checks for
+           the actual binary only.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_70);
     changelog.push_str(&changelog_69);
     changelog.push_str(&changelog_68);
     changelog.push_str(&changelog_67);

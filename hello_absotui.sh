@@ -432,22 +432,18 @@ source_cargo_env() {
 }
 
 check_absotui_installed() {
+    # Only the binary's own location counts as "installed" - this used to also
+    # treat the config directory (~/.config/absotui, XDG_CONFIG_HOME/absotui, or
+    # ~/Library/Preferences/absotui on macOS) as evidence of an install, which
+    # falsely reported "already installed" for anyone whose config dir survived
+    # an earlier failed/partial install (confirmed live: a Solus user hit exactly
+    # this from the pre-eopkg-support install attempt leaving ~/.config/absotui
+    # behind with no binary ever placed) - the config directory existing says
+    # nothing about whether the binary actually got installed.
     is_installed="false"
-
-    if [[ "$OS" == "linux" ]]; then
-        if [[ -n "$XDG_CONFIG_HOME" && ( -e "$XDG_CONFIG_HOME/absotui" || -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ) ]]; then
-            is_installed="true"
-        elif [[ -e "$HOME/.config/absotui" || -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ]]; then
-            is_installed="true"
-        fi
-    elif [[ "$OS" == "macOS" ]]; then
-        if [[ -n "$XDG_CONFIG_HOME" && ( -e "$XDG_CONFIG_HOME/absotui" || -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ) ]]; then
-            is_installed="true"
-        elif [[ -e "$HOME/Library/Preferences/absotui" || -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ]]; then
-            is_installed="true"
-        fi
+    if [[ -e "$HOME/.cargo/bin/absotui" || -e "/usr/local/bin/absotui" ]]; then
+        is_installed="true"
     fi
-
 }
 
 confirm_force_install_update() {
