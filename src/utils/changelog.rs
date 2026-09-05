@@ -1119,8 +1119,7 @@ let changelog_67 = "Changelog Absotui v0.8.1 (04/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_68 = format!(
-    "Changelog Absotui v{VERSION} (04/09/2026) \n\
+let changelog_68 = "Changelog Absotui v0.8.2 (04/09/2026) \n\
          \n\
          Fixed:\n\
          - The install/update script didn't recognize Solus at all, and
@@ -1131,10 +1130,21 @@ let changelog_68 = format!(
            instead of refusing to install Absotui at all.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_69 = format!(
+    "Changelog Absotui v{VERSION} (04/09/2026) \n\
+         \n\
+         Changed:\n\
+         - Another app icon refresh - a new mascot rework, sized to fill
+           its full 512x512 canvas so it stays legible even at small
+           sizes (taskbar, favicon).
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_69);
     changelog.push_str(&changelog_68);
     changelog.push_str(&changelog_67);
     changelog.push_str(&changelog_66);
