@@ -1140,8 +1140,7 @@ let changelog_69 = "Changelog Absotui v0.8.3 (04/09/2026) \n\
          \n\
          Enjoy!\n
          ####\n".to_string();
-let changelog_70 = format!(
-    "Changelog Absotui v{VERSION} (05/09/2026) \n\
+let changelog_70 = "Changelog Absotui v0.8.4 (05/09/2026) \n\
          \n\
          Fixed:\n\
          - The install script could wrongly claim Absotui was \"already
@@ -1161,10 +1160,23 @@ let changelog_70 = format!(
            step that actually needs it.
          \n\
          Enjoy!\n
+         ####\n".to_string();
+let changelog_71 = format!(
+    "Changelog Absotui v{VERSION} (05/09/2026) \n\
+         \n\
+         Fixed:\n\
+         - The app menu launcher could fail with \"Requested executable
+           not found\" even right after a successful install (confirmed
+           live on Solus) - it relied on absotui being on PATH, but a
+           desktop menu's PATH doesn't necessarily match a terminal's.
+           The launcher now points straight at the installed binary.
+         \n\
+         Enjoy!\n
          ####\n"
 );
 
 
+    changelog.push_str(&changelog_71);
     changelog.push_str(&changelog_70);
     changelog.push_str(&changelog_69);
     changelog.push_str(&changelog_68);

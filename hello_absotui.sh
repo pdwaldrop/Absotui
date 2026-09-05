@@ -840,6 +840,23 @@ dl_handle_compressed_binary() {
     rm -rf "$tmpdir"
 }
 
+# A .desktop launcher's Exec= runs outside any login shell, so it never sees
+# PATH entries added by .bashrc/.profile - only whatever the desktop session
+# itself starts with. Confirmed live on Solus: the session PATH there lacks
+# /usr/local/bin, so a bare `Exec=absotui` fails with "Requested executable
+# not found" from the menu even though `absotui` works fine typed into a
+# terminal. Resolve the actual install location once and bake that absolute
+# path into Exec= instead of trusting PATH.
+resolve_absotui_bin() {
+    if [[ -e "/usr/local/bin/absotui" ]]; then
+        absotui_bin="/usr/local/bin/absotui"
+    elif [[ -e "$HOME/.cargo/bin/absotui" ]]; then
+        absotui_bin="$HOME/.cargo/bin/absotui"
+    else
+        absotui_bin="absotui"
+    fi
+}
+
 # Absotui is a TUI: it has no window of its own, so on Wayland the taskbar/dock
 # icon for the *running* window is whatever terminal hosts it (the .desktop
 # Icon= line only controls the launcher/pinned-icon, which is why that part
@@ -860,14 +877,14 @@ detect_terminal_launcher() {
     term_program_lower=$(echo "${TERM_PROGRAM:-}" | tr '[:upper:]' '[:lower:]')
 
     case "$term_program_lower" in
-        ghostty) absotui_term_exec="ghostty --class=$absotui_term_wm_class -e absotui"; return;;
-        wezterm) absotui_term_exec="wezterm start --class=$absotui_term_wm_class -- absotui"; return;;
+        ghostty) absotui_term_exec="ghostty --class=$absotui_term_wm_class -e $absotui_bin"; return;;
+        wezterm) absotui_term_exec="wezterm start --class=$absotui_term_wm_class -- $absotui_bin"; return;;
     esac
 
     case "$TERM" in
-        xterm-kitty) absotui_term_exec="kitty --class=$absotui_term_wm_class absotui";;
-        alacritty)   absotui_term_exec="alacritty --class=$absotui_term_wm_class -e absotui";;
-        foot)        absotui_term_exec="foot --app-id=$absotui_term_wm_class absotui";;
+        xterm-kitty) absotui_term_exec="kitty --class=$absotui_term_wm_class $absotui_bin";;
+        alacritty)   absotui_term_exec="alacritty --class=$absotui_term_wm_class -e $absotui_bin";;
+        foot)        absotui_term_exec="foot --app-id=$absotui_term_wm_class $absotui_bin";;
     esac
 }
 
@@ -876,6 +893,7 @@ setup_launcher() {
         local tmpdir
         tmpdir=$(make_tmp_dir)
 
+        resolve_absotui_bin
         detect_terminal_launcher
         if [[ -n "$absotui_term_exec" ]]; then
             echo "[INFO] Detected a supported terminal (${TERM_PROGRAM:-$TERM}) - giving absotui its own window class ($absotui_term_wm_class) so it gets its own icon instead of the terminal's."
@@ -893,12 +911,19 @@ EOF
         else
             curl -sSL "$url_absotui_desktop" -o "$tmpdir/absotui.desktop"
             check_shasum "$tmpdir/absotui.desktop" "absotui.desktop" "$(fetch_expected_checksum absotui.desktop)" "dir"
+            # Checksum verifies the download is untampered; only after that do we
+            # patch Exec= to the resolved absolute path (PATH isn't reliable here -
+            # see resolve_absotui_bin above).
+            sed -i "s|^Exec=absotui\$|Exec=$absotui_bin|" "$tmpdir/absotui.desktop"
         fi
         # ~/.local/share/... is the user's own - sudo here would plant a
         # root-owned file inside their home directory for no reason (the mkdir
         # right above is already unprivileged, so the copy should match).
         mkdir -p "$HOME/.local/share/applications"
         cp "$tmpdir/absotui.desktop" "$HOME/.local/share/applications/absotui.desktop"
+        if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+        fi
 
         curl -sSL "$url_absotui_icon" -o "$tmpdir/absotui.svg"
         check_shasum "$tmpdir/absotui.svg" "absotui.svg" "$(fetch_expected_checksum absotui.svg)" "dir"
