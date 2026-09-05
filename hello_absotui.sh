@@ -811,7 +811,9 @@ check_and_cleanup_binary_install() {
         sudo rm "/usr/local/bin/absotui"
     fi
     if [[ -e "$HOME/.cargo/bin/absotui" && -e "$temp_dir/absotui" ]]; then
-        sudo rm "$HOME/.cargo/bin/absotui"
+        # ~/.cargo/bin is always the user's own, never root-owned (cargo install
+        # itself never uses sudo) - this never needed root.
+        rm "$HOME/.cargo/bin/absotui"
     fi
 }
 
@@ -821,13 +823,19 @@ dl_handle_compressed_binary() {
     local tmpdir
     tmpdir=$(make_tmp_dir)
     echo "[INFO] Downloading the compressed binary from $final_url"
-    sudo curl -LsS "$final_url" -o "$tmpdir/$binary_name"
+    # Downloading/extracting into our own tmpdir (created by mktemp as this user)
+    # never needed root either - only the final copy to /usr/local/bin does.
+    curl -LsS "$final_url" -o "$tmpdir/$binary_name"
 
     check_shasum "$tmpdir/$binary_name" "$binary_name" "$(fetch_expected_checksum "$binary_name")" "dir"
 
-    sudo tar -xvzf "$tmpdir/$binary_name" -C "$tmpdir"
+    tar -xvzf "$tmpdir/$binary_name" -C "$tmpdir"
     check_and_cleanup_binary_install "$tmpdir"
     echo "[INFO] Copying the binary from temp directory to /usr/local/bin"
+    # /usr/local/bin isn't guaranteed to already exist (confirmed live: a fresh
+    # Solus VM didn't have it) - cp then fails trying to create a *file* named
+    # "/usr/local/bin" instead of copying into a directory by that name.
+    sudo mkdir -p "/usr/local/bin"
     sudo cp "$tmpdir/absotui" "/usr/local/bin"
     rm -rf "$tmpdir"
 }
@@ -886,13 +894,16 @@ EOF
             curl -sSL "$url_absotui_desktop" -o "$tmpdir/absotui.desktop"
             check_shasum "$tmpdir/absotui.desktop" "absotui.desktop" "$(fetch_expected_checksum absotui.desktop)" "dir"
         fi
+        # ~/.local/share/... is the user's own - sudo here would plant a
+        # root-owned file inside their home directory for no reason (the mkdir
+        # right above is already unprivileged, so the copy should match).
         mkdir -p "$HOME/.local/share/applications"
-        sudo cp "$tmpdir/absotui.desktop" "$HOME/.local/share/applications/absotui.desktop"
+        cp "$tmpdir/absotui.desktop" "$HOME/.local/share/applications/absotui.desktop"
 
         curl -sSL "$url_absotui_icon" -o "$tmpdir/absotui.svg"
         check_shasum "$tmpdir/absotui.svg" "absotui.svg" "$(fetch_expected_checksum absotui.svg)" "dir"
         mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps"
-        sudo cp "$tmpdir/absotui.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg"
+        cp "$tmpdir/absotui.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg"
         if command -v gtk-update-icon-cache >/dev/null 2>&1; then
             gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
         fi
@@ -1199,24 +1210,27 @@ uninstall_message() {
 uninstall_process() {
     if [[ "$OS" == "linux" ]]; then
 
-        # delete the config folder
+        # delete the config folder - install_config() creates this unprivileged
+        # (plain mkdir -p, no sudo), so removing it never needed root either.
         if [[ -n "$XDG_CONFIG_HOME" && -e "$XDG_CONFIG_HOME/absotui" ]]; then
-            sudo rm -r "$XDG_CONFIG_HOME/absotui"
+            rm -r "$XDG_CONFIG_HOME/absotui"
             echo "$XDG_CONFIG_HOME/absotui deleted."
         fi
 
         if [[ -e "$HOME/.config/absotui" ]]; then
-            sudo rm -r "$HOME/.config/absotui"
+            rm -r "$HOME/.config/absotui"
             echo "$HOME/.config/absotui deleted."
         fi
 
-        # delete absotui.desktopp
+        # delete absotui.desktopp - kept sudo'd: an install from before
+        # setup_launcher() stopped using `sudo cp` here may have left this
+        # root-owned, and an unprivileged rm would fail against that.
         if [[ -e "$HOME/.local/share/applications/absotui.desktop" ]] ; then
             sudo rm "$HOME/.local/share/applications/absotui.desktop"
             echo "$HOME/.local/share/applications/absotui.desktop deleted."
         fi
 
-        # delete absotui.svg
+        # delete absotui.svg - same reasoning as absotui.desktop above.
         if [[ -e "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg" ]] ; then
             sudo rm "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg"
             echo "$HOME/.local/share/icons/hicolor/scalable/apps/absotui.svg deleted."
@@ -1229,14 +1243,15 @@ uninstall_process() {
 
     if [[ "$OS" == "macOS" ]]; then
 
-        # delete the config folder
+        # delete the config folder - same reasoning as the Linux branch above,
+        # this was always created unprivileged.
         if [[ -n "$XDG_CONFIG_HOME" && -e "$XDG_CONFIG_HOME/absotui" ]]; then
-            sudo rm -r "$XDG_CONFIG_HOME/absotui"
+            rm -r "$XDG_CONFIG_HOME/absotui"
             echo "$XDG_CONFIG_HOME/absotui deleted."
         fi
 
         if [[ -e "$HOME/Library/Preferences/absotui" ]]; then
-            sudo rm -r "$HOME/Library/Preferences/absotui"
+            rm -r "$HOME/Library/Preferences/absotui"
             echo "$HOME/Library/Preferences/absotui deleted."
         fi
     fi
@@ -1248,7 +1263,8 @@ uninstall_process() {
         echo "/usr/local/bin/absotui deleted."
     fi
     if [[ -e "$HOME/.cargo/bin/absotui" ]]; then
-        sudo rm "$HOME/.cargo/bin/absotui"
+        # ~/.cargo/bin is always the user's own - see check_and_cleanup_binary_install.
+        rm "$HOME/.cargo/bin/absotui"
         echo "$HOME/.cargo/bin/absotui deleted."
     fi
 

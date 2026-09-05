@@ -1150,6 +1150,15 @@ let changelog_70 = format!(
            with no binary actually in place - most likely to happen
            after an earlier failed/partial install. It now checks for
            the actual binary only.
+         - Installing the binary failed outright on a system without a
+           pre-existing /usr/local/bin (confirmed live on a fresh Solus
+           VM) - the install script now creates it if missing instead
+           of assuming it's already there.
+         - The install script asked for your sudo password several
+           times during one install - most of those uses were on files
+           entirely inside your own home directory, which never needed
+           root in the first place. Down to one prompt, for the one
+           step that actually needs it.
          \n\
          Enjoy!\n
          ####\n"
